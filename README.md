@@ -62,13 +62,15 @@ target_link_libraries(myapp ${VIRGL_LIBRARIES})
 - **Shared library**: `libvirglrenderer.dylib`
 - **Headers**: virglrenderer API headers
 - **pkg-config file**: `virglrenderer.pc`
+- **Render server**: `virgl_render_server` (for Venus)
 
 ## Build Configuration
 
-This build is configured for macOS with ANGLE backend:
+This build is configured for macOS with ANGLE and MoltenVK backend:
 - **OpenGL ES support via ANGLE**: Uses [startergo/angle](https://github.com/startergo/homebrew-angle) for OpenGL ES on macOS
 - **EGL support**: Enabled through ANGLE
-- **Venus support**: Modern virtio-gpu Vulkan transport
+- **Venus support**: Modern virtio-gpu Vulkan transport via [MoltenVK](https://github.com/KhronosGroup/MoltenVK)
+- **DRM support**: Auto-detected (disabled on macOS without libdrm)
 - **Tests disabled** for faster builds
 - Builds against upstream virglrenderer HEAD
 
@@ -80,5 +82,6 @@ MIT
 
 - **[virglrenderer](https://gitlab.freedesktop.org/virgl/virglrenderer)**: Virtual 3D GPU renderer for QEMU guests
 - **[ANGLE](https://chromium.googlesource.com/angle/angle)**: OpenGL ES implementation for macOS (via [startergo/homebrew-angle](https://github.com/startergo/homebrew-angle))
+- **[MoltenVK](https://github.com/KhronosGroup/MoltenVK)**: Vulkan implementation for macOS (via Homebrew core)
 
-This tap builds against the latest upstream virglrenderer with macOS-specific patches to enable OpenGL ES support through ANGLE.
+This tap builds against the latest upstream virglrenderer with macOS-specific patches to enable OpenGL ES support through ANGLE and Vulkan support through MoltenVK.
