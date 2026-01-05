@@ -16,7 +16,6 @@ class Virglrenderer < Formula
 
   depends_on "startergo/angle/angle"
   depends_on "startergo/libepoxy/libepoxy"
-  depends_on "molten-vk"
   depends_on "meson" => :build
   depends_on "ninja" => :build
   depends_on "pkg-config" => :build
@@ -34,15 +33,13 @@ class Virglrenderer < Formula
     ohai "Applying Venus/macOS support patch..."
     system "patch", "-p1", "--batch", "--verbose", "-i", patch_file
 
-    # Get ANGLE, libepoxy, and Molten-VK paths
+    # Get ANGLE and libepoxy paths (ANGLE includes Vulkan headers)
     angle = Formula["startergo/angle/angle"]
     libepoxy = Formula["startergo/libepoxy/libepoxy"]
-    molten_vk = Formula["molten-vk"]
     angle_include = "#{angle.include}"
     angle_pc_path = "#{angle.lib}/pkgconfig"
     epoxy_pc_path = "#{libepoxy.lib}/pkgconfig"
-    molten_vk_pc_path = "#{molten_vk.lib}/pkgconfig"
-    combined_pc_path = "#{angle_pc_path}:#{epoxy_pc_path}:#{molten_vk_pc_path}"
+    combined_pc_path = "#{angle_pc_path}:#{epoxy_pc_path}"
 
     system "meson", "setup", "build",
            *std_meson_args,
