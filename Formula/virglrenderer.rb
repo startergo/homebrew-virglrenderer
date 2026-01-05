@@ -50,7 +50,7 @@ class Virglrenderer < Formula
            "--pkg-config-path=#{molten_vk_pc_path}",
            "-Dvenus=true",
            "-Dtests=false",
-           "-Dvideo=disabled",
+           "-Dvideo=false",
            "-Dtracing=none"
     system "meson", "compile", "-C", "build", "--verbose"
     system "meson", "install", "-C", "build"
