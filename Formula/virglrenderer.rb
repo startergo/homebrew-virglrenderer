@@ -55,7 +55,7 @@ class Virglrenderer < Formula
            "-Dc_args=-I#{angle_include} -I#{vulkan_include}",
            "-Dcpp_args=-I#{angle_include} -I#{vulkan_include}",
            "--pkg-config-path=#{combined_pc_path}",
-           "-Ddrm=disabled",
+           "-Ddrm-renderers=[]",
            "-Dvenus=true",
            "-Dtests=false",
            "-Dvideo=false",
