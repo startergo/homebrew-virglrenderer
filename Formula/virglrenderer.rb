@@ -29,6 +29,11 @@ class Virglrenderer < Formula
     system "curl", "-L", upstream_url, "-o", "virglrenderer.tar.gz"
     system "tar", "-xzf", "virglrenderer.tar.gz", "--strip-components=1"
 
+    # Apply macOS support patch
+    patch_file = "#{__dir__}/../patches/virglrenderer-main-macos.patch"
+    ohai "Applying Venus/macOS support patch..."
+    system "patch", "-p1", "--batch", "--verbose", "-i", patch_file
+
     # Get ANGLE and libepoxy include paths
     angle = Formula["startergo/angle/angle"]
     libepoxy = Formula["startergo/libepoxy/libepoxy"]
@@ -40,8 +45,6 @@ class Virglrenderer < Formula
            "-Dc_args=-I#{angle_include}",
            "-Dcpp_args=-I#{angle_include}",
            "--pkg-config-path=#{epoxy_pc_path}",
-           "-Dplatforms=egl",
-           "-Ddrm=auto",
            "-Dvenus=enabled",
            "-Dtests=false",
            "-Dvideo=disabled",
