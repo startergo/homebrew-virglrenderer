@@ -48,7 +48,7 @@ class Virglrenderer < Formula
            "-Dcpp_args=-I#{angle_include}",
            "--pkg-config-path=#{epoxy_pc_path}",
            "--pkg-config-path=#{molten_vk_pc_path}",
-           "-Ddrm=false",
+           "-Ddrm=disabled",
            "-Dvenus=true",
            "-Dtests=false",
            "-Dvideo=false",
