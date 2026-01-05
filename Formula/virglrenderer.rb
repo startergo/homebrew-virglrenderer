@@ -41,13 +41,13 @@ class Virglrenderer < Formula
     angle_include = "#{angle.include}"
     epoxy_pc_path = "#{libepoxy.lib}/pkgconfig"
     molten_vk_pc_path = "#{molten_vk.lib}/pkgconfig"
+    combined_pc_path = "#{epoxy_pc_path}:#{molten_vk_pc_path}"
 
     system "meson", "setup", "build",
            *std_meson_args,
            "-Dc_args=-I#{angle_include}",
            "-Dcpp_args=-I#{angle_include}",
-           "--pkg-config-path=#{epoxy_pc_path}",
-           "--pkg-config-path=#{molten_vk_pc_path}",
+           "--pkg-config-path=#{combined_pc_path}",
            "-Ddrm=disabled",
            "-Dvenus=true",
            "-Dtests=false",
