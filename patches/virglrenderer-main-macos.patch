@@ -1,5 +1,5 @@
---- a/meson.build	2026-01-01 08:05:29
-+++ b/meson.build	2026-01-05 18:04:19
+--- virglrenderer-main/meson.build	2026-01-01 08:05:29
++++ virglrenderer-clean/meson.build	2026-01-05 18:12:12
 @@ -276,6 +276,15 @@
  
  have_egl = false
@@ -43,18 +43,15 @@
     venus_dep = []
     if get_option('vulkan-dload')
        conf_data.set('ENABLE_VULKAN_DLOAD', 1)
-@@ -350,6 +359,10 @@
+@@ -350,6 +359,7 @@
     endif
  
     conf_data.set('ENABLE_VENUS', 1)
 +
-+      conf_data.set('ENABLE_VENUS_VALIDATE', 1)
-+   endif
-+
     conf_data.set('ENABLE_RENDER_SERVER', 1)
     conf_data.set('RENDER_SERVER_EXEC_PATH',
                   '"' + render_server_install_dir / 'virgl_render_server' + '"')
-@@ -434,10 +447,11 @@
+@@ -434,10 +444,11 @@
          'egl': have_egl,
          'glx': have_glx,
          'gbm': gbm_dep.found(),
@@ -68,8 +65,8 @@
          'render server worker': with_render_server ? with_render_server_worker : 'none',
          'video': with_video,
          'tests': with_tests,
---- a/src/virglrenderer.c	2026-01-01 08:05:29
-+++ b/src/virglrenderer.c	2025-12-12 12:05:51
+--- virglrenderer-main/src/virglrenderer.c	2026-01-01 08:05:29
++++ virglrenderer-clean/src/virglrenderer.c	2025-12-12 12:05:51
 @@ -178,11 +178,37 @@
  void virgl_renderer_fill_caps(uint32_t set, uint32_t version,
                                void *caps)
@@ -273,8 +270,8 @@
        ret = vrend_renderer_resource_unmap(res->pipe_resource);
     } else {
        switch (res->fd_type) {
---- a/src/virglrenderer.h	2026-01-01 08:05:29
-+++ b/src/virglrenderer.h	2025-12-11 15:44:12
+--- virglrenderer-main/src/virglrenderer.h	2026-01-01 08:05:29
++++ virglrenderer-clean/src/virglrenderer.h	2025-12-11 15:44:12
 @@ -380,6 +380,9 @@
  VIRGL_EXPORT int virgl_renderer_resource_get_info_ext(int res_handle,
                                                        struct virgl_renderer_resource_info_ext *info);
@@ -304,8 +301,8 @@
  /*
   * These are unstable APIs for development only. Use these for development/testing purposes
   * only, not in production
---- a/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.c	2025-12-14 22:38:55
+--- virglrenderer-main/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
++++ virglrenderer-clean/src/vrend/vrend_renderer.c	2025-12-14 22:38:55
 @@ -28,6 +28,7 @@
  #include <unistd.h>
  #include <stdatomic.h>
@@ -1623,8 +1620,8 @@
 -   return EINVAL;
 -}
 -#endif
---- a/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.h	2025-12-11 18:21:00
+--- virglrenderer-main/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
++++ virglrenderer-clean/src/vrend/vrend_renderer.h	2025-12-11 18:21:00
 @@ -197,7 +197,6 @@
  #define VREND_D3D11_SHARE_TEXTURE (1 << 4)
  #define VREND_USE_COMPAT_CONTEXT (1 << 5)
@@ -1660,8 +1657,8 @@
 -                                        uint32_t out_res_id, uint32_t res_id);
  
  #endif
---- a/src/vrend/vrend_shader.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_shader.c	2025-12-11 22:13:03
+--- virglrenderer-main/src/vrend/vrend_shader.c	2026-01-01 08:05:29
++++ virglrenderer-clean/src/vrend/vrend_shader.c	2025-12-11 22:13:03
 @@ -6301,10 +6301,12 @@
  
        if (ctx->prog_type == TGSI_PROCESSOR_VERTEX && ctx->cfg->use_explicit_locations)
@@ -1687,8 +1684,8 @@
  
     if (ctx.shader_req_bits & SHADER_REQ_FP64)
        ctx.glsl_ver_required = require_glsl_ver(&ctx, 150);
---- a/src/vrend/vrend_blitter.h	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_blitter.h	2025-12-11 15:44:12
+--- virglrenderer-main/src/vrend/vrend_blitter.h	2026-01-01 08:05:29
++++ virglrenderer-clean/src/vrend/vrend_blitter.h	2025-12-11 15:44:12
 @@ -35,6 +35,12 @@
     "%s"                                         \
  
@@ -1732,8 +1729,8 @@
  #define FS_TEXFETCH_DS_MSAA_ARRAY_GLES HEADER_GLES_MS_ARRAY FS_TEXFETCH_DS_MSAA_BODY_GLES
  
  /* implement blitting using OpenGL. */
---- a/src/vrend/vrend_decode.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_decode.c	2025-12-11 18:32:34
+--- virglrenderer-main/src/vrend/vrend_decode.c	2026-01-01 08:05:29
++++ virglrenderer-clean/src/vrend/vrend_decode.c	2025-12-11 18:32:34
 @@ -886,6 +886,17 @@
        break;
     default:
@@ -1804,8 +1801,8 @@
        if (ret) {
           virgl_error("context %d failed to dispatch %s: %d\n",
                 gdctx->base.ctx_id, vrend_get_comand_name(cmd), ret);
---- a/src/vrend/vrend_formats.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_formats.c	2025-12-14 00:38:26
+--- virglrenderer-main/src/vrend/vrend_formats.c	2026-01-01 08:05:29
++++ virglrenderer-clean/src/vrend/vrend_formats.c	2025-12-14 00:38:26
 @@ -716,48 +716,183 @@
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
