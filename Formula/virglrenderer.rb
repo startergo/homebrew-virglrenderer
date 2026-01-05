@@ -30,16 +30,11 @@ class Virglrenderer < Formula
 
     # Download and extract LunarG Vulkan SDK
     vulkan_sdk_version = "1.4.335.1"
-    vulkan_sdk_url = "https://sdk.lunarg.com/sdk/download/#{vulkan_sdk_version}/mac/vulkan-sdk.dmg"
+    vulkan_sdk_url = "https://sdk.lunarg.com/sdk/download/#{vulkan_sdk_version}/mac/vulkansdk-macos-#{vulkan_sdk_version}.zip"
     ohai "Downloading LunarG Vulkan SDK #{vulkan_sdk_version}..."
-    system "curl", "-L", vulkan_sdk_url, "-o", "vulkan-sdk.dmg"
-
-    # Extract Vulkan SDK from DMG (for build-time use only)
-    system "hdiutil", "attach", "-readonly", "-nobrowse", "-mountpoint", "/tmp/vulkan-sdk-mount", "vulkan-sdk.dmg"
-    vulkan_sdk_app = Dir["/tmp/vulkan-sdk-mount/*.app"].first
-    system "tar", "-xzf", "#{vulkan_sdk_app}/Contents/vulkan-sdk.tar.gz", "-C", "."
-    system "hdiutil", "detach", "/tmp/vulkan-sdk-mount"
-    vulkan_sdk_dir = Dir["vulkan-sdk/*"].first
+    system "curl", "-L", vulkan_sdk_url, "-o", "vulkan-sdk.zip"
+    system "unzip", "-q", "vulkan-sdk.zip"
+    vulkan_sdk_dir = "vulkansdk-macos-#{vulkan_sdk_version}"
     ENV["VULKAN_SDK"] = File.expand_path(vulkan_sdk_dir)
 
     # Apply macOS support patch
