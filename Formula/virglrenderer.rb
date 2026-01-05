@@ -28,23 +28,39 @@ class Virglrenderer < Formula
     system "curl", "-L", upstream_url, "-o", "virglrenderer.tar.gz"
     system "tar", "-xzf", "virglrenderer.tar.gz", "--strip-components=1"
 
+    # Download and extract LunarG Vulkan SDK
+    vulkan_sdk_version = "1.4.335.1"
+    vulkan_sdk_url = "https://sdk.lunarg.com/sdk/download/#{vulkan_sdk_version}/mac/vulkan-sdk.dmg"
+    ohai "Downloading LunarG Vulkan SDK #{vulkan_sdk_version}..."
+    system "curl", "-L", vulkan_sdk_url, "-o", "vulkan-sdk.dmg"
+
+    # Extract Vulkan SDK from DMG (for build-time use only)
+    system "hdiutil", "attach", "-readonly", "-nobrowse", "-mountpoint", "/tmp/vulkan-sdk-mount", "vulkan-sdk.dmg"
+    vulkan_sdk_app = Dir["/tmp/vulkan-sdk-mount/*.app"].first
+    system "tar", "-xzf", "#{vulkan_sdk_app}/Contents/vulkan-sdk.tar.gz", "-C", "."
+    system "hdiutil", "detach", "/tmp/vulkan-sdk-mount"
+    vulkan_sdk_dir = Dir["vulkan-sdk/*"].first
+    ENV["VULKAN_SDK"] = File.expand_path(vulkan_sdk_dir)
+
     # Apply macOS support patch
     patch_file = "#{__dir__}/../patches/virglrenderer-main-macos.patch"
     ohai "Applying Venus/macOS support patch..."
     system "patch", "-p1", "--batch", "--verbose", "-i", patch_file
 
-    # Get ANGLE and libepoxy paths (ANGLE includes Vulkan headers)
+    # Get ANGLE, libepoxy, and Vulkan SDK paths
     angle = Formula["startergo/angle/angle"]
     libepoxy = Formula["startergo/libepoxy/libepoxy"]
     angle_include = "#{angle.include}"
     angle_pc_path = "#{angle.lib}/pkgconfig"
     epoxy_pc_path = "#{libepoxy.lib}/pkgconfig"
-    combined_pc_path = "#{angle_pc_path}:#{epoxy_pc_path}"
+    vulkan_pc_path = "#{vulkan_sdk_dir}/macOS/lib/pkgconfig"
+    vulkan_include = "#{vulkan_sdk_dir}/macOS/include"
+    combined_pc_path = "#{angle_pc_path}:#{epoxy_pc_path}:#{vulkan_pc_path}"
 
     system "meson", "setup", "build",
            *std_meson_args,
-           "-Dc_args=-I#{angle_include}",
-           "-Dcpp_args=-I#{angle_include}",
+           "-Dc_args=-I#{angle_include} -I#{vulkan_include}",
+           "-Dcpp_args=-I#{angle_include} -I#{vulkan_include}",
            "--pkg-config-path=#{combined_pc_path}",
            "-Ddrm=disabled",
            "-Dvenus=true",
