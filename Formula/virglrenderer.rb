@@ -34,18 +34,21 @@ class Virglrenderer < Formula
     ohai "Applying Venus/macOS support patch..."
     system "patch", "-p1", "--batch", "--verbose", "-i", patch_file
 
-    # Get ANGLE and libepoxy include paths
+    # Get ANGLE, libepoxy, and Molten-VK paths
     angle = Formula["startergo/angle/angle"]
     libepoxy = Formula["startergo/libepoxy/libepoxy"]
+    molten_vk = Formula["molten-vk"]
     angle_include = "#{angle.include}"
     epoxy_pc_path = "#{libepoxy.lib}/pkgconfig"
+    molten_vk_pc_path = "#{molten_vk.lib}/pkgconfig"
 
     system "meson", "setup", "build",
            *std_meson_args,
            "-Dc_args=-I#{angle_include}",
            "-Dcpp_args=-I#{angle_include}",
            "--pkg-config-path=#{epoxy_pc_path}",
-           "-Dvenus=enabled",
+           "--pkg-config-path=#{molten_vk_pc_path}",
+           "-Dvenus=true",
            "-Dtests=false",
            "-Dvideo=disabled",
            "-Dtracing=none"
