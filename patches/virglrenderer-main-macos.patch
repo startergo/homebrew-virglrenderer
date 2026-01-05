@@ -1,5 +1,5 @@
---- /tmp/virglrenderer-upstream/meson.build	2023-06-29 20:46:58
-+++ /tmp/virglrenderer-patched/meson.build	2025-12-11 15:17:20
+--- a/meson.build	2023-06-29 20:46:58
++++ b/meson.build	2025-12-11 15:17:20
 @@ -23,7 +23,7 @@
  
  project(
@@ -304,8 +304,8 @@
          'tracing': with_tracing,
 +        'unstable-apis': with_unstable_apis,
          }, section: 'Configuration')
---- /tmp/virglrenderer-upstream/src/meson.build	2023-06-29 20:46:58
-+++ /tmp/virglrenderer-patched/src/meson.build	2025-12-11 15:17:20
+--- a/src/meson.build	2023-06-29 20:46:58
++++ b/src/meson.build	2025-12-11 15:17:20
 @@ -25,100 +25,64 @@
  subdir('gallium')
  
@@ -551,9 +551,9 @@
 +)
 +
  install_headers('virglrenderer.h', subdir : 'virgl')
-diff -Naur /tmp/virglrenderer-upstream/src/virgl-version.h.meson /tmp/virglrenderer-patched/src/virgl-version.h.meson
---- /tmp/virglrenderer-upstream/src/virgl-version.h.meson	1970-01-01
-+++ /tmp/virglrenderer-patched/src/virgl-version.h.meson
+diff -Naur a/src/virgl-version.h.meson b/src/virgl-version.h.meson
+--- a/src/virgl-version.h.meson	1970-01-01
++++ b/src/virgl-version.h.meson
 +/**************************************************************************
 + *
 + * Copyright (C) 2024 Red Hat Inc.
@@ -617,8 +617,8 @@ diff -Naur /tmp/virglrenderer-upstream/src/virgl-version.h.meson /tmp/virglrende
 +   VIRGL_MAJOR_VERSION == (major) && VIRGL_MINOR_VERSION == (minor) && VIRGL_MICRO_VERSION >= (micro))
 +
 +#endif /* VIRGL_VERSION_H */
---- /tmp/virglrenderer-upstream/src/virglrenderer.c	2023-06-29 20:46:58
-+++ /tmp/virglrenderer-patched/src/virglrenderer.c	2025-12-12 12:05:51
+--- a/src/virglrenderer.c	2023-06-29 20:46:58
++++ b/src/virglrenderer.c	2025-12-12 12:05:51
 @@ -42,14 +42,19 @@
  #include "util/u_math.h"
  #include "vkr_allocator.h"
@@ -1319,8 +1319,8 @@ diff -Naur /tmp/virglrenderer-upstream/src/virgl-version.h.meson /tmp/virglrende
 +
 +   return ctx->get_device_fd(ctx);
 +}
---- /tmp/virglrenderer-upstream/src/virglrenderer.h	2023-06-29 20:46:58
-+++ /tmp/virglrenderer-patched/src/virglrenderer.h	2025-12-11 15:44:12
+--- a/src/virglrenderer.h	2023-06-29 20:46:58
++++ b/src/virglrenderer.h	2025-12-11 15:44:12
 @@ -31,6 +31,8 @@
  #include <stdbool.h>
  #include <stdarg.h>
