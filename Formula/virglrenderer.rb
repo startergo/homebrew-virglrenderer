@@ -6,8 +6,7 @@ class Virglrenderer < Formula
   version "1.0.0"
   url "https://github.com/startergo/homebrew-virglrenderer/archive/refs/tags/v1.0.0.tar.gz"
   sha256 "96b6b460fbc012203dc67747a986c639a142747f5f57471e39e6a15b93cd54e1"
-  head "https://gitlab.freedesktop.org/virgl/virglrenderer.git",
-       using: :git
+  head "https://gitlab.freedesktop.org/virgl/virglrenderer.git", branch: "main"
 
   bottle do
     root_url "https://github.com/startergo/homebrew-virglrenderer/releases/download/v1.0.0"
@@ -21,9 +20,8 @@ class Virglrenderer < Formula
   depends_on "pkg-config" => :build
 
   def install
-    # Download upstream virglrenderer source (HEAD from freedesktop)
-    upstream_commit = "HEAD"
-    upstream_url = "https://gitlab.freedesktop.org/virgl/virglrenderer/-/archive/master/virglrenderer-master.tar.gz"
+    # Download upstream virglrenderer source from GitLab main
+    upstream_url = "https://gitlab.freedesktop.org/virgl/virglrenderer/-/archive/main/virglrenderer-main.tar.gz"
     ohai "Downloading upstream virglrenderer from #{upstream_url}"
     system "curl", "-L", upstream_url, "-o", "virglrenderer.tar.gz"
     system "tar", "-xzf", "virglrenderer.tar.gz", "--strip-components=1"
