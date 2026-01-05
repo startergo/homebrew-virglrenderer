@@ -1,5 +1,5 @@
 diff --git a/meson.build b/meson.build
-index ed1e43a..60a5667 100644
+index ed1e43a..451c96d 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -71,7 +71,7 @@ add_project_arguments(cc.get_supported_arguments(flags), language : 'c')
@@ -11,6 +11,15 @@ index ed1e43a..60a5667 100644
  gbm_dep = not_found
  thread_dep = dependency('threads')
  epoxy_dep = dependency('epoxy', version: '>= 1.5.4')
+@@ -266,7 +266,7 @@ with_render_server = with_venus
+ with_render_server_worker = get_option('render-server-worker')
+ render_server_install_dir = get_option('prefix') / get_option('libexecdir')
+ if with_venus
+-   gbm_dep = dependency('gbm')
++   gbm_dep = dependency('gbm', required: false)
+    venus_dep = dependency('vulkan')
+ 
+    conf_data.set('ENABLE_VENUS', 1)
 diff --git a/src/virglrenderer.c b/src/virglrenderer.c
 index 2f0d6d8..4852bb9 100644
 --- a/src/virglrenderer.c
