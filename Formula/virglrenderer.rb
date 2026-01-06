@@ -22,7 +22,8 @@ class Virglrenderer < Formula
 
   def install
     # Install pyyaml for gallium subproject (required by meson)
-    system "python3", "-m", "pip", "install", "--user", "pyyaml"
+    # Use --break-system-packages as build runs in isolated environment
+    system "python3", "-m", "pip", "install", "--break-system-packages", "pyyaml"
 
     # Download upstream virglrenderer source from GitLab main
     upstream_url = "https://gitlab.freedesktop.org/virgl/virglrenderer/-/archive/main/virglrenderer-main.tar.gz"
