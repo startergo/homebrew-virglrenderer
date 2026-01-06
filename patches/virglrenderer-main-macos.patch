@@ -2001,9 +2001,10 @@
     return max_samples_confirmed;
  }
  
+
 --- virglrenderer-main/src/venus/vkr_ring.c	2026-01-01 08:05:29
 +++ virglrenderer-clean/src/venus/vkr_ring.c	2026-01-06 00:00:00
-@@ -202,7 +202,13 @@ vkr_ring_relax_wait(uint32_t *iter)
+@@ -203,7 +203,13 @@ vkr_ring_relax_wait(uint32_t *iter)
     const struct timespec ts = {
        .tv_sec = us / 1000000,
        .tv_nsec = (us % 1000000) * 1000,
@@ -2017,5 +2018,17 @@
     clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
 +#endif
  }
- 
+
  static bool
+ vkr_ring_submit_cmd(struct vkr_ring *ring,
+                     const uint8_t *buffer,
+                     size_t size,
+                     uint32_t ring_head)
+ {
+    struct vkr_cs_decoder *dec = &ring->decoder;
+    if (vkr_cs_decoder_get_fatal(dec)) {
+       vkr_log("ring_submit_cmd: early bail due to fatal decoder state");
+       return false;
+    }
+
+    vkr_cs_decoder_set_buffer_stream(dec, buffer, size);
