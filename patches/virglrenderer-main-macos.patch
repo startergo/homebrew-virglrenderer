@@ -106,18 +106,16 @@
        break;
     case VIRTGPU_DRM_CAPSET_VENUS:
        if (state.proxy_initialized)
-@@ -246,10 +272,7 @@
+@@ -272,7 +272,7 @@
     case VIRTGPU_DRM_CAPSET_DRM:
        if (!state.drm_initialized)
           return EINVAL;
--      if (state.cbs->version >= 2 && state.cbs->get_drm_fd)
--         ctx = drm_renderer_create(nlen, name, state.cbs->get_drm_fd(state.cookie));
--      else
--         ctx = drm_renderer_create(nlen, name, -1);
+-      ctx = drm_renderer_create(nlen, name);
 +      ctx = drm_renderer_create(nlen, name, -1);
        break;
     default:
        return EINVAL;
+
 @@ -557,6 +580,25 @@
     return 0;
  }
@@ -2092,3 +2090,91 @@
  
           return false;
        }
+--- virglrenderer-main/server/render_socket.c	2026-01-01 08:05:29
++++ virglrenderer-clean/server/render_socket.c	2026-01-05 21:42:51
+@@ -16,35 +16,47 @@
+  * by the client process (or yet another process).  Because render_server_run
+  * does not poll yet, the fd is expected to be blocking.
+  *
+  * We also expect the fd to be always valid.  If the client process dies, the
+  * fd becomes invalid and is considered a fatal error.
+  *
+  * There is also a socket pair between each context worker and the client
+  * process.  The pair is set up by render_socket_pair here.
+  *
+  * The fd is also expected to be blocking.  When the client process closes its
+  * end of the socket pair, the context worker terminates.
+  */
+ bool
+ render_socket_pair(int out_fds[static 2])
+ {
++#if defined(__APPLE__)
++   // macOS doesn't support SOCK_CLOEXEC, manually set FD_CLOEXEC
++   int ret = socketpair(AF_UNIX, SOCK_SEQPACKET, 0, out_fds);
++   if (ret) {
++      render_log("failed to create socket pair");
++      return false;
++   }
++   // Set FD_CLOEXEC on both sockets
++   fcntl(out_fds[0], F_SETFD, FD_CLOEXEC);
++   fcntl(out_fds[1], F_SETFD, FD_CLOEXEC);
++#else
+    int ret = socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, out_fds);
+    if (ret) {
+       render_log("failed to create socket pair");
+       return false;
+    }
++#endif
+ 
+    return true;
+ }
+ 
+ bool
+ render_socket_is_seqpacket(int fd)
+ {
+    int type;
+    socklen_t len = sizeof(type);
+    if (getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &len))
+       return false;
+    return type == SOCK_SEQPACKET;
+ }
+ 
+ void
+@@ -68,31 +80,36 @@
+    const struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg);
+    if (unlikely(!cmsg || cmsg->cmsg_level != SOL_SOCKET ||
+                 cmsg->cmsg_type != SCM_RIGHTS || cmsg->cmsg_len < CMSG_LEN(0))) {
+       *out_count = 0;
+       return NULL;
+    }
+ 
+    *out_count = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
+    return (const int *)CMSG_DATA(cmsg);
+ }
+ 
+ static bool
+ render_socket_recvmsg(struct render_socket *socket, struct msghdr *msg, size_t *out_size)
+ {
+    do {
+-      const ssize_t s = recvmsg(socket->fd, msg, MSG_CMSG_CLOEXEC);
++   #if defined(__APPLE__)
++   // macOS doesn't support MSG_CMSG_CLOEXEC
++   const ssize_t s = recvmsg(socket->fd, msg, 0);
++#else
++   const ssize_t s = recvmsg(socket->fd, msg, MSG_CMSG_CLOEXEC);
++#endif
+       if (unlikely(s <= 0)) {
+          if (!s)
+             return false;
+ 
+          if (errno == EAGAIN || errno == EINTR)
+             continue;
+ 
+          render_log("failed to receive message: %s", strerror(errno));
+          return false;
+       }
+ 
+       if (unlikely(msg->msg_flags & (MSG_TRUNC | MSG_CTRUNC))) {
+          render_log("failed to receive message: truncated");
+ 
+          int fd_count;
