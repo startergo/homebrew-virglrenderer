@@ -19,9 +19,11 @@ class Virglrenderer < Formula
   depends_on "ninja" => :build
   depends_on "pkg-config" => :build
   depends_on "python@3" => :build
-  depends_on "pyyaml" => :build
 
   def install
+    # Install pyyaml for gallium subproject (required by meson)
+    system "python3", "-m", "pip", "install", "pyyaml"
+
     # Download upstream virglrenderer source from GitLab main
     upstream_url = "https://gitlab.freedesktop.org/virgl/virglrenderer/-/archive/main/virglrenderer-main.tar.gz"
     ohai "Downloading upstream virglrenderer from #{upstream_url}"
