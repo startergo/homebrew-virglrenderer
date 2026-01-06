@@ -2003,22 +2003,33 @@
  
 
 --- virglrenderer-main/src/venus/vkr_ring.c	2026-01-01 08:05:29
-+++ virglrenderer-clean/src/venus/vkr_ring.c	2026-01-06 00:00:00
-@@ -203,7 +203,13 @@ vkr_ring_relax_wait(uint32_t *iter)
++++ virglrenderer-clean/src/venus/vkr_ring.c	2026-01-05 20:02:36
+@@ -192,31 +192,38 @@
+    const uint32_t busy_wait_order = 4;
+    const uint32_t base_sleep_us = 10;
+ 
+    (*iter)++;
+    if (*iter < (1u << busy_wait_order)) {
+       thrd_yield();
+       return;
+    }
+ 
+    const uint32_t shift = util_last_bit(*iter) - busy_wait_order - 1;
+    const uint32_t us = base_sleep_us << shift;
     const struct timespec ts = {
        .tv_sec = us / 1000000,
        .tv_nsec = (us % 1000000) * 1000,
-+#if defined(__APPLE__)
-+   };
-+   // macOS doesn't have clock_nanosleep, use nanosleep instead
-+   while (nanosleep(&ts, NULL) == -1 && errno == EINTR)
-+      ;
-+#else
     };
++   #if defined(__APPLE__)
++   }
++      // macOS doesn't have clock_nanosleep, use nanosleep instead
++      while (nanosleep(&ts, NULL) == -1 && errno == EINTR)
++         ;
++   #else
     clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
-+#endif
++   #endif
  }
-
+ 
  static bool
  vkr_ring_submit_cmd(struct vkr_ring *ring,
                      const uint8_t *buffer,
@@ -2030,5 +2041,5 @@
        vkr_log("ring_submit_cmd: early bail due to fatal decoder state");
        return false;
     }
-
+ 
     vkr_cs_decoder_set_buffer_stream(dec, buffer, size);
