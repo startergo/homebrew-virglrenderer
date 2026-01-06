@@ -18,6 +18,8 @@ class Virglrenderer < Formula
   depends_on "meson" => :build
   depends_on "ninja" => :build
   depends_on "pkg-config" => :build
+  depends_on "python@3" => :build
+  depends_on "pyyaml" => :build
 
   def install
     # Download upstream virglrenderer source from GitLab main
