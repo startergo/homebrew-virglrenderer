@@ -114,7 +114,7 @@
 -         ctx = drm_renderer_create(nlen, name, state.cbs->get_drm_fd(state.cookie));
 -      else
 -         ctx = drm_renderer_create(nlen, name, -1);
-+      ctx = drm_renderer_create(nlen, name);
++      ctx = drm_renderer_create(nlen, name, -1);
        break;
     default:
        return EINVAL;
