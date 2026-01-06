@@ -4,14 +4,15 @@ class Virglrenderer < Formula
   license "MIT"
 
   version "1.0.0"
-  url "https://github.com/startergo/homebrew-virglrenderer/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "4e60e22e6e1d5b8a1234567890abcdef1234567890abcdef1234567890abcdef"
-  head "https://gitlab.freedesktop.org/virgl/virglrenderer.git",
-       using: :git
+  version "1.0.0"
+  url "https://github.com/startergo/homebrew-virglrenderer/archive/26e4e1f32b2bb65403496e89970e9fd3b45c33f5.tar.gz"
+  sha256 "ef3a147b7dcdf817affdd139f2724037764f3989ed8c98828871290c5a387e5e"
+  head "https://gitlab.freedesktop.org/virgl/virglrenderer.git", branch: "main"
 
   bottle do
     root_url "https://github.com/startergo/homebrew-virglrenderer/releases/download/v1.0.0"
-    sha256 cellar: :any, arm64_sequoia: "0000000000000000000000000000000000000000000000000000000000000000"
+    rebuild 1
+    sha256 arm64_sequoia: "847c0428d9b1022093672592a365d7617543880ba4a9abf88f708c29af3d7b96"
   end
 
   depends_on "startergo/angle/angle"
@@ -19,31 +20,52 @@ class Virglrenderer < Formula
   depends_on "meson" => :build
   depends_on "ninja" => :build
   depends_on "pkg-config" => :build
+  depends_on "python@3" => :build
 
   def install
-    # Download upstream virglrenderer source (HEAD from freedesktop)
-    upstream_commit = "HEAD"
-    upstream_url = "https://gitlab.freedesktop.org/virgl/virglrenderer/-/archive/master/virglrenderer-master.tar.gz"
+    # Install pyyaml for gallium subproject (required by meson)
+    # Use --break-system-packages as build runs in isolated environment
+    system "python3", "-m", "pip", "install", "--break-system-packages", "pyyaml"
+
+    # Download upstream virglrenderer source from GitLab main
+    upstream_url = "https://gitlab.freedesktop.org/virgl/virglrenderer/-/archive/main/virglrenderer-main.tar.gz"
     ohai "Downloading upstream virglrenderer from #{upstream_url}"
     system "curl", "-L", upstream_url, "-o", "virglrenderer.tar.gz"
     system "tar", "-xzf", "virglrenderer.tar.gz", "--strip-components=1"
 
-    # Get ANGLE and libepoxy include paths
+    # Download and extract LunarG Vulkan SDK
+    vulkan_sdk_version = "1.4.335.1"
+    vulkan_sdk_url = "https://sdk.lunarg.com/sdk/download/#{vulkan_sdk_version}/mac/vulkansdk-macos-#{vulkan_sdk_version}.zip"
+    ohai "Downloading LunarG Vulkan SDK #{vulkan_sdk_version}..."
+    system "curl", "-L", vulkan_sdk_url, "-o", "vulkan-sdk.zip"
+    system "unzip", "-q", "vulkan-sdk.zip"
+    vulkan_sdk_dir = "vulkansdk-macos-#{vulkan_sdk_version}"
+    ENV["VULKAN_SDK"] = File.expand_path(vulkan_sdk_dir)
+
+    # Apply macOS support patch
+    patch_file = "#{__dir__}/../patches/virglrenderer-main-macos.patch"
+    ohai "Applying Venus/macOS support patch..."
+    system "patch", "-p1", "--batch", "--verbose", "-i", patch_file
+
+    # Get ANGLE, libepoxy, and Vulkan SDK paths
     angle = Formula["startergo/angle/angle"]
     libepoxy = Formula["startergo/libepoxy/libepoxy"]
     angle_include = "#{angle.include}"
+    angle_pc_path = "#{angle.lib}/pkgconfig"
     epoxy_pc_path = "#{libepoxy.lib}/pkgconfig"
+    vulkan_pc_path = "#{vulkan_sdk_dir}/macOS/lib/pkgconfig"
+    vulkan_include = "#{vulkan_sdk_dir}/macOS/include"
+    combined_pc_path = "#{angle_pc_path}:#{epoxy_pc_path}:#{vulkan_pc_path}"
 
     system "meson", "setup", "build",
            *std_meson_args,
-           "-Dc_args=-I#{angle_include}",
-           "-Dcpp_args=-I#{angle_include}",
-           "--pkg-config-path=#{epoxy_pc_path}",
-           "-Dplatforms=egl",
-           "-Ddrm=disabled",
-           "-Dvenus=disabled",
+           "-Dc_args=-I#{angle_include} -I#{vulkan_include}",
+           "-Dcpp_args=-I#{angle_include} -I#{vulkan_include}",
+           "--pkg-config-path=#{combined_pc_path}",
+           "-Ddrm-renderers=[]",
+           "-Dvenus=true",
            "-Dtests=false",
-           "-Dvideo=disabled",
+           "-Dvideo=false",
            "-Dtracing=none"
     system "meson", "compile", "-C", "build", "--verbose"
     system "meson", "install", "-C", "build"

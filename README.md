@@ -62,13 +62,16 @@ target_link_libraries(myapp ${VIRGL_LIBRARIES})
 - **Shared library**: `libvirglrenderer.dylib`
 - **Headers**: virglrenderer API headers
 - **pkg-config file**: `virglrenderer.pc`
+- **Render server**: `virgl_render_server` (for Venus)
 
 ## Build Configuration
 
-This build is configured for macOS with ANGLE backend:
+This build is configured for macOS with ANGLE and KosmicKrisp (Venus) support:
 - **OpenGL ES support via ANGLE**: Uses [startergo/angle](https://github.com/startergo/homebrew-angle) for OpenGL ES on macOS
+- **OpenGL support via libepoxy**: Uses [startergo/libepoxy](https://github.com/startergo/homebrew-libepoxy) for OpenGL on macOS
 - **EGL support**: Enabled through ANGLE
-- **Venus support**: Modern virtio-gpu Vulkan transport
+- **Venus support**: Modern virtio-gpu Vulkan transport via [KosmicKrisp](https://gitlab.freedesktop.org/virgl/kosmikkrisp) (Mesa-based Vulkan for macOS)
+- **DRM support**: Auto-detected (disabled on macOS without libdrm)
 - **Tests disabled** for faster builds
 - Builds against upstream virglrenderer HEAD
 
@@ -80,5 +83,7 @@ MIT
 
 - **[virglrenderer](https://gitlab.freedesktop.org/virgl/virglrenderer)**: Virtual 3D GPU renderer for QEMU guests
 - **[ANGLE](https://chromium.googlesource.com/angle/angle)**: OpenGL ES implementation for macOS (via [startergo/homebrew-angle](https://github.com/startergo/homebrew-angle))
+- **[libepoxy](https://github.com/anholt/libepoxy)**: OpenGL function pointer management (via [startergo/homebrew-libepoxy](https://github.com/startergo/homebrew-libepoxy))
+- **[KosmicKrisp](https://gitlab.freedesktop.org/virgl/kosmikkrisp)**: Mesa-based Vulkan implementation for macOS
 
-This tap builds against the latest upstream virglrenderer with macOS-specific patches to enable OpenGL ES support through ANGLE.
+This tap builds against the latest upstream virglrenderer with macOS-specific patches to enable OpenGL ES support through ANGLE, OpenGL support through libepoxy, and Vulkan support through KosmicKrisp.
