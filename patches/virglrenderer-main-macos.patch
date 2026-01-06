@@ -2003,8 +2003,8 @@
  
 
 --- virglrenderer-main/src/venus/vkr_ring.c	2026-01-01 08:05:29
-+++ virglrenderer-clean/src/venus/vkr_ring.c	2026-01-05 20:02:36
-@@ -192,31 +192,38 @@
++++ virglrenderer-clean/src/venus/vkr_ring.c	2026-01-05 20:57:33
+@@ -192,31 +192,37 @@
     const uint32_t busy_wait_order = 4;
     const uint32_t base_sleep_us = 10;
  
@@ -2020,14 +2020,13 @@
        .tv_sec = us / 1000000,
        .tv_nsec = (us % 1000000) * 1000,
     };
-+   #if defined(__APPLE__)
-+   }
-+      // macOS doesn't have clock_nanosleep, use nanosleep instead
-+      while (nanosleep(&ts, NULL) == -1 && errno == EINTR)
-+         ;
-+   #else
++#if defined(__APPLE__)
++   // macOS doesn't have clock_nanosleep, use nanosleep instead
++   while (nanosleep(&ts, NULL) == -1 && errno == EINTR)
++      ;
++#else
     clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
-+   #endif
++#endif
  }
  
  static bool
