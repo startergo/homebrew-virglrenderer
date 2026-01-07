@@ -56,6 +56,10 @@ class Virglrenderer < Formula
            "-Dtracing=none"
     system "meson", "compile", "-C", "build", "--verbose"
     system "meson", "install", "-C", "build"
+
+    # Add rpath so dlopen via libepoxy finds ANGLE libraries at runtime
+    # ANGLE uses @rpath/libEGL.dylib, so we need rpath to HOMEBREW_PREFIX/lib
+    system "install_name_tool", "-add_rpath", "#{HOMEBREW_PREFIX}/lib", "#{lib}/libvirglrenderer.1.dylib"
   end
 
   test do
