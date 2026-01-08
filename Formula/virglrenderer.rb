@@ -59,7 +59,10 @@ class Virglrenderer < Formula
 
     # Add rpath so dlopen via libepoxy finds ANGLE libraries at runtime
     # ANGLE uses @rpath/libEGL.dylib, so we need rpath to HOMEBREW_PREFIX/lib
-    system "install_name_tool", "-add_rpath", "#{HOMEBREW_PREFIX}/lib", "#{lib}/libvirglrenderer.1.dylib"
+    dylib = "#{lib}/libvirglrenderer.1.dylib"
+    unless Utils.popen_read("install_name_tool", "-l", dylib).include?("#{HOMEBREW_PREFIX}/lib")
+      system "install_name_tool", "-add_rpath", "#{HOMEBREW_PREFIX}/lib", dylib
+    end
   end
 
   def post_install
