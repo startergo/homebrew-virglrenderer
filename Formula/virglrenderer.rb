@@ -67,16 +67,7 @@ class Virglrenderer < Formula
     end
   end
 
-  def post_install
-    # Restore rpath to HOMEBREW_PREFIX/lib if lost during bottling
-    # ANGLE uses @rpath/libEGL.dylib, so virglrenderer needs this rpath
-    dylib = "#{lib}/libvirglrenderer.1.dylib"
-    rpath = "#{HOMEBREW_PREFIX}/lib"
-    # install_name_tool -l outputs "path /opt/homebrew/lib" format
-    unless Utils.popen_read("install_name_tool", "-l", dylib).include?("path #{rpath}")
-      system "install_name_tool", "-add_rpath", rpath, dylib
-    end
-  end
+  # No post_install needed - rpath is set during install
 
   test do
     (testpath/"test.c").write <<~EOS
