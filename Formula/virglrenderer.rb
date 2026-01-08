@@ -68,8 +68,11 @@ class Virglrenderer < Formula
   def post_install
     # Restore rpath to HOMEBREW_PREFIX/lib if lost during bottling
     # ANGLE uses @rpath/libEGL.dylib, so virglrenderer needs this rpath
-    unless Utils.popen_read("install_name_tool", "-l", "#{lib}/libvirglrenderer.1.dylib").include?("#{HOMEBREW_PREFIX}/lib")
-      system "install_name_tool", "-add_rpath", "#{HOMEBREW_PREFIX}/lib", "#{lib}/libvirglrenderer.1.dylib"
+    dylib = "#{lib}/libvirglrenderer.1.dylib"
+    rpath = "#{HOMEBREW_PREFIX}/lib"
+    # install_name_tool -l outputs "path /opt/homebrew/lib" format
+    unless Utils.popen_read("install_name_tool", "-l", dylib).include?("path #{rpath}")
+      system "install_name_tool", "-add_rpath", rpath, dylib
     end
   end
 
