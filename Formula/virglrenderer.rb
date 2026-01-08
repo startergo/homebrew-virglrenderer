@@ -62,6 +62,14 @@ class Virglrenderer < Formula
     system "install_name_tool", "-add_rpath", "#{HOMEBREW_PREFIX}/lib", "#{lib}/libvirglrenderer.1.dylib"
   end
 
+  def post_install
+    # Restore rpath to HOMEBREW_PREFIX/lib if lost during bottling
+    # ANGLE uses @rpath/libEGL.dylib, so virglrenderer needs this rpath
+    unless Utils.popen_read("install_name_tool", "-l", "#{lib}/libvirglrenderer.1.dylib").include?("#{HOMEBREW_PREFIX}/lib")
+      system "install_name_tool", "-add_rpath", "#{HOMEBREW_PREFIX}/lib", "#{lib}/libvirglrenderer.1.dylib"
+    end
+  end
+
   test do
     (testpath/"test.c").write <<~EOS
       #include <virglrenderer.h>
