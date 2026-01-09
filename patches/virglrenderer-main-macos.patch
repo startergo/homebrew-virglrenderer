@@ -1,5 +1,6 @@
---- a/src/virglrenderer.c
-+++ b/src/virglrenderer.c
+diff -Naur virglrenderer-upstream/src/virglrenderer.c virglrenderer-clean/src/virglrenderer.c
+--- virglrenderer-upstream/src/virglrenderer.c	2026-01-09 14:47:36
++++ virglrenderer-clean/src/virglrenderer.c	2026-01-09 14:47:45
 @@ -178,11 +178,37 @@
  void virgl_renderer_fill_caps(uint32_t set, uint32_t version,
                                void *caps)
@@ -39,7 +40,19 @@
        break;
     case VIRTGPU_DRM_CAPSET_VENUS:
        if (state.proxy_initialized)
-@@ -557,6 +583,25 @@
+@@ -246,10 +272,7 @@
+    case VIRTGPU_DRM_CAPSET_DRM:
+       if (!state.drm_initialized)
+          return EINVAL;
+-      if (state.cbs->version >= 2 && state.cbs->get_drm_fd)
+-         ctx = drm_renderer_create(nlen, name, state.cbs->get_drm_fd(state.cookie));
+-      else
+-         ctx = drm_renderer_create(nlen, name, -1);
++      ctx = drm_renderer_create(nlen, name);
+       break;
+    default:
+       return EINVAL;
+@@ -557,6 +580,25 @@
     return 0;
  }
  
@@ -65,9 +78,136 @@
  void virgl_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
                                  uint32_t *max_size)
  {
-
---- a/src/virglrenderer.h
-+++ b/src/virglrenderer.h
+@@ -917,8 +959,6 @@
+          renderer_flags |= VREND_USE_COMPAT_CONTEXT;
+       if (flags & VIRGL_RENDERER_USE_GLES)
+          renderer_flags |= VREND_USE_GLES;
+-      if (flags & VIRGL_RENDERER_VENUS)
+-         renderer_flags |= VREND_USE_GBM_LAYOUT;
+ 
+       ret = vrend_renderer_init(&vrend_cbs, renderer_flags);
+       if (ret) {
+@@ -1233,33 +1273,23 @@
+    int ret = 0;
+    void *map = NULL;
+    uint64_t map_size = 0;
+-   struct virgl_context *ctx = NULL;
+    struct virgl_resource *res = virgl_resource_lookup(res_handle);
+    if (!res || res->mapped)
+       return -EINVAL;
+ 
+    if (res->pipe_resource) {
+       ret = vrend_renderer_resource_map(res->pipe_resource, &map, &map_size);
+-      if (!ret) {
++      if (!ret)
+          res->map_size = map_size;
+-         res->mapped_from_pipe_resource = true;
+-      }
+    } else {
+       enum virgl_resource_fd_type fd_type = res->fd_type;
+       enum virgl_resource_fd_type export_fd_type = res->fd_type;
+       int fd = res->fd;
+ 
+-      if (fd_type == VIRGL_RESOURCE_OPAQUE_HANDLE) {
+-         ctx = virgl_context_lookup(res->opaque_handle_context_id);
+-         if (!ctx)
+-            return -EINVAL;
++      /* Create a transient dmabuf. */
++      if (fd_type == VIRGL_RESOURCE_OPAQUE_HANDLE)
++         export_fd_type = virgl_resource_export_fd(res, &fd);
+ 
+-         if (!ctx->resource_map) {
+-            /* Create a transient dmabuf. */
+-            export_fd_type = virgl_resource_export_fd(res, &fd);
+-         }
+-      }
+-
+       switch (export_fd_type) {
+       case VIRGL_RESOURCE_FD_DMABUF:
+       case VIRGL_RESOURCE_FD_SHM:
+@@ -1270,9 +1300,6 @@
+          ret = vkr_allocator_resource_map(res, &map, &map_size);
+          break;
+       case VIRGL_RESOURCE_OPAQUE_HANDLE:
+-         map = ctx->resource_map(ctx, res, NULL, PROT_WRITE | PROT_READ, MAP_SHARED);
+-         map_size = res->map_size;
+-         break;
+       case VIRGL_RESOURCE_FD_INVALID:
+          /* Avoid a default case so that -Wswitch will tell us at compile time
+           * if a new virgl resource type is added without being handled here.
+@@ -1293,59 +1320,6 @@
+    return ret;
+ }
+ 
+-int virgl_renderer_resource_map_fixed(uint32_t res_handle, void *addr)
+-{
+-   void *map = NULL;
+-   struct virgl_context *ctx = NULL;
+-   struct virgl_resource *res = virgl_resource_lookup(res_handle);
+-   enum virgl_resource_fd_type fd_type = res->fd_type;
+-   enum virgl_resource_fd_type export_fd_type = res->fd_type;
+-   int fd = res->fd;
+-
+-   if (!res)
+-      return -EINVAL;
+-
+-   if (fd_type == VIRGL_RESOURCE_OPAQUE_HANDLE) {
+-      ctx = virgl_context_lookup(res->opaque_handle_context_id);
+-      if (!ctx)
+-         return -EINVAL;
+-
+-      if (!ctx->resource_map) {
+-         /* Create a transient dmabuf. */
+-         export_fd_type = virgl_resource_export_fd(res, &fd);
+-      }
+-   }
+-
+-   switch (export_fd_type) {
+-      case VIRGL_RESOURCE_FD_DMABUF:
+-      case VIRGL_RESOURCE_FD_SHM:
+-         map = mmap(addr, res->map_size, PROT_WRITE | PROT_READ,
+-                    MAP_FIXED | MAP_SHARED, fd, 0);
+-         break;
+-      case VIRGL_RESOURCE_OPAQUE_HANDLE:
+-         map = ctx->resource_map(ctx, res, addr, PROT_WRITE | PROT_READ,
+-                                 MAP_FIXED | MAP_SHARED);
+-         break;
+-      case VIRGL_RESOURCE_FD_OPAQUE:
+-      case VIRGL_RESOURCE_FD_INVALID:
+-         /* Avoid a default case so that -Wswitch will tell us at compile time
+-          * if a new virgl resource type is added without being handled here.
+-          */
+-      break;
+-   }
+-
+-   if (export_fd_type != fd_type)
+-      close(fd);
+-
+-   if (!map)
+-      return -EOPNOTSUPP;
+-
+-   if (map == MAP_FAILED)
+-      return -EINVAL;
+-
+-   return 0;
+-}
+-
+ int virgl_renderer_resource_unmap(uint32_t res_handle)
+ {
+    TRACE_FUNC();
+@@ -1354,8 +1328,7 @@
+    if (!res || !res->mapped)
+       return -EINVAL;
+ 
+-   if (res->mapped_from_pipe_resource) {
+-      assert(res->pipe_resource);
++   if (res->pipe_resource) {
+       ret = vrend_renderer_resource_unmap(res->pipe_resource);
+    } else {
+       switch (res->fd_type) {
+diff -Naur virglrenderer-upstream/src/virglrenderer.h virglrenderer-clean/src/virglrenderer.h
+--- virglrenderer-upstream/src/virglrenderer.h	2026-01-09 14:47:36
++++ virglrenderer-clean/src/virglrenderer.h	2026-01-09 14:47:45
 @@ -380,6 +380,9 @@
  VIRGL_EXPORT int virgl_renderer_resource_get_info_ext(int res_handle,
                                                        struct virgl_renderer_resource_info_ext *info);
@@ -78,9 +218,28 @@
  VIRGL_EXPORT void virgl_renderer_cleanup(void *cookie);
  
  /* reset the rendererer - destroy all contexts and resource */
-
---- a/src/vrend/vrend_blitter.h
-+++ b/src/vrend/vrend_blitter.h
+@@ -459,18 +462,6 @@
+ 
+ VIRGL_EXPORT void virgl_renderer_context_poll(uint32_t ctx_id); /* force fences */
+ VIRGL_EXPORT int virgl_renderer_context_get_poll_fd(uint32_t ctx_id);
+-
+-/* Map a resource to an specific userspace address. If successful, the
+- * mapping is owned by the caller and is its responsibility to unmap
+- * the resource by its own means (i.e. overriding the map with
+- * anonymous memory or calling munmap).
+- *
+- * Returns -EOPNOTSUPP if mapping the resource using this mechanism is
+- * not supported. In that case, you can still try mapping the resource
+- * using virgl_renderer_resource_map().
+- */
+-VIRGL_EXPORT int
+-virgl_renderer_resource_map_fixed(uint32_t res_handle, void *addr);
+ 
+ /*
+  * These are unstable APIs for development only. Use these for development/testing purposes
+diff -Naur virglrenderer-upstream/src/vrend/vrend_blitter.h virglrenderer-clean/src/vrend/vrend_blitter.h
+--- virglrenderer-upstream/src/vrend/vrend_blitter.h	2026-01-09 14:47:36
++++ virglrenderer-clean/src/vrend/vrend_blitter.h	2026-01-09 14:47:45
 @@ -35,6 +35,12 @@
     "%s"                                         \
  
@@ -124,15 +283,13 @@
  #define FS_TEXFETCH_DS_MSAA_ARRAY_GLES HEADER_GLES_MS_ARRAY FS_TEXFETCH_DS_MSAA_BODY_GLES
  
  /* implement blitting using OpenGL. */
-
---- a/src/vrend/vrend_decode.c
-+++ b/src/vrend/vrend_decode.c
-@@ -886,6 +886,17 @@
-       break;
-    default:
+diff -Naur virglrenderer-upstream/src/vrend/vrend_decode.c virglrenderer-clean/src/vrend/vrend_decode.c
+--- virglrenderer-upstream/src/vrend/vrend_decode.c	2026-01-09 14:47:36
++++ virglrenderer-clean/src/vrend/vrend_decode.c	2026-01-09 14:47:45
+@@ -888,6 +888,17 @@
        return EINVAL;
-+   }
-+
+    }
+ 
 +   /* Surface GL errors with object metadata to pinpoint bad creations. */
 +   if (!vrend_check_no_error(ctx) && ret == 0) {
 +      virgl_error("GL error during CREATE_OBJECT type=%s handle=0x%x len=%u\n",
@@ -142,15 +299,42 @@
 +         virgl_error("  dword[%u]=0x%x\n", i, buf[i]);
 +      }
 +      ret = EINVAL;
-    }
- 
++   }
++
     return ret;
-@@ -2095,9 +2106,22 @@
+ }
+ 
+@@ -1751,18 +1762,6 @@
+    return 0;
+ }
+ 
+-static int vrend_decode_get_pipe_resource_layout(struct vrend_context *ctx, const uint32_t *buf, uint32_t length)
+-{
+-   TRACE_FUNC();
+-   if (length < VIRGL_RESOURCE_LAYOUT_SIZE)
+-      return EINVAL;
+-
+-   uint32_t out_handle = get_buf_entry(buf, VIRGL_RESOURCE_LAYOUT_HANDLE_OUT);
+-   uint32_t target_handle = get_buf_entry(buf, VIRGL_RESOURCE_LAYOUT_HANDLE_TARGET);
+-
+-   return vrend_renderer_pipe_resource_get_layout(ctx, out_handle, target_handle);
+-}
+-
+ #ifdef ENABLE_VIDEO
+ /* video codec related functions */
+ 
+@@ -2030,7 +2029,6 @@
+    [VIRGL_CCMD_ENCODE_BITSTREAM] = vrend_unsupported,
+    [VIRGL_CCMD_END_FRAME] = vrend_unsupported,
+ #endif
+-   [VIRGL_CCMD_GET_PIPE_RESOURCE_LAYOUT] = vrend_decode_get_pipe_resource_layout,
+ };
+ 
+ static void dump_command_stream_to_file(const void *buffer, size_t size)
+@@ -2095,9 +2093,22 @@
  
        TRACE_SCOPE_SLOW(vrend_get_comand_name(cmd));
  
--      ret = decode_table[cmd](gdctx->grctx, buf, len);
--      if (!vrend_check_no_error(gdctx->grctx) && !ret)
 +      /* If video is disabled at runtime, drop video commands quietly to avoid
 +       * noisy errors from guest probes (e.g., gst-plugin-scan).
 +       */
@@ -159,7 +343,8 @@
 +         continue;
 +      }
 +
-+      ret = decode_table[cmd](gdctx->grctx, buf, len);
+       ret = decode_table[cmd](gdctx->grctx, buf, len);
+-      if (!vrend_check_no_error(gdctx->grctx) && !ret)
 +      if (!vrend_check_no_error(gdctx->grctx) && !ret) {
 +         /* Surface the offending command when a GL error is observed. */
 +         virgl_error("GL error after %s (ctx %d cmd=0x%x len=%u offset=%u)\n",
@@ -170,9 +355,9 @@
        if (ret) {
           virgl_error("context %d failed to dispatch %s: %d\n",
                 gdctx->base.ctx_id, vrend_get_comand_name(cmd), ret);
-
---- a/src/vrend/vrend_formats.c
-+++ b/src/vrend/vrend_formats.c
+diff -Naur virglrenderer-upstream/src/vrend/vrend_formats.c virglrenderer-clean/src/vrend/vrend_formats.c
+--- virglrenderer-upstream/src/vrend/vrend_formats.c	2026-01-09 14:47:36
++++ virglrenderer-clean/src/vrend/vrend_formats.c	2026-01-09 14:47:45
 @@ -716,48 +716,183 @@
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
@@ -371,9 +556,9 @@
     return max_samples_confirmed;
  }
  
-
---- a/src/vrend/vrend_renderer.c
-+++ b/src/vrend/vrend_renderer.c
+diff -Naur virglrenderer-upstream/src/vrend/vrend_renderer.c virglrenderer-clean/src/vrend/vrend_renderer.c
+--- virglrenderer-upstream/src/vrend/vrend_renderer.c	2026-01-09 14:47:36
++++ virglrenderer-clean/src/vrend/vrend_renderer.c	2026-01-09 14:47:45
 @@ -28,6 +28,7 @@
  #include <unistd.h>
  #include <stdatomic.h>
@@ -402,17 +587,45 @@
     FEAT(texture_query_lod, 40, UNAVAIL, "GL_ARB_texture_query_lod", "GL_EXT_texture_query_lod"),
     FEAT(texture_shadow_lod, UNAVAIL, UNAVAIL, "GL_EXT_texture_shadow_lod"),
     FEAT(texture_srgb_decode, UNAVAIL, UNAVAIL,  "GL_EXT_texture_sRGB_decode" ),
-@@ -403,6 +408,9 @@
+@@ -402,7 +407,9 @@
+    bool use_egl_fence : 1;
  #endif
     bool d3d_share_texture : 1;
-    bool gbm_layout_feat : 1;
+-   bool gbm_layout_feat : 1;
 +
 +   /* host-side video acceleration availability */
 +   bool video_available;
  };
  
  struct sysval_uniform_block {
-@@ -1389,12 +1397,60 @@
+@@ -902,7 +909,7 @@
+    if (tex_conv_table[format].bindings & VIRGL_BIND_SAMPLER_VIEW)
+       return true;
+ 
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    uint32_t gbm_format = 0;
+    if (virgl_gbm_convert_format(&format, &gbm_format))
+       return false;
+@@ -939,7 +946,7 @@
+ 
+ static inline bool vrend_format_can_scanout(enum virgl_formats format)
+ {
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    uint32_t gbm_format = 0;
+    if (virgl_gbm_convert_format(&format, &gbm_format))
+       return false;
+@@ -954,7 +961,7 @@
+ #endif
+ }
+ 
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+ static inline bool vrend_format_can_texture_view(enum virgl_formats format)
+ {
+    return has_feature(feat_texture_view) &&
+@@ -1389,12 +1396,60 @@
  {
     GLint param;
     const char *shader_parts[SHADER_MAX_STRINGS];
@@ -475,7 +688,7 @@
     glCompileShader(shader->id);
     glGetShaderiv(shader->id, GL_COMPILE_STATUS, &param);
     if (param == GL_FALSE) {
-@@ -2519,30 +2575,32 @@
+@@ -2519,30 +2574,32 @@
     case PIPE_TEX_WRAP_CLAMP: if (vrend_state.use_core_profile == false) return GL_CLAMP; else return GL_CLAMP_TO_EDGE;
  
     case PIPE_TEX_WRAP_CLAMP_TO_EDGE: return GL_CLAMP_TO_EDGE;
@@ -520,7 +733,7 @@
     default:
        assert(0);
        return -1;
-@@ -3094,6 +3152,11 @@
+@@ -3094,6 +3151,11 @@
  
     if (sub_ctx->nr_cbufs == 0) {
        glReadBuffer(GL_NONE);
@@ -532,7 +745,7 @@
        if (has_feature(feat_srgb_write_control)) {
           glDisable(GL_FRAMEBUFFER_SRGB_EXT);
           sub_ctx->framebuffer_srgb_enabled = false;
-@@ -3455,7 +3518,8 @@
+@@ -3455,7 +3517,8 @@
        return;
     }
  
@@ -542,7 +755,7 @@
        glGenVertexArrays(1, &v->id);
        glBindVertexArray(v->id);
        for (uint32_t i = 0; i < v->count; i++) {
-@@ -3473,7 +3537,18 @@
+@@ -3473,7 +3536,18 @@
           glVertexAttribBinding(i, ve->base.vertex_buffer_index);
           glVertexBindingDivisor(i, ve->base.instance_divisor);
           glEnableVertexAttribArray(i);
@@ -561,7 +774,7 @@
     }
  }
  
-@@ -4871,6 +4946,10 @@
+@@ -4871,6 +4945,10 @@
     format = tex_conv_table[fmt].glformat;
     type = tex_conv_table[fmt].gltype;
  
@@ -572,7 +785,16 @@
     /* 32-bit BGRA resources are always reordered to RGBA ordering before
      * submission to the host driver. Reorder red/blue color bytes in
      * the clear color to match. */
-@@ -7556,11 +7635,7 @@
+@@ -7500,7 +7578,7 @@
+                                                                  UNUSED int *fd,
+                                                                  UNUSED void *data)
+ {
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    struct vrend_resource *res = (struct vrend_resource *)pres;
+ 
+    if (res->storage_bits & VREND_STORAGE_GBM_BUFFER) {
+@@ -7556,39 +7634,9 @@
        return true;
  
     const char * a = (const char *) glGetString(GL_VENDOR);
@@ -584,12 +806,39 @@
 +   return a && !(strcmp(a, "ARM") && strcmp(a, "Google Inc. (Apple)"));
  }
  
- static bool vrend_use_gbm_layout_feature(UNUSED uint32_t flags)
-@@ -7629,7 +7704,36 @@
- 
+-static bool vrend_use_gbm_layout_feature(UNUSED uint32_t flags)
+-{
+-#if defined(ENABLE_GBM_ALLOCATION) && !defined(MINIGBM)
+-   if (!gbm || !gbm->device)
+-      return false;
+-
+-   if (debug_get_bool_option("VIRGL_GBM_LAYOUT_FORCE_ENABLE", false))
+-      return true;
+-
+-   if (!debug_get_bool_option("VIRGL_GBM_LAYOUT_ENABLE", false))
+-      return false;
+-
+-   if (!(flags & VREND_USE_GBM_LAYOUT))
+-      return false;
+-
+-   /* gbm-layout needs a linear modifier quirk today, enable it by default only for
+-    * drivers known to work properly */
+-   if (!strstr((const char *) glGetString(GL_VERSION), "Mesa"))
+-      return false;
+-
+-   return true;
+-#else
+-   return false;
+-#endif
+-}
+-
+ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
+ {
+    bool gles;
+@@ -7630,6 +7678,35 @@
     vrend_clicbs->make_current(gl_context);
     gl_ver = epoxy_gl_version();
-+
+ 
 +   /* Surface the full GL strings early for debugging/profile confirmation. */
 +   const GLubyte *gl_ver_str = glGetString(GL_VERSION);
 +   const GLubyte *gl_renderer_str = glGetString(GL_RENDERER);
@@ -608,7 +857,7 @@
 +      gl_ver_display = gl_ver_buf;
 +   }
 +#endif
- 
++
 +      virgl_info("GL strings: version='%s' renderer='%s' glsl='%s'\n",
 +            gl_ver_display,
 +            gl_renderer_str ? (const char *)gl_renderer_str : "(null)",
@@ -622,11 +871,10 @@
     /* enable error output as early as possible */
     if (vrend_debug(NULL, dbg_khr) && epoxy_has_gl_extension("GL_KHR_debug")) {
        glDebugMessageCallback(vrend_debug_cb, NULL);
-@@ -7660,6 +7764,18 @@
- 
+@@ -7661,6 +7738,18 @@
     init_features(gles ? 0 : gl_ver,
                   gles ? gl_ver : 0);
-+
+ 
 +   /* Disable host video decode/encode paths entirely in this build to avoid
 +    * guest CREATE_VIDEO_BUFFER commands on configurations that cannot service
 +    * them (e.g., macOS ANGLE/Metal). This also keeps caps consistent with
@@ -638,10 +886,72 @@
 +   /* macOS core GL 4.1 lacks GL_ARB_copy_image; force fallback paths. */
 +   clear_feature(feat_copy_image);
 +#endif
- 
++
     if (!vrend_winsys_has_gl_colorspace())
        clear_feature(feat_srgb_write_control) ;
-@@ -8737,7 +8853,19 @@
+ 
+@@ -7766,8 +7855,6 @@
+ 
+    vrend_state.d3d_share_texture = flags & VREND_D3D11_SHARE_TEXTURE;
+ 
+-   vrend_state.gbm_layout_feat = vrend_use_gbm_layout_feature(flags);
+-
+    return 0;
+ cleanup_and_fail:
+    vrend_renderer_fini();
+@@ -8195,7 +8282,7 @@
+          return -1;
+       }
+ 
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+       if (!virgl_gbm_gpu_import_required(args->bind)) {
+          return 0;
+       }
+@@ -8309,7 +8396,7 @@
+          glBufferStorage(gr->target, width, NULL, buffer_storage_flags);
+          gr->map_info = vrend_state.inferred_gl_caching_type;
+       }
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+       else if (has_feature(feat_memory_object_fd) && has_feature(feat_memory_object)) {
+          GLuint memobj = 0;
+          int fd = -1;
+@@ -8587,7 +8674,7 @@
+  */
+ static void vrend_resource_gbm_init(struct vrend_resource *gr, uint32_t format)
+ {
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    uint32_t gbm_flags = virgl_gbm_convert_flags(gr->base.bind);
+    uint32_t gbm_format = 0;
+    if (virgl_gbm_convert_format(&format, &gbm_format))
+@@ -8604,24 +8691,6 @@
+    if (!virgl_gbm_external_allocation_preferred(gr->base.bind))
+       return;
+ 
+-#if !defined(MINIGBM)
+-   /*
+-    * GBM allocation may be less optimal compared to a regular GL allocation.
+-    * Skip GBM allocation when we don't actually need it.
+-    */
+-   if (!vrend_state.gbm_layout_feat)
+-      return;
+-
+-   /*
+-    * Kernel virtio-gpu driver doesn't support modifiers other than linear and
+-    * venus needs a real modifier that backs GBM buffer when it imports vrend
+-    * resource. Linear allocation is needed when venus works in KMS mode on guest
+-    * and it wants to present vrend resources.
+-    */
+-   if (gr->base.bind & VIRGL_BIND_SHARED)
+-      gbm_flags |= GBM_BO_USE_LINEAR;
+-#endif
+-
+    if (!gbm_device_is_format_supported(gbm->device, gbm_format, gbm_flags))
+       return;
+ 
+@@ -8737,7 +8806,19 @@
        }
  
        if (pr->nr_samples > 1) {
@@ -662,7 +972,7 @@
              if (gr->target == GL_TEXTURE_2D_MULTISAMPLE) {
                 glTexStorage2DMultisample(gr->target, pr->nr_samples,
                                           internalformat, pr->width0, pr->height0,
-@@ -8758,7 +8886,9 @@
+@@ -8758,7 +8839,9 @@
                                         GL_TRUE);
              }
           }
@@ -673,7 +983,25 @@
              int i;
              if (format_can_texture_storage)
                 glTexStorage2D(GL_TEXTURE_CUBE_MAP, pr->last_level + 1, internalformat, pr->width0, pr->height0);
-@@ -9677,6 +9807,24 @@
+@@ -8827,7 +8910,7 @@
+    glBindTexture(gr->target, 0);
+ 
+    if (image_oes && gr->gbm_bo) {
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+       if (!has_bit(gr->storage_bits, VREND_STORAGE_GL_BUFFER) &&
+             !vrend_format_can_texture_view(gr->base.format)) {
+          for (int i = 0; i < gbm_bo_get_plane_count(gr->gbm_bo); i++) {
+@@ -8929,7 +9012,7 @@
+       }
+    }
+ #endif
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    if (res->gbm_bo)
+       gbm_bo_destroy(res->gbm_bo);
+ #endif
+@@ -9677,6 +9760,24 @@
                            GLenum format, GLenum type,
                            GLsizei bufSize, void *data)
  {
@@ -698,7 +1026,7 @@
     GLuint fb_id;
  
     glGenFramebuffers(1, &fb_id);
-@@ -9726,6 +9874,21 @@
+@@ -9726,6 +9827,21 @@
     else
        glReadPixels(x, y, width, height, format, type, data);
  
@@ -720,20 +1048,38 @@
     glDeleteFramebuffers(1, &fb_id);
  }
  
-@@ -9974,6 +10137,12 @@
-    }
+@@ -9975,6 +10091,12 @@
     return 0;
  }
-+
+ 
 +/* Forward declaration for MSAA staging path below. */
 +static void vrend_renderer_blit_int(struct vrend_context *ctx,
 +                                    struct vrend_resource *src_res,
 +                                    struct vrend_resource *dst_res,
 +                                    const struct pipe_blit_info *info);
- 
++
  static int vrend_renderer_transfer_internal(struct vrend_context *ctx,
                                              struct vrend_resource *res,
-@@ -10105,7 +10274,123 @@
+                                             const struct vrend_transfer_info *info,
+@@ -9998,7 +10120,7 @@
+       num_iovs = res->num_iovs;
+    }
+ 
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    if (res->gbm_bo && (transfer_mode == VIRGL_TRANSFER_TO_HOST ||
+                        !has_bit(res->storage_bits, VREND_STORAGE_EGL_IMAGE))) {
+       const bool success = virgl_gbm_transfer(res->gbm_bo, transfer_mode, iov, num_iovs, info) == 0;
+@@ -10091,7 +10213,7 @@
+       return EINVAL;
+    }
+ 
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    if (res->gbm_bo) {
+       assert(!info->synchronized);
+       return virgl_gbm_transfer(res->gbm_bo,
+@@ -10105,7 +10227,123 @@
     return vrend_renderer_transfer_write_iov(ctx, res, info->iovec, info->iovec_cnt, info);
  
  }
@@ -857,7 +1203,7 @@
  int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
                                     uint32_t dst_handle,
  
-@@ -10113,6 +10398,16 @@
+@@ -10113,6 +10351,16 @@
                                     struct vrend_resource *src_res,
                                     const struct vrend_transfer_info *info)
  {
@@ -874,11 +1220,19 @@
     if (!resource_contains_box(dst_res, info->box, info->level)) {
        vrend_report_context_error(ctx, VIRGL_ERROR_CTX_ILLEGAL_CMD_BUFFER, dst_handle);
        return EINVAL;
-@@ -10158,6 +10453,14 @@
-       }
+@@ -10123,7 +10371,7 @@
+       return EINVAL;
+    }
+ 
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    if (dst_res->gbm_bo && !TRANSFER_NO_GBM_MAPPING(info)) {
+       bool use_gbm = true;
+ 
+@@ -10159,6 +10407,14 @@
     }
  #endif
-+
+ 
 +  if (dst_res->target == GL_TEXTURE_2D_MULTISAMPLE ||
 +      dst_res->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY) {
 +     int ret = vrend_renderer_copy_transfer3d_msaa(ctx, dst_res, src_res, info);
@@ -886,10 +1240,20 @@
 +        return 0;
 +     virgl_warn("copy_transfer3d MSAA staging fallback failed (%d), trying direct upload\n", ret);
 +  }
- 
++
    return vrend_renderer_transfer_write_iov(ctx, dst_res, src_res->iov,
                                             src_res->num_iovs, info);
-@@ -10550,7 +10853,10 @@
+ }
+@@ -10180,7 +10436,7 @@
+       return EINVAL;
+    }
+ 
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    if (src_res->gbm_bo && !TRANSFER_NO_GBM_MAPPING(info)) {
+       bool use_gbm = true;
+ 
+@@ -10550,7 +10806,10 @@
     slice_offset = src_box->z * slice_size;
     cube_slice = (src_res->target == GL_TEXTURE_CUBE_MAP) ? src_box->z + src_box->depth : cube_slice;
     i = (src_res->target == GL_TEXTURE_CUBE_MAP) ? src_box->z : 0;
@@ -901,7 +1265,7 @@
        virgl_error("Offset out of bound: %d\n", src_box->z);
        goto cleanup;
     }
-@@ -10714,9 +11020,32 @@
+@@ -10714,9 +10973,32 @@
     if (dst_res->egl_image)
        comp_flags ^= VREND_COPY_COMPAT_FLAG_ONE_IS_EGL_IMAGE;
  
@@ -937,7 +1301,7 @@
        VREND_DEBUG(dbg_copy_resource, ctx, "COPY_REGION: use glCopyImageSubData\n");
        vrend_copy_sub_image(src_res, dst_res, src_level, src_box,
                             dst_level, dstx, dsty, dstz);
-@@ -11296,7 +11625,7 @@
+@@ -11296,7 +11578,7 @@
      * to resource_copy_region, in this case and if no render states etx need
      * to be applied, forward the call to glCopyImageSubData, otherwise do a
      * normal blit. */
@@ -946,7 +1310,7 @@
         (!info->render_condition_enable || !ctx->sub->cond_render_gl_mode) &&
         format_is_copy_compatible(info->src.format,info->dst.format, comp_flags) &&
         eglimage_copy_compatible &&
-@@ -11309,7 +11638,26 @@
+@@ -11309,7 +11591,26 @@
         info->dst.box.y + info->dst.box.height <= dst_height &&
         info->src.box.width == info->dst.box.width &&
         info->src.box.height == info->dst.box.height &&
@@ -974,7 +1338,7 @@
        VREND_DEBUG(dbg_blit, ctx,  "  Use glCopyImageSubData\n");
        vrend_copy_sub_image(src_res, dst_res, info->src.level, &info->src.box,
                             info->dst.level, info->dst.box.x, info->dst.box.y,
-@@ -12100,6 +12448,30 @@
+@@ -12100,6 +12401,30 @@
  static void vrend_fill_caps_glsl_version(int gl_ver, int gles_ver,
                                           union virgl_caps *caps)
  {
@@ -1005,7 +1369,7 @@
     if (gles_ver > 0) {
        caps->v1.glsl_level = 120;
  
-@@ -12145,7 +12517,7 @@
+@@ -12145,7 +12470,7 @@
           }
        }
     }
@@ -1014,7 +1378,7 @@
  }
  
  static void set_format_bit(struct virgl_supported_format_mask *mask, enum virgl_formats fmt)
-@@ -12166,6 +12538,10 @@
+@@ -12166,6 +12491,10 @@
  {
     int i;
     GLint max;
@@ -1025,7 +1389,7 @@
  
     /*
      * We can't fully support this feature on GLES,
-@@ -12210,9 +12586,27 @@
+@@ -12210,9 +12539,27 @@
  
     if (has_feature(feat_ubo)) {
        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &max);
@@ -1055,7 +1419,7 @@
     }
  
     if (has_feature(feat_depth_clamp))
-@@ -12231,8 +12625,13 @@
+@@ -12231,8 +12578,13 @@
     if (has_feature(feat_seamless_cubemap_per_texture))
        caps->v1.bset.seamless_cube_map_per_texture = 1;
  
@@ -1070,7 +1434,7 @@
  
     if (has_feature(feat_tessellation))
        caps->v1.bset.has_tessellation_shaders = 1;
-@@ -12349,6 +12748,7 @@
+@@ -12349,6 +12701,7 @@
  
     glGetIntegerv(GL_MAX_SAMPLES, &max);
     caps->v1.max_samples = max;
@@ -1078,7 +1442,7 @@
  
     /* All of the formats are common. */
     for (i = 0; i < VIRGL_FORMAT_MAX; i++) {
-@@ -12376,6 +12776,7 @@
+@@ -12376,6 +12729,7 @@
     GLfloat range[2];
     uint32_t video_memory;
     const char *renderer = (const char *)glGetString(GL_RENDERER);
@@ -1086,7 +1450,7 @@
  
     /* Count this up when you add a feature flag that is used to set a CAP in
      * the guest that was set unconditionally before. Then check that flag and
-@@ -12383,10 +12784,134 @@
+@@ -12383,10 +12737,134 @@
      * run on an old virgl host. Use it also to indicate non-cap fixes on the
      * host that help enable features in the guest. */
     caps->v2.host_feature_check_version = 23;
@@ -1114,7 +1478,7 @@
 +      const char *device_start = metal_start + strlen("ANGLE Metal Renderer:");
 +      while (*device_start == ' ')
 +         device_start++;
-+
+ 
 +      const char *device_end = device_start;
 +      while (*device_end && *device_end != ',' && *device_end != ')')
 +         device_end++;
@@ -1146,7 +1510,7 @@
 +                  while (vendor_end > vendor_start && vendor_end[-1] == ' ')
 +                     vendor_end--;
 +               }
- 
++
 +               if (vendor_end && vendor_end > vendor_start) {
 +                  snprintf(caps->v2.renderer, sizeof(caps->v2.renderer), "%.*s %.*s",
 +                           (int)(vendor_end - vendor_start), vendor_start,
@@ -1223,7 +1587,7 @@
     /* glamor reject llvmpipe, and since the renderer string is
      * composed of "virgl" and this renderer string we have to
      * hide the "llvmpipe" part */
-@@ -12507,8 +13032,25 @@
+@@ -12507,8 +12985,25 @@
           glGetIntegerv(GL_MAX_IMAGE_SAMPLES, (GLint*)&caps->v2.max_image_samples);
     }
  
@@ -1251,7 +1615,7 @@
  
     caps->v2.capability_bits |= VIRGL_CAP_TGSI_INVARIANT | VIRGL_CAP_SET_MIN_SAMPLES |
                                 VIRGL_CAP_TGSI_PRECISE | VIRGL_CAP_APP_TWEAK_SUPPORT;
-@@ -12670,6 +13212,10 @@
+@@ -12670,6 +13165,10 @@
              readback_str = "readback";
              set_format_bit(&caps->v2.supported_readback_formats, fmt);
           }
@@ -1262,7 +1626,16 @@
           if (vrend_format_can_multisample(fmt)) {
              log_texture_feature = true;
              multisample_str = "multisample";
-@@ -12801,6 +13347,7 @@
+@@ -12732,7 +13231,7 @@
+          caps->v2.capability_bits |= VIRGL_CAP_ARB_BUFFER_STORAGE;
+    }
+ 
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    if (gbm) {
+       if (has_feature(feat_memory_object) && has_feature(feat_memory_object_fd)) {
+          if ((!strcmp(gbm_device_get_backend_name(gbm->device), "i915") ||
+@@ -12801,6 +13300,7 @@
     if (has_feature(feat_ubo)) {
        glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &max);
        caps->v2.max_uniform_block_size = max;
@@ -1270,7 +1643,7 @@
     }
  
     /* Propagate the max of Uniform Components */
-@@ -12852,7 +13399,10 @@
+@@ -12852,12 +13352,13 @@
        caps->v2.capability_bits_v2 |= VIRGL_CAP_V2_MIRROR_CLAMP;
  
  #ifdef ENABLE_VIDEO
@@ -1282,19 +1655,24 @@
  #else
     caps->v2.num_video_caps = 0;
  #endif
-@@ -12866,6 +13416,11 @@
-    int gl_ver, gles_ver;
+-   if (vrend_state.gbm_layout_feat)
+-      caps->v2.capability_bits_v2 |= VIRGL_CAP_V2_RESOURCE_LAYOUT;
+ }
+ 
+ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
+@@ -12867,6 +13368,11 @@
     GLenum err;
     bool fill_capset2 = false;
-+
+ 
 +   if (getenv("VIRGL_DEBUG_CAPS")) {
 +      fprintf(stderr, "DEBUG vrend_renderer_fill_caps called: set=%u version=%u caps=%p\n", set, version, (void*)caps);
 +      fflush(stderr);
 +   }
- 
++
     if (!caps)
        return;
-@@ -12874,12 +13429,18 @@
+ 
+@@ -12874,12 +13380,18 @@
     case VIRTGPU_DRM_CAPSET_VIRGL:
        if (version > VREND_CAPSET_VIRGL_MAX_VERSION)
           return;
@@ -1313,7 +1691,7 @@
        memset(caps, 0, sizeof(*caps));
        caps->max_version = VREND_CAPSET_VIRGL2_MAX_VERSION;
        fill_capset2 = true;
-@@ -12904,13 +13465,33 @@
+@@ -12904,13 +13416,33 @@
  
     vrend_fill_caps_glsl_version(gl_ver, gles_ver, caps);
     VREND_DEBUG(dbg_features, NULL, "GLSL support level: %d", caps->v1.glsl_level);
@@ -1347,12 +1725,10 @@
  }
  
  GLint64 vrend_renderer_get_timestamp(void)
-@@ -13107,6 +13688,35 @@
-    info->format = res->base.format;
-    info->flags = res->y_0_top ? VIRGL_RESOURCE_Y_0_TOP : 0;
+@@ -13109,6 +13641,35 @@
     info->stride = util_format_get_nblocksx(res->base.format, u_minify(res->base.width0, 0)) * elsize;
-+}
-+
+ }
+ 
 +void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres)
 +{
 +   struct vrend_texture *tex = (struct vrend_texture *)pres;
@@ -1380,10 +1756,12 @@
 +         tex->cur_srgb_decode = GL_DECODE_EXT;
 +      }
 +   }
- }
- 
++}
++
  int
-@@ -13147,6 +13757,7 @@
+ vrend_renderer_resource_d3d11_texture2d(struct pipe_resource *pres, void **d3d_tex2d)
+ {
+@@ -13147,6 +13708,7 @@
        *max_size = 0;
        break;
     }
@@ -1391,28 +1769,132 @@
  }
  
  void vrend_renderer_create_sub_ctx(struct vrend_context *ctx, int sub_ctx_id)
-@@ -13789,3 +14400,8 @@
-    return EINVAL;
+@@ -13291,7 +13853,7 @@
+ {
+    struct vrend_resource *res = (struct vrend_resource *)pres;
+ 
+-#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_GBM_ALLOCATION)
++#if defined(HAVE_EPOXY_EGL_H) && defined(ENABLE_MINIGBM_ALLOCATION)
+    if (res->gbm_bo)
+       return virgl_gbm_export_query(res->gbm_bo, export_query);
+ #else
+@@ -13699,93 +14261,7 @@
  }
  #endif
-+
-+bool vrend_renderer_video_available(void)
-+{
-+   return vrend_state.video_available;
-+}
-
---- a/src/vrend/vrend_renderer.h
-+++ b/src/vrend/vrend_renderer.h
-@@ -563,6 +563,8 @@
  
+-#ifdef ENABLE_GBM
+-static size_t get_gbm_bo_plane_size(struct gbm_bo *bo, int plane)
++bool vrend_renderer_video_available(void)
+ {
+-   off_t size;
+-   int fd;
+-
+-   fd = gbm_bo_get_fd_for_plane(bo, plane);
+-   if (fd < 0)
+-      return 0;
+-
+-   size = lseek(fd, 0, SEEK_END);
+-   close(fd);
+-
+-   if (size < 0)
+-      return 0;
+-
+-   return size;
++   return vrend_state.video_available;
+ }
+-
+-int
+-vrend_renderer_pipe_resource_get_layout(struct vrend_context *ctx,
+-                                        uint32_t out_res_id, uint32_t res_id)
+-{
+-   struct virgl_resource_layout layout = { 0 };
+-   struct vrend_resource *out_res, *res;
+-
+-   out_res = vrend_renderer_ctx_res_lookup(ctx, out_res_id);
+-   if (!out_res) {
+-      vrend_report_context_error(ctx, VIRGL_ERROR_CTX_ILLEGAL_RESOURCE, out_res_id);
+-      return EINVAL;
+-   }
+-
+-   res = vrend_renderer_ctx_res_lookup(ctx, res_id);
+-   if (!res) {
+-      vrend_report_context_error(ctx, VIRGL_ERROR_CTX_ILLEGAL_RESOURCE, res_id);
+-      return EINVAL;
+-   }
+-
+-   if (res->gbm_bo) {
+-      int num_planes = gbm_bo_get_plane_count(res->gbm_bo);
+-
+-      if (layout.num_planes > VIRGL_RESOURCE_MAX_PLANES) {
+-         virgl_error("resource GBM has too many planes\n");
+-         vrend_report_context_error(ctx, VIRGL_ERROR_CTX_UNKNOWN, res_id);
+-         return EINVAL;
+-      }
+-
+-      layout.num_planes = num_planes;
+-      layout.modifier = gbm_bo_get_modifier(res->gbm_bo);
+-
+-      for (uint32_t i = 0; i < layout.num_planes; i++) {
+-         layout.planes[i].offset = gbm_bo_get_offset(res->gbm_bo, i);
+-         layout.planes[i].stride = gbm_bo_get_stride_for_plane(res->gbm_bo, i);
+-         layout.planes[i].size = get_gbm_bo_plane_size(res->gbm_bo, i);
+-
+-         if (!layout.planes[i].size) {
+-            virgl_error("failed to get GBM plane size\n");
+-            vrend_report_context_error(ctx, VIRGL_ERROR_CTX_UNKNOWN, res_id);
+-            return EINVAL;
+-         }
+-      }
+-   }
+-
+-   if (out_res->iov) {
+-      if (vrend_write_to_iovec(out_res->iov, out_res->num_iovs, 0,
+-                               (const void *) &layout, sizeof(layout)) != sizeof(layout)) {
+-         virgl_error("resource layout does not fit IOV size\n");
+-         vrend_report_context_error(ctx, VIRGL_ERROR_CTX_ILLEGAL_RESOURCE, out_res_id);
+-         return EINVAL;
+-      }
+-   } else {
+-      if (out_res->base.width0 >= sizeof(layout)) {
+-         *((struct virgl_resource_layout *) out_res->ptr) = layout;
+-      } else {
+-         virgl_error("resource layout does not fit buffer size\n");
+-         vrend_report_context_error(ctx, VIRGL_ERROR_CTX_ILLEGAL_RESOURCE, out_res_id);
+-         return EINVAL;
+-      }
+-   }
+-
+-   return 0;
+-}
+-#else
+-int
+-vrend_renderer_pipe_resource_get_layout(UNUSED struct vrend_context *ctx,
+-                                        UNUSED uint32_t out_res_id, UNUSED uint32_t res_id)
+-{
+-   return EINVAL;
+-}
+-#endif
+diff -Naur virglrenderer-upstream/src/vrend/vrend_renderer.h virglrenderer-clean/src/vrend/vrend_renderer.h
+--- virglrenderer-upstream/src/vrend/vrend_renderer.h	2026-01-09 14:47:36
++++ virglrenderer-clean/src/vrend/vrend_renderer.h	2026-01-09 14:47:45
+@@ -197,7 +197,6 @@
+ #define VREND_D3D11_SHARE_TEXTURE (1 << 4)
+ #define VREND_USE_COMPAT_CONTEXT (1 << 5)
+ #define VREND_USE_GLES (1 << 6)
+-#define VREND_USE_GBM_LAYOUT (1 << 7)
+ 
+ bool vrend_check_no_error(struct vrend_context *ctx);
+ 
+@@ -564,6 +563,8 @@
  void vrend_renderer_resource_get_info(struct pipe_resource *pres,
                                        struct vrend_renderer_resource_info *info);
-+
-+void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres);
  
++void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres);
++
  void vrend_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
                                  uint32_t *max_size);
-@@ -612,6 +614,8 @@
+ 
+@@ -612,6 +613,8 @@
  
  extern const struct vrend_if_cbs *vrend_clicbs;
  
@@ -1421,167 +1903,55 @@
  int vrend_renderer_export_query(struct pipe_resource *pres,
                                  struct virgl_renderer_export_query *export_query);
  
-
---- a/src/vrend/vrend_shader.c
-+++ b/src/vrend/vrend_shader.c
-@@ -6303,10 +6303,12 @@
-
+@@ -643,8 +646,5 @@
+ int
+ vrend_renderer_resource_d3d11_texture2d(struct pipe_resource *res, void **handle);
+ 
+-int
+-vrend_renderer_pipe_resource_get_layout(struct vrend_context *ctx,
+-                                        uint32_t out_res_id, uint32_t res_id);
+ 
+ #endif
+diff -Naur virglrenderer-upstream/src/vrend/vrend_shader.c virglrenderer-clean/src/vrend/vrend_shader.c
+--- virglrenderer-upstream/src/vrend/vrend_shader.c	2026-01-09 14:47:36
++++ virglrenderer-clean/src/vrend/vrend_shader.c	2026-01-09 14:48:54
+@@ -6301,10 +6301,26 @@
+ 
        if (ctx->prog_type == TGSI_PROCESSOR_VERTEX && ctx->cfg->use_explicit_locations)
-+      /* Core GLSL 150 already includes fragment coord layouts; avoid extension require on hosts that omit the ARB string (e.g., macOS core GL). */
+          emit_ext(glsl_strbufs, "ARB_explicit_attrib_location", "require");
 -      if (ctx->prog_type == TGSI_PROCESSOR_FRAGMENT && fs_emit_layout(ctx))
-+      if (ctx->prog_type == TGSI_PROCESSOR_FRAGMENT && fs_emit_layout(ctx) && ctx->glsl_ver_required < 150)
-          emit_ext(glsl_strbufs, "ARB_fragment_coord_conventions", "require");
-
+-         emit_ext(glsl_strbufs, "ARB_fragment_coord_conventions", "require");
+ 
 -      if (ctx->ubo_used_mask)
++      /* Fragment coord conventions:
++       * - Core in GLSL 1.50+ (layout qualifier support)
++       * - Extension ARB_fragment_coord_conventions for older GLSL
++       * - macOS core GL 4.1 reports the capability but NOT the extension string
++       * - Check capability bit instead of extension string for GLSL < 150
++       */
++      if (ctx->prog_type == TGSI_PROCESSOR_FRAGMENT && fs_emit_layout(ctx)) {
++         if (ctx->glsl_ver_required < 150) {
++            /* For GLSL < 150, only require extension if not in core profile
++             * (i.e., capability was set via extension string, not GL 3.2+ core) */
++            if (!ctx->cfg->use_core_profile) {
++               emit_ext(glsl_strbufs, "ARB_fragment_coord_conventions", "require");
++            }
++         }
++         /* For GLSL >= 150, the extension is core - no need to require it */
++      }
++
 +      /* Uniform buffers are core in GLSL 1.40+; only request the ARB extension when targeting older versions. */
 +      if (ctx->ubo_used_mask && ctx->glsl_ver_required < 140)
           emit_ext(glsl_strbufs, "ARB_uniform_buffer_object", "require");
-
+ 
        if (ctx->num_cull_dist_prop || ctx->key->num_in_cull || ctx->key->num_out_cull)
-
---- a/src/proxy/proxy_socket.c
---- a/src/proxy/proxy_socket.c
-+++ b/src/proxy/proxy_socket.c
-@@ -100,7 +100,12 @@
- proxy_socket_recvmsg(struct proxy_socket *socket, struct msghdr *msg)
- {
-    do {
--      const ssize_t s = recvmsg(socket->fd, msg, MSG_CMSG_CLOEXEC);
-+      #if defined(__APPLE__)
-+   // macOS doesn't support MSG_CMSG_CLOEXEC
-+   const ssize_t s = recvmsg(socket->fd, msg, 0);
-+#else
-+   const ssize_t s = recvmsg(socket->fd, msg, MSG_CMSG_CLOEXEC);
-+#endif
-       if (unlikely(s < 0)) {
-          if (errno == EAGAIN || errno == EINTR)
-             continue;
-
---- a/src/venus/vkr_ring.c
-+++ b/src/venus/vkr_ring.c
-@@ -12,6 +12,18 @@
- #include "venus-protocol/vn_protocol_renderer_dispatches.h"
- 
- #include "vkr_context.h"
+@@ -8178,6 +8194,9 @@
+    bret = tgsi_iterate_shader(tokens, &ctx.iter);
+    if (bret == false)
+       goto fail;
 +
-+#if defined(__APPLE__)
-+// macOS doesn't have clock_nanosleep, use nanosleep instead
-+static inline int clock_nanosleep(clockid_t clock_id, int flags,
-+                                   const struct timespec *request,
-+                                   struct timespec *remain)
-+{
-+   struct timespec req = *request;
-+   return nanosleep(&req, remain);
-+}
-+#endif
-+
++   if (ctx.shader_req_bits & SHADER_REQ_INTS)
++      ctx.glsl_ver_required = require_glsl_ver(&ctx, 150);
  
- static inline void *
- get_resource_pointer(const struct vkr_resource *res, size_t offset)
-
---- a/server/render_socket.c
-+++ b/server/render_socket.c
-@@ -4,6 +4,7 @@
-  */
- 
- #include "render_socket.h"
-+#include <fcntl.h>
- 
- #include <errno.h>
- #include <sys/socket.h>
-@@ -28,11 +29,27 @@
- bool
- render_socket_pair(int out_fds[static 2])
- {
-+   #if defined(__APPLE__)
-+   // macOS doesn't support SOCK_CLOEXEC, manually set FD_CLOEXEC
-+   int ret = socketpair(AF_UNIX, SOCK_SEQPACKET, 0, out_fds);
-+   if (ret) {
-+      render_log("failed to create socket pair");
-+      return false;
-+   }
-+   // Set FD_CLOEXEC on both sockets
-+   fcntl(out_fds[0], F_SETFD, FD_CLOEXEC);
-+   fcntl(out_fds[1], F_SETFD, FD_CLOEXEC);
-+#else
-    int ret = socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, out_fds);
-    if (ret) {
-       render_log("failed to create socket pair");
-       return false;
-    }
-+#endif
-+   if (ret) {
-+      render_log("failed to create socket pair");
-+      return false;
-+   }
- 
-    return true;
- }
-@@ -80,7 +97,12 @@
- render_socket_recvmsg(struct render_socket *socket, struct msghdr *msg, size_t *out_size)
- {
-    do {
--      const ssize_t s = recvmsg(socket->fd, msg, MSG_CMSG_CLOEXEC);
-+      #if defined(__APPLE__)
-+   // macOS doesn't support MSG_CMSG_CLOEXEC
-+   const ssize_t s = recvmsg(socket->fd, msg, 0);
-+#else
-+   const ssize_t s = recvmsg(socket->fd, msg, MSG_CMSG_CLOEXEC);
-+#endif
-       if (unlikely(s <= 0)) {
-          if (!s)
-             return false;
-
---- a/server/render_worker.c
-+++ b/server/render_worker.c
-@@ -24,10 +24,15 @@
- #include <errno.h>
- #include <fcntl.h>
- #include <signal.h>
-+#if defined(__APPLE__)
-+// macOS doesn't have signalfd, use alternative implementation
-+#include <sys/select.h>
-+#else
- #include <sys/signalfd.h>
- #include <sys/types.h>
- #include <sys/wait.h>
- #include <threads.h>
-+#endif
- #include <unistd.h>
- 
- struct minijail;
-@@ -182,7 +187,13 @@
-       return -1;
-    }
- 
--   int fd = signalfd(-1, &set, SFD_NONBLOCK | SFD_CLOEXEC);
-+#if defined(__APPLE__)
-+   // macOS doesn't support signalfd, use -1 to indicate polling mode
-+   sigprocmask(SIG_BLOCK, &set, NULL);
-+   int fd = -1;
-+#else
-+      int fd = signalfd(-1, &set, SFD_NONBLOCK | SFD_CLOEXEC);
-+#endif
-    if (fd < 0) {
-       render_log("failed to create signalfd");
-       return -1;
-@@ -322,6 +333,10 @@
-       return true;
- 
-    do {
-+#if defined(__APPLE__)
-+      // macOS doesn't have signalfd, just return true
-+      return true;
-+#else
-       struct signalfd_siginfo siginfos[8];
-       const ssize_t r = read(jail->sigchld_fd, siginfos, sizeof(siginfos));
-       if (r == sizeof(siginfos))
-@@ -331,6 +346,7 @@
- 
-       render_log("failed to read signalfd");
-       return false;
-+#endif
-    } while (true);
- 
-    return true;
-
+    if (ctx.shader_req_bits & SHADER_REQ_FP64)
+       ctx.glsl_ver_required = require_glsl_ver(&ctx, 150);
