@@ -1424,20 +1424,34 @@
 
 --- a/src/vrend/vrend_shader.c
 +++ b/src/vrend/vrend_shader.c
-@@ -6301,10 +6301,12 @@
- 
+@@ -6301,10 +6301,23 @@
+
        if (ctx->prog_type == TGSI_PROCESSOR_VERTEX && ctx->cfg->use_explicit_locations)
           emit_ext(glsl_strbufs, "ARB_explicit_attrib_location", "require");
 -      if (ctx->prog_type == TGSI_PROCESSOR_FRAGMENT && fs_emit_layout(ctx))
-+      /* Core GLSL 150 already includes fragment coord layouts; avoid extension require on hosts that omit the ARB string (e.g., macOS core GL). */
-+      if (ctx->prog_type == TGSI_PROCESSOR_FRAGMENT && fs_emit_layout(ctx) && ctx->glsl_ver_required < 150)
-          emit_ext(glsl_strbufs, "ARB_fragment_coord_conventions", "require");
- 
+-         emit_ext(glsl_strbufs, "ARB_fragment_coord_conventions", "require");
++      /* Fragment coord conventions:
++       * - Core in GLSL 1.50+ (layout qualifier support)
++       * - Extension ARB_fragment_coord_conventions for older GLSL
++       * - macOS core GL 4.1 reports the capability but NOT the extension string
++       * - Check capability bit instead of extension string for GLSL < 150
++       */
++      if (ctx->prog_type == TGSI_PROCESSOR_FRAGMENT && fs_emit_layout(ctx)) {
++         if (ctx->glsl_ver_required < 150) {
++            /* For GLSL < 150, only require extension if not in core profile
++             * (i.e., capability was set via extension string, not GL 3.2+ core) */
++            if (!ctx->cfg->use_core_profile) {
++               emit_ext(glsl_strbufs, "ARB_fragment_coord_conventions", "require");
++            }
++         }
++         /* For GLSL >= 150, the extension is core - no need to require it */
++      }
+
 -      if (ctx->ubo_used_mask)
 +      /* Uniform buffers are core in GLSL 1.40+; only request the ARB extension when targeting older versions. */
 +      if (ctx->ubo_used_mask && ctx->glsl_ver_required < 140)
           emit_ext(glsl_strbufs, "ARB_uniform_buffer_object", "require");
- 
+
        if (ctx->num_cull_dist_prop || ctx->key->num_in_cull || ctx->key->num_out_cull)
 
 --- a/src/proxy/proxy_socket.c
