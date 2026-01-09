@@ -565,41 +565,47 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_renderer.c virg
  
 -   for (int i = 0; i < shader->glsl_strings.num_strings; i++)
 -      shader_parts[i] = shader->glsl_strings.strings[i].buf;
-+   /* Firefox uses GL_EXT_shader_texture_lod (GLES), but we have GL_ARB_shader_texture_lod (desktop GL).
-+    * Rewrite extension directives to use the ARB version. */
++   /* GL_EXT_shader_texture_lod is a GLES extension. Firefox may require it,
++    * but in desktop GL core profile, this functionality is available as core
++    * (since GLSL 1.30). Remove the extension directive entirely. */
 +   for (int i = 0; i < shader->glsl_strings.num_strings; i++) {
 +      const char *src = shader->glsl_strings.strings[i].buf;
-+      const char *ext_check = strstr(src, "GL_EXT_shader_texture_lod");
-+      
++      const char *ext_check = strstr(src, "#extension GL_EXT_shader_texture_lod");
++
 +      if (ext_check) {
-+         /* Found GL_EXT_shader_texture_lod - replace with GL_ARB_shader_texture_lod */
++         /* Found the extension directive - remove it entirely */
 +         if (getenv("VIRGL_DEBUG_SHADERS")) {
-+            fprintf(stderr, "DEBUG: Rewriting shader - replacing GL_EXT_shader_texture_lod with GL_ARB_shader_texture_lod\n");
++            fprintf(stderr, "DEBUG: Removing #extension GL_EXT_shader_texture_lod (functionality is core in GLSL 1.30+)\n");
 +            fflush(stderr);
 +         }
 +         size_t src_len = strlen(src);
-+         modified_shaders[i] = malloc(src_len + 16); /* Extra space for ARB vs EXT */
-+         if (modified_shaders[i]) {
-+            char *dst = modified_shaders[i];
++         char *modified = malloc(src_len + 1);
++         if (modified) {
++            /* Remove the entire #extension directive line */
++            char *dst = modified;
 +            const char *read_pos = src;
-+            
-+            while ((ext_check = strstr(read_pos, "GL_EXT_shader_texture_lod")) != NULL) {
-+               /* Copy up to the extension name */
++
++            while ((ext_check = strstr(read_pos, "#extension GL_EXT_shader_texture_lod")) != NULL) {
++               /* Find the end of the line */
++               const char *line_end = strchr(ext_check, '\n');
++               if (!line_end)
++                  line_end = read_pos + strlen(read_pos);
++
++               /* Copy up to the extension directive */
 +               size_t prefix_len = ext_check - read_pos;
 +               memcpy(dst, read_pos, prefix_len);
 +               dst += prefix_len;
-+               
-+               /* Write ARB version instead */
-+               memcpy(dst, "GL_ARB_shader_texture_lod", 25);
-+               dst += 25;
-+               
-+               /* Skip past the EXT version */
-+               read_pos = ext_check + 25;
++
++               /* Skip the entire extension directive line */
++               read_pos = line_end;
++               if (*read_pos == '\n')
++                  read_pos++; /* Skip the newline too */
 +            }
-+            
++
 +            /* Copy remaining string */
 +            strcpy(dst, read_pos);
-+            shader_parts[i] = modified_shaders[i];
++            shader_parts[i] = modified;
++            modified_shaders[i] = modified;
 +         } else {
 +            shader_parts[i] = src;
 +         }
