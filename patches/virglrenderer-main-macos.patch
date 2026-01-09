@@ -1446,7 +1446,7 @@
 +         }
 +         /* For GLSL >= 150, the extension is core - no need to require it */
 +      }
-
+ 
 -      if (ctx->ubo_used_mask)
 +      /* Uniform buffers are core in GLSL 1.40+; only request the ARB extension when targeting older versions. */
 +      if (ctx->ubo_used_mask && ctx->glsl_ver_required < 140)
