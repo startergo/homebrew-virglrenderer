@@ -46,6 +46,59 @@ diff -Naur virglrenderer-upstream/server/render_socket.c virglrenderer-patched/s
        if (unlikely(s <= 0)) {
           if (!s)
              return false;
+diff -Naur virglrenderer-upstream/server/render_worker.c virglrenderer-patched/server/render_worker.c
+--- virglrenderer-upstream/server/render_worker.c	2026-01-09 14:47:36
++++ virglrenderer-patched/server/render_worker.c	2026-01-09 15:23:39
+@@ -24,10 +24,15 @@
+ #include <errno.h>
+ #include <fcntl.h>
+ #include <signal.h>
++#if defined(__APPLE__)
++// macOS doesn't have signalfd, use alternative implementation
++#include <sys/select.h>
++#else
+ #include <sys/signalfd.h>
+ #include <sys/types.h>
+ #include <sys/wait.h>
+ #include <threads.h>
++#endif
+ #include <unistd.h>
+ 
+ struct minijail;
+@@ -182,11 +187,17 @@
+       return -1;
+    }
+ 
++#if defined(__APPLE__)
++   // macOS doesn't support signalfd, use -1 to indicate polling mode
++   sigprocmask(SIG_BLOCK, &set, NULL);
++   int fd = -1;
++#else
+    int fd = signalfd(-1, &set, SFD_NONBLOCK | SFD_CLOEXEC);
+    if (fd < 0) {
+       render_log("failed to create signalfd");
+       return -1;
+    }
++#endif
+ 
+    if (sigprocmask(SIG_BLOCK, &set, NULL)) {
+       render_log("failed to call sigprocmask");
+diff -Naur virglrenderer-upstream/src/proxy/proxy_socket.c virglrenderer-patched/src/proxy/proxy_socket.c
+--- virglrenderer-upstream/src/proxy/proxy_socket.c	2026-01-09 14:47:36
++++ virglrenderer-patched/src/proxy/proxy_socket.c	2026-01-09 15:21:06
+@@ -100,7 +100,12 @@
+ proxy_socket_recvmsg(struct proxy_socket *socket, struct msghdr *msg)
+ {
+    do {
++#if defined(__APPLE__)
++      // macOS doesn't support MSG_CMSG_CLOEXEC
++      const ssize_t s = recvmsg(socket->fd, msg, 0);
++#else
+       const ssize_t s = recvmsg(socket->fd, msg, MSG_CMSG_CLOEXEC);
++#endif
+       if (unlikely(s < 0)) {
+          if (errno == EAGAIN || errno == EINTR)
+             continue;
 diff -Naur virglrenderer-upstream/src/venus/vkr_ring.c virglrenderer-patched/src/venus/vkr_ring.c
 --- virglrenderer-upstream/src/venus/vkr_ring.c	2026-01-09 14:47:36
 +++ virglrenderer-patched/src/venus/vkr_ring.c	2026-01-09 15:07:52
