@@ -1,6 +1,75 @@
-diff -Naur virglrenderer-upstream/src/virglrenderer.c virglrenderer-clean/src/virglrenderer.c
+diff -Naur virglrenderer-upstream/server/render_socket.c virglrenderer-patched/server/render_socket.c
+--- virglrenderer-upstream/server/render_socket.c	2026-01-09 14:47:36
++++ virglrenderer-patched/server/render_socket.c	2026-01-09 15:10:16
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include "render_socket.h"
++#include <fcntl.h>
+ 
+ #include <errno.h>
+ #include <sys/socket.h>
+@@ -28,11 +29,23 @@
+ bool
+ render_socket_pair(int out_fds[static 2])
+ {
++#if defined(__APPLE__)
++   // macOS doesn't support SOCK_CLOEXEC, manually set FD_CLOEXEC
++   int ret = socketpair(AF_UNIX, SOCK_SEQPACKET, 0, out_fds);
++   if (ret) {
++      render_log("failed to create socket pair");
++      return false;
++   }
++   // Set FD_CLOEXEC on both sockets
++   fcntl(out_fds[0], F_SETFD, FD_CLOEXEC);
++   fcntl(out_fds[1], F_SETFD, FD_CLOEXEC);
++#else
+    int ret = socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, out_fds);
+    if (ret) {
+       render_log("failed to create socket pair");
+       return false;
+    }
++#endif
+ 
+    return true;
+ }
+@@ -80,7 +93,12 @@
+ render_socket_recvmsg(struct render_socket *socket, struct msghdr *msg, size_t *out_size)
+ {
+    do {
++#if defined(__APPLE__)
++      // macOS doesn't support MSG_CMSG_CLOEXEC
++      const ssize_t s = recvmsg(socket->fd, msg, 0);
++#else
+       const ssize_t s = recvmsg(socket->fd, msg, MSG_CMSG_CLOEXEC);
++#endif
+       if (unlikely(s <= 0)) {
+          if (!s)
+             return false;
+diff -Naur virglrenderer-upstream/src/venus/vkr_ring.c virglrenderer-patched/src/venus/vkr_ring.c
+--- virglrenderer-upstream/src/venus/vkr_ring.c	2026-01-09 14:47:36
++++ virglrenderer-patched/src/venus/vkr_ring.c	2026-01-09 15:07:52
+@@ -13,6 +13,17 @@
+ 
+ #include "vkr_context.h"
+ 
++#if defined(__APPLE__)
++// macOS doesn't have clock_nanosleep, use nanosleep instead
++static inline int clock_nanosleep(clockid_t clock_id, int flags,
++                                   const struct timespec *request,
++                                   struct timespec *remain)
++{
++   struct timespec req = *request;
++   return nanosleep(&req, remain);
++}
++#endif
++
+ static inline void *
+ get_resource_pointer(const struct vkr_resource *res, size_t offset)
+ {
+diff -Naur virglrenderer-upstream/src/virglrenderer.c virglrenderer-patched/src/virglrenderer.c
 --- virglrenderer-upstream/src/virglrenderer.c	2026-01-09 14:47:36
-+++ virglrenderer-clean/src/virglrenderer.c	2026-01-09 14:47:45
++++ virglrenderer-patched/src/virglrenderer.c	2026-01-09 15:09:13
 @@ -178,11 +178,37 @@
  void virgl_renderer_fill_caps(uint32_t set, uint32_t version,
                                void *caps)
@@ -205,9 +274,9 @@ diff -Naur virglrenderer-upstream/src/virglrenderer.c virglrenderer-clean/src/vi
        ret = vrend_renderer_resource_unmap(res->pipe_resource);
     } else {
        switch (res->fd_type) {
-diff -Naur virglrenderer-upstream/src/virglrenderer.h virglrenderer-clean/src/virglrenderer.h
+diff -Naur virglrenderer-upstream/src/virglrenderer.h virglrenderer-patched/src/virglrenderer.h
 --- virglrenderer-upstream/src/virglrenderer.h	2026-01-09 14:47:36
-+++ virglrenderer-clean/src/virglrenderer.h	2026-01-09 14:47:45
++++ virglrenderer-patched/src/virglrenderer.h	2026-01-09 15:09:13
 @@ -380,6 +380,9 @@
  VIRGL_EXPORT int virgl_renderer_resource_get_info_ext(int res_handle,
                                                        struct virgl_renderer_resource_info_ext *info);
@@ -237,9 +306,9 @@ diff -Naur virglrenderer-upstream/src/virglrenderer.h virglrenderer-clean/src/vi
  
  /*
   * These are unstable APIs for development only. Use these for development/testing purposes
-diff -Naur virglrenderer-upstream/src/vrend/vrend_blitter.h virglrenderer-clean/src/vrend/vrend_blitter.h
+diff -Naur virglrenderer-upstream/src/vrend/vrend_blitter.h virglrenderer-patched/src/vrend/vrend_blitter.h
 --- virglrenderer-upstream/src/vrend/vrend_blitter.h	2026-01-09 14:47:36
-+++ virglrenderer-clean/src/vrend/vrend_blitter.h	2026-01-09 14:47:45
++++ virglrenderer-patched/src/vrend/vrend_blitter.h	2026-01-09 15:09:13
 @@ -35,6 +35,12 @@
     "%s"                                         \
  
@@ -283,9 +352,9 @@ diff -Naur virglrenderer-upstream/src/vrend/vrend_blitter.h virglrenderer-clean/
  #define FS_TEXFETCH_DS_MSAA_ARRAY_GLES HEADER_GLES_MS_ARRAY FS_TEXFETCH_DS_MSAA_BODY_GLES
  
  /* implement blitting using OpenGL. */
-diff -Naur virglrenderer-upstream/src/vrend/vrend_decode.c virglrenderer-clean/src/vrend/vrend_decode.c
+diff -Naur virglrenderer-upstream/src/vrend/vrend_decode.c virglrenderer-patched/src/vrend/vrend_decode.c
 --- virglrenderer-upstream/src/vrend/vrend_decode.c	2026-01-09 14:47:36
-+++ virglrenderer-clean/src/vrend/vrend_decode.c	2026-01-09 14:47:45
++++ virglrenderer-patched/src/vrend/vrend_decode.c	2026-01-09 15:09:13
 @@ -888,6 +888,17 @@
        return EINVAL;
     }
@@ -355,9 +424,9 @@ diff -Naur virglrenderer-upstream/src/vrend/vrend_decode.c virglrenderer-clean/s
        if (ret) {
           virgl_error("context %d failed to dispatch %s: %d\n",
                 gdctx->base.ctx_id, vrend_get_comand_name(cmd), ret);
-diff -Naur virglrenderer-upstream/src/vrend/vrend_formats.c virglrenderer-clean/src/vrend/vrend_formats.c
+diff -Naur virglrenderer-upstream/src/vrend/vrend_formats.c virglrenderer-patched/src/vrend/vrend_formats.c
 --- virglrenderer-upstream/src/vrend/vrend_formats.c	2026-01-09 14:47:36
-+++ virglrenderer-clean/src/vrend/vrend_formats.c	2026-01-09 14:47:45
++++ virglrenderer-patched/src/vrend/vrend_formats.c	2026-01-09 15:09:13
 @@ -716,48 +716,183 @@
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
@@ -556,9 +625,9 @@ diff -Naur virglrenderer-upstream/src/vrend/vrend_formats.c virglrenderer-clean/
     return max_samples_confirmed;
  }
  
-diff -Naur virglrenderer-upstream/src/vrend/vrend_renderer.c virglrenderer-clean/src/vrend/vrend_renderer.c
+diff -Naur virglrenderer-upstream/src/vrend/vrend_renderer.c virglrenderer-patched/src/vrend/vrend_renderer.c
 --- virglrenderer-upstream/src/vrend/vrend_renderer.c	2026-01-09 14:47:36
-+++ virglrenderer-clean/src/vrend/vrend_renderer.c	2026-01-09 14:47:45
++++ virglrenderer-patched/src/vrend/vrend_renderer.c	2026-01-09 15:09:13
 @@ -28,6 +28,7 @@
  #include <unistd.h>
  #include <stdatomic.h>
@@ -1874,9 +1943,9 @@ diff -Naur virglrenderer-upstream/src/vrend/vrend_renderer.c virglrenderer-clean
 -   return EINVAL;
 -}
 -#endif
-diff -Naur virglrenderer-upstream/src/vrend/vrend_renderer.h virglrenderer-clean/src/vrend/vrend_renderer.h
+diff -Naur virglrenderer-upstream/src/vrend/vrend_renderer.h virglrenderer-patched/src/vrend/vrend_renderer.h
 --- virglrenderer-upstream/src/vrend/vrend_renderer.h	2026-01-09 14:47:36
-+++ virglrenderer-clean/src/vrend/vrend_renderer.h	2026-01-09 14:47:45
++++ virglrenderer-patched/src/vrend/vrend_renderer.h	2026-01-09 15:09:13
 @@ -197,7 +197,6 @@
  #define VREND_D3D11_SHARE_TEXTURE (1 << 4)
  #define VREND_USE_COMPAT_CONTEXT (1 << 5)
@@ -1912,9 +1981,9 @@ diff -Naur virglrenderer-upstream/src/vrend/vrend_renderer.h virglrenderer-clean
 -                                        uint32_t out_res_id, uint32_t res_id);
  
  #endif
-diff -Naur virglrenderer-upstream/src/vrend/vrend_shader.c virglrenderer-clean/src/vrend/vrend_shader.c
+diff -Naur virglrenderer-upstream/src/vrend/vrend_shader.c virglrenderer-patched/src/vrend/vrend_shader.c
 --- virglrenderer-upstream/src/vrend/vrend_shader.c	2026-01-09 14:47:36
-+++ virglrenderer-clean/src/vrend/vrend_shader.c	2026-01-09 14:48:54
++++ virglrenderer-patched/src/vrend/vrend_shader.c	2026-01-09 15:08:31
 @@ -6301,10 +6301,26 @@
  
        if (ctx->prog_type == TGSI_PROCESSOR_VERTEX && ctx->cfg->use_explicit_locations)
@@ -1945,13 +2014,3 @@ diff -Naur virglrenderer-upstream/src/vrend/vrend_shader.c virglrenderer-clean/s
           emit_ext(glsl_strbufs, "ARB_uniform_buffer_object", "require");
  
        if (ctx->num_cull_dist_prop || ctx->key->num_in_cull || ctx->key->num_out_cull)
-@@ -8178,6 +8194,9 @@
-    bret = tgsi_iterate_shader(tokens, &ctx.iter);
-    if (bret == false)
-       goto fail;
-+
-+   if (ctx.shader_req_bits & SHADER_REQ_INTS)
-+      ctx.glsl_ver_required = require_glsl_ver(&ctx, 150);
- 
-    if (ctx.shader_req_bits & SHADER_REQ_FP64)
-       ctx.glsl_ver_required = require_glsl_ver(&ctx, 150);
