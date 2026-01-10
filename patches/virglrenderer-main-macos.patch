@@ -557,7 +557,7 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_renderer.c virg
  };
  
  struct sysval_uniform_block {
-@@ -1389,12 +1397,71 @@
+@@ -1389,12 +1397,68 @@
  {
     GLint param;
     const char *shader_parts[SHADER_MAX_STRINGS];
@@ -571,7 +571,7 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_renderer.c virg
 +    * For GLES: Keep the replacement (if needed) */
 +   for (int i = 0; i < shader->glsl_strings.num_strings; i++) {
 +      const char *src = shader->glsl_strings.strings[i].buf;
-+      /* Unconditional debug output to verify code is executed */
++      /* Debug output to verify code execution and see shader source format */
 +      fprintf(stderr, "SHADER[%d]: %s\n", i, src);
 +      fflush(stderr);
 +      const char *ext_check = strstr(src, "#extension GL_EXT_shader_texture_lod");
