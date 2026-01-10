@@ -557,7 +557,7 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_renderer.c virg
  };
  
  struct sysval_uniform_block {
-@@ -1389,12 +1397,69 @@
+@@ -1389,12 +1397,71 @@
  {
     GLint param;
     const char *shader_parts[SHADER_MAX_STRINGS];
