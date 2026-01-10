@@ -318,7 +318,26 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_decode.c virglr
 diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_formats.c virglrenderer-manual/src/vrend/vrend_formats.c
 --- virglrenderer-upstream/src/vrend/vrend_formats.c	2026-01-09 15:47:29
 +++ virglrenderer-manual/src/vrend/vrend_formats.c	2026-01-09 15:47:48
-@@ -716,48 +716,183 @@
+@@ -591,8 +591,18 @@
+   add_formats(gl_z32_format);
+   /* GL_BGRA formats aren't as well supported in GLES as in GL, specially in
+    * transfer operations. So we only register support for it in GL.
++   *
++   * macOS Desktop GL Core Profile via Metal backend has broken GL_BGRA support.
++   * The native GL_BGRA format doesn't work properly as a render target.
++   * Workaround: Use the GLES-style emulation (GL_RGBA with swizzling) which works.
+    */
+   add_formats(gl_base_rgba_formats);
++  /* macOS: Use GLES BGRA emulation for Desktop GL Core Profile
++   * GL_BGRA is broken on Metal backend, but GL_RGBA with swizzling works */
++  #if defined(__APPLE__)
++     add_formats(gles_bgra_formats);
++  #else
+   add_formats(gl_bgra_formats);
++  #endif
+   add_formats(gl_bit10_formats);
+ }
+@@ -726,48 +726,183 @@
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
  
