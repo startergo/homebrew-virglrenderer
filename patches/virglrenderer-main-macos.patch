@@ -318,38 +318,40 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_decode.c virglr
 diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_formats.c virglrenderer-manual/src/vrend/vrend_formats.c
 --- virglrenderer-upstream/src/vrend/vrend_formats.c	2026-01-09 15:47:29
 +++ virglrenderer-manual/src/vrend/vrend_formats.c	2026-01-09 15:47:48
-@@ -591,8 +591,18 @@
-   add_formats(gl_z32_format);
-   /* GL_BGRA formats aren't as well supported in GLES as in GL, specially in
+@@ -364,6 +364,20 @@
+   { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
+ };
+ 
++#ifdef __APPLE__
++/*
++ * macOS with Metal backend has broken GL_BGRA support as a render target.
++ * We use GL_RGBA format (which works) with swizzling to handle BGR formats.
++ * The BGRA_SWIZZLE/BGR1_SWIZZLE converts the virgl BGR format to RGB during sampling.
++ */
++static struct vrend_format_table macos_bgra_formats[] = {
++  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, BGR1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, BGRA_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, BGR1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, BGRA_SWIZZLE, view_class_32 },
++};
++#endif
++
+ static bool color_format_can_readback(struct vrend_format_table *virgl_format, int gles_ver)
+ {
+    GLint imp = 0;
+@@ -593,7 +607,12 @@
     * transfer operations. So we only register support for it in GL.
-+   *
-+   * macOS Desktop GL Core Profile via Metal backend has broken GL_BGRA support.
-+   * The native GL_BGRA format doesn't work properly as a render target.
-+   * Workaround: Use the GLES-style emulation (GL_RGBA with swizzling) which works.
     */
    add_formats(gl_base_rgba_formats);
-+  /* macOS: Use GLES BGRA emulation for Desktop GL Core Profile
-+   * GL_BGRA is broken on Metal backend, but GL_RGBA with swizzling works */
-+  #if defined(__APPLE__)
-+     add_formats(gles_bgra_formats);
-+  #else
++  /* macOS: Use custom BGRA table with GL_RGBA + swizzle (Metal backend compatible) */
++ #if defined(__APPLE__)
++   add_formats(macos_bgra_formats);
++ #else
    add_formats(gl_bgra_formats);
-+  #endif
++ #endif
    add_formats(gl_bit10_formats);
  }
-@@ -726,48 +726,183 @@
-    assert(glGetError() == GL_NO_ERROR &&
-           "Stale error state detected, please check for failures in initialization");
  
-+   /* glTexStorage2DMultisample availability check with graceful downgrade:
-+    * 
-+    * glTexStorage2DMultisample requires:
-+    *   - OpenGL 4.3+ or GL_ARB_texture_storage_multisample (desktop GL)
-+    *   - OpenGL ES 3.1+ (mobile/ANGLE)
-+    * 
-+    * Fallback alternatives available on older versions:
-+    *   - glTexImage2DMultisample: GL 3.2+ / ES 3.1+ (works on GL 4.1 Core)
-+    *   - glRenderbufferStorageMultisample: GL 3.0+ / ES 3.0+ (works on ANGLE)
 +    * 
 +    * We'll use glTexStorage2DMultisample if available, otherwise fall back to
 +    * glTexImage2DMultisample for proper MSAA capability testing. */
