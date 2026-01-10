@@ -1428,8 +1428,8 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_shader.c virglr
        if (ctx->num_cull_dist_prop || ctx->key->num_in_cull || ctx->key->num_out_cull)
 
 --- virglrenderer-upstream/src/vrend/vrend_formats.c	2026-01-01 08:05:29
-+++ virglrenderer-manual/src/vrend/vrend_formats.c	2026-01-10 16:39:49
-@@ -363,7 +363,21 @@
++++ virglrenderer-manual/src/vrend/vrend_formats.c	2026-01-10 17:42:42
+@@ -363,7 +363,20 @@
    { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
    { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
  };
@@ -1437,30 +1437,34 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_shader.c virglr
  
 +#ifdef __APPLE__
 +/*
-+ * macOS with Metal backend has broken GL_BGRA support as a render target.
-+ * We use GL_RGBA format (which works) with swizzling to handle BGR formats.
-+ * The BGRA_SWIZZLE/BGR1_SWIZZLE converts the virgl BGR format to RGB during sampling.
++ * macOS with Metal backend has broken GL_BGRA format as a render target.
++ * Use GL_RGBA format (which works) with the same swizzle as GLES.
 + */
 +static struct vrend_format_table macos_bgra_formats[] = {
-+  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, BGR1_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, BGRA_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, BGR1_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, BGRA_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
 +};
 +#endif
  static bool color_format_can_readback(struct vrend_format_table *virgl_format, int gles_ver)
  {
     GLint imp = 0;
-@@ -606,7 +620,7 @@
-    * GLES hosts, we always emulate BGR* as GL_RGB* with a swizzle on
-    * transfers to/from the host.
+@@ -593,7 +606,12 @@
+    * transfer operations. So we only register support for it in GL.
     */
--  add_formats(gles_bgra_formats);
-+  add_formats(macos_bgra_formats);
+   add_formats(gl_base_rgba_formats);
+-  add_formats(gl_bgra_formats);
++  /* macOS: Use GL_RGBA format like GLES (GL_BGRA is broken on Metal backend) */
++#if defined(__APPLE__)
++   add_formats(macos_bgra_formats);
++#else
++add_formats(gl_bgra_formats);
++#endif
+   add_formats(gl_bit10_formats);
+ }
  
-   /* The Z32 format is required, but OpenGL ES does not support
-    * using it as a depth buffer. We just fake support with Z24
-@@ -716,48 +730,183 @@
+@@ -716,48 +734,183 @@
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
  
