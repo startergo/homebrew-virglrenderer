@@ -1428,7 +1428,7 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_shader.c virglr
        if (ctx->num_cull_dist_prop || ctx->key->num_in_cull || ctx->key->num_out_cull)
 
 --- virglrenderer-upstream/src/vrend/vrend_formats.c	2026-01-01 08:05:29
-+++ virglrenderer-manual/src/vrend/vrend_formats.c	2026-01-10 14:19:20
++++ virglrenderer-manual/src/vrend/vrend_formats.c	2026-01-10 16:39:49
 @@ -363,7 +363,21 @@
    { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
    { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
@@ -1451,30 +1451,19 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_shader.c virglr
  static bool color_format_can_readback(struct vrend_format_table *virgl_format, int gles_ver)
  {
     GLint imp = 0;
-@@ -593,7 +607,19 @@
-    * transfer operations. So we only register support for it in GL.
+@@ -606,7 +620,7 @@
+    * GLES hosts, we always emulate BGR* as GL_RGB* with a swizzle on
+    * transfers to/from the host.
     */
-   add_formats(gl_base_rgba_formats);
-+  /* macOS: Use GLES BGRA emulation for Desktop GL Core Profile
-+
-+   * GL_BGRA is broken on Metal backend, but GL_RGBA with swizzling works */
-+
-+  #if defined(__APPLE__)
-+
-+     add_formats(macos_bgra_formats);
-+
-+  #else
-+
-   add_formats(gl_bgra_formats);
-+
-+  #endif
-   add_formats(gl_bit10_formats);
- }
+-  add_formats(gles_bgra_formats);
++  add_formats(macos_bgra_formats);
  
-@@ -715,6 +741,155 @@
- 
+   /* The Z32 format is required, but OpenGL ES does not support
+    * using it as a depth buffer. We just fake support with Z24
+@@ -716,48 +730,183 @@
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
+ 
 +   /* glTexStorage2DMultisample availability check with graceful downgrade:
 +    * 
 +    * glTexStorage2DMultisample requires:
@@ -1549,9 +1538,18 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_shader.c virglr
 + 
 +   fprintf(stderr, "[VREND FORMATS] Starting MSAA capability test with max_samples=%u\n", max_samples);
 +   
+    glGenFramebuffers( 1, &fbo );
+    memset(caps->sample_locations, 0, 8 * sizeof(uint32_t));
+ 
+    for (int i = 3; i >= 0; i--) {
+-      if (test_num_samples[i] > max_samples)
 +      if (test_num_samples[i] > max_samples) {
 +         fprintf(stderr, "[VREND FORMATS] Skipping %u samples (exceeds max %u)\n", 
 +                 test_num_samples[i], max_samples);
+          continue;
+-      glGenTextures(1, &tex);
+-      glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, tex);
+-      glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, test_num_samples[i], GL_RGBA32F, 64, 64, GL_TRUE);
 +      }
 +      
 +      fprintf(stderr, "[VREND FORMATS] Testing %u samples...\n", test_num_samples[i]);
@@ -1587,6 +1585,10 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_shader.c virglr
 +         tex = rbo;  /* Store RBO handle in tex variable for cleanup */
 +      }
 +      
+       status = glGetError();
+       if (status == GL_NO_ERROR) {
+          glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+-         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, tex, 0);
 +         
 +         if (has_tex_storage_ms || has_tex_image_ms) {
 +            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, tex, 0);
@@ -1595,7 +1597,19 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_shader.c virglr
 +            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, tex);
 +         }
 +         
+          status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+          if (status == GL_FRAMEBUFFER_COMPLETE) {
 +            fprintf(stderr, "[VREND FORMATS] ✓ %u samples COMPLETE\n", test_num_samples[i]);
+             if (max_samples_confirmed < test_num_samples[i])
+                max_samples_confirmed = test_num_samples[i];
+ 
+-            for (unsigned k = 0; k < test_num_samples[i]; ++k) {
+-               float msp[2];
+-               uint32_t compressed;
+-               glGetMultisamplefv(GL_SAMPLE_POSITION, k, msp);
+-               compressed = ((unsigned)(floor(msp[0] * 16.0f)) & 0xf) << 4;
+-               compressed |= ((unsigned)(floor(msp[1] * 16.0f)) & 0xf);
+-               caps->sample_locations[out_buf_offsets[i] + (k >> 2)] |= compressed  << (8 * (k & 3));
 +            /* glGetMultisamplefv only available in desktop GL (since 3.2), not in GL ES */
 +            if (epoxy_is_desktop_gl()) {
 +               for (unsigned k = 0; k < test_num_samples[i]; ++k) {
@@ -1609,11 +1623,26 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_shader.c virglr
 +            } else {
 +               /* OpenGL ES: sample locations not available, leave them zero-initialized */
 +               fprintf(stderr, "[VREND FORMATS]   (OpenGL ES: sample locations not available)\n");
+             }
+             lowest_working_ms_count_idx = i;
+          } else {
 +            fprintf(stderr, "[VREND FORMATS] ✗ %u samples INCOMPLETE (status=0x%x)\n", 
 +                    test_num_samples[i], status);
+             /* If a framebuffer doesn't support low sample counts,
+              * use the sample position from the last working larger count. */
+             if (lowest_working_ms_count_idx > 0) {
+                for (unsigned k = 0; k < test_num_samples[i]; ++k) {
+                   caps->sample_locations[out_buf_offsets[i] + (k >> 2)] =
+-                        caps->sample_locations[out_buf_offsets[lowest_working_ms_count_idx]  + (k >> 2)];
 +                     caps->sample_locations[out_buf_offsets[lowest_working_ms_count_idx]  + (k >> 2)];
+                }
+             }
+          }
+          glBindFramebuffer(GL_FRAMEBUFFER, 0);
 +      } else {
 +         fprintf(stderr, "[VREND FORMATS] ✗ %u samples GL_ERROR=0x%x\n", test_num_samples[i], status);
+       }
+-      glDeleteTextures(1, &tex);
 +      
 +      /* Cleanup - delete texture or renderbuffer */
 +      if (has_tex_storage_ms || has_tex_image_ms) {
@@ -1621,9 +1650,11 @@ diff -Naur --exclude=.git virglrenderer-upstream/src/vrend/vrend_shader.c virglr
 +      } else {
 +         glDeleteRenderbuffers(1, &tex);
 +      }
+    }
+    glDeleteFramebuffers(1, &fbo);
 +   
 +   fprintf(stderr, "[VREND FORMATS] MSAA test complete: returning max_samples_confirmed=%u\n", 
 +           max_samples_confirmed);
+    return max_samples_confirmed;
+ }
  
-    glGenFramebuffers( 1, &fbo );
-    memset(caps->sample_locations, 0, 8 * sizeof(uint32_t));
