@@ -1,15 +1,19 @@
 diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_winsys_egl.c virglrenderer-main/src/vrend/vrend_winsys_egl.c
 --- virgl-upstream-clean/src/vrend/vrend_winsys_egl.c	2026-01-01 08:05:29
 +++ virglrenderer-main/src/vrend/vrend_winsys_egl.c	2026-01-11 18:00:00
-@@ -35,6 +35,11 @@
+@@ -32,6 +32,15 @@
+
  #define EGL_EGLEXT_PROTOTYPES
- 
  #include <errno.h>
 +
++/* Include ANGLE's eglext.h for ANGLE-specific EGL extensions.
++ * epoxy/egl.h prevents including the system eglext.h (sets __eglext_h_),
++ * so we include ANGLE's eglext.h directly to get EGL_METAL_DEVICE_ANGLE
++ * and EGL_METAL_TEXTURE_ANGLE definitions.
++ */
 +#ifdef ENABLE_METAL
-+#include <EGL/eglext_angle.h>
++#include <EGL/eglext.h>
 +#endif
-+
  #include <fcntl.h>
  #ifdef WIN32
  #include <d3d11.h>
