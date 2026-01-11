@@ -41,6 +41,11 @@ class Virglrenderer < Formula
     ohai "Applying Venus dylib loading fix for macOS..."
     system "patch", "-p1", "--batch", "--verbose", "-i", patch_venus_dylib
 
+    # Apply ANGLE EGL extension include fix
+    patch_angle_egl = "#{__dir__}/../patches/angle-egl-include.patch"
+    ohai "Applying ANGLE EGL extension include fix..."
+    system "patch", "-p1", "--batch", "--verbose", "-i", patch_angle_egl
+
     # Get ANGLE and libepoxy paths
     angle = Formula["startergo/angle/angle"]
     libepoxy = Formula["startergo/libepoxy/libepoxy"]

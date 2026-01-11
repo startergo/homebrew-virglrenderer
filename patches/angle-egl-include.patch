@@ -1,0 +1,15 @@
+diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_winsys_egl.c virglrenderer-main/src/vrend/vrend_winsys_egl.c
+--- virgl-upstream-clean/src/vrend/vrend_winsys_egl.c	2026-01-01 08:05:29
++++ virglrenderer-main/src/vrend/vrend_winsys_egl.c	2026-01-11 18:00:00
+@@ -35,6 +35,11 @@
+ #define EGL_EGLEXT_PROTOTYPES
+ 
+ #include <errno.h>
++
++#ifdef ENABLE_METAL
++#include <EGL/eglext_angle.h>
++#endif
++
+ #include <fcntl.h>
+ #ifdef WIN32
+ #include <d3d11.h>
