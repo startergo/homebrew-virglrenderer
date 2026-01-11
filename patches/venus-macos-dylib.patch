@@ -1,0 +1,1220 @@
+Subject: [PATCH] venus: support macOS library names for dlopen
+
+The Venus code tries to dlopen libvulkan.so.1 and libvulkan.so,
+which are Linux library names. On macOS, the Vulkan loader is named
+libvulkan.1.dylib or libvulkan.dylib.
+
+This patch uses preprocessor defines to handle the platform differences.
+
+Additional Venus macOS support from UTM macos branch:
+- Emulate KHR_external_memory_fd when unavailable
+- Emulate KHR_external_fence_fd when unavailable
+- Ignore EXT_queue_family_foreign if not found
+- Emulate EXT_image_drm_format_modifier when unavailable
+- Emulate EXT_external_memory_dma_buf when unavailable
+- Support importing/exporting MTLHeap memory (Metal)
+- Support mapping MTLHeap allocations
+- Use portability subset extension if available
+
+This allows Venus to work on macOS with MoltenVK by emulating
+Linux-specific extensions and using Metal equivalents.
+---
+--- a/src/venus/vkr_allocator.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_allocator.c	2026-01-11 12:53:17
+@@ -52,6 +52,7 @@
+    PFN_vkGetPhysicalDeviceProperties2 GetPhysicalDeviceProperties2;
+    PFN_vkCreateDevice CreateDevice;
+    PFN_vkGetDeviceProcAddr GetDeviceProcAddr;
++   PFN_vkEnumerateDeviceExtensionProperties EnumerateDeviceExtensionProperties;
+ };
+ 
+ struct vkr_dev_proc_table {
+@@ -109,6 +110,44 @@
+    return VKR_ALLOCATOR_MAX_DEVICE_COUNT;
+ }
+ 
++static const char *
++vkr_allocator_get_external_mem_ext(struct vkr_inst_proc_table *vk,
++                                   VkPhysicalDevice handle)
++{
++   VkExtensionProperties *exts;
++   uint32_t count;
++   VkResult result = vk->EnumerateDeviceExtensionProperties(handle, NULL, &count, NULL);
++   if (result != VK_SUCCESS)
++      return NULL;
++
++   exts = malloc(sizeof(*exts) * count);
++   if (!exts)
++      return NULL;
++
++   result = vk->EnumerateDeviceExtensionProperties(handle, NULL, &count, exts);
++   if (result != VK_SUCCESS) {
++      free(exts);
++      return NULL;
++   }
++
++   const char *name = NULL;
++   for (uint32_t i = 0; i < count; i++) {
++      VkExtensionProperties *props = &exts[i];
++
++      if (!strcmp(props->extensionName, VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME)) {
++         name = VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME;
++         break;
++      } else if (!strcmp(props->extensionName, VK_EXT_EXTERNAL_MEMORY_METAL_EXTENSION_NAME)) {
++         name = VK_EXT_EXTERNAL_MEMORY_METAL_EXTENSION_NAME;
++         break;
++      }
++   }
++
++   free(exts);
++
++   return name;
++}
++
+ static struct vkr_opaque_fd_mem_info *
+ vkr_allocator_allocate_memory(struct virgl_resource *res)
+ {
+@@ -123,26 +162,37 @@
+    struct vkr_dev_proc_table *vk = &vkr_allocator.proc_tables[idx];
+ 
+    int fd = -1;
+-   if (virgl_resource_export_fd(res, &fd) != VIRGL_RESOURCE_FD_OPAQUE) {
+-      if (fd >= 0)
+-         close(fd);
+-      return NULL;
+-   }
+-
++   VkImportMemoryMetalHandleInfoEXT metal_info = { 0 };
++   VkImportMemoryFdInfoKHR fd_info = { 0 };
+    VkMemoryAllocateInfo alloc_info = {
+       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+-      .pNext =
+-         &(VkImportMemoryFdInfoKHR){ .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
+-                                     .handleType =
+-                                        VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
+-                                     .fd = fd },
+       .allocationSize = res->vulkan_info.allocation_size,
+       .memoryTypeIndex = res->vulkan_info.memory_type_index
+    };
+ 
++   if (res->fd_type == VIRGL_RESOURCE_METAL_HEAP) {
++      metal_info = (VkImportMemoryMetalHandleInfoEXT){ .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_METAL_HANDLE_INFO_EXT,
++                                                       .handle = res->metal_heap,
++                                                       .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT };
++      alloc_info.pNext = &metal_info;
++   } else {
++      if (virgl_resource_export_fd(res, &fd) != VIRGL_RESOURCE_FD_OPAQUE) {
++         if (fd >= 0)
++            close(fd);
++         return NULL;
++      }
++
++      fd_info = (VkImportMemoryFdInfoKHR){ .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
++                                           .handleType =
++                                             VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
++                                           .fd = fd };
++      alloc_info.pNext = &fd_info;
++   }
++
+    VkDeviceMemory mem_handle;
+    if (vk->AllocateMemory(dev_handle, &alloc_info, NULL, &mem_handle) != VK_SUCCESS) {
+-      close(fd);
++      if (fd >= 0)
++         close(fd);
+       return NULL;
+    }
+ 
+@@ -198,6 +248,7 @@
+    vk->GetPhysicalDeviceProperties2 = VN_GIPA(vkGetPhysicalDeviceProperties2);
+    vk->CreateDevice = VN_GIPA(vkCreateDevice);
+    vk->GetDeviceProcAddr = VN_GIPA(vkGetDeviceProcAddr);
++   vk->EnumerateDeviceExtensionProperties = VN_GIPA(vkEnumerateDeviceExtensionProperties);
+ #undef VN_GIPA
+ }
+ 
+@@ -218,11 +269,13 @@
+ int
+ vkr_allocator_init(void)
+ {
+-   static const char *required_extensions[] = {
+-      "VK_KHR_external_memory_fd",
++   static const char *required_portability_exts[] = {
++      VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+    };
++   const char *required_extension;
+    struct vkr_inst_proc_table *vk = &vkr_allocator.proc_table;
+    VkResult res;
++   bool has_portability_enumeration = false;
+ 
+    bool ret = vkr_library_load(&vkr_allocator.vulkan_library);
+    if (!ret) {
+@@ -232,6 +285,12 @@
+    /* Get vkGetInstanceProcAddr from libvulkan */
+    PFN_vkGetInstanceProcAddr get_proc_addr = vkr_allocator.vulkan_library.GetInstanceProcAddr;
+ 
++   PFN_vkEnumerateInstanceExtensionProperties enum_inst_ext_props =
++      (PFN_vkEnumerateInstanceExtensionProperties)get_proc_addr(VK_NULL_HANDLE,
++                                                                "vkEnumerateInstanceExtensionProperties");
++
++   has_portability_enumeration = vkr_library_has_portability_enumeration(enum_inst_ext_props);
++
+    VkApplicationInfo app_info = {
+       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+       .apiVersion = VK_API_VERSION_1_1,
+@@ -240,13 +299,16 @@
+    VkInstanceCreateInfo inst_info = {
+       .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+       .pApplicationInfo = &app_info,
++      .flags = has_portability_enumeration ? VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR : 0,
++      .enabledExtensionCount = has_portability_enumeration ? ARRAY_SIZE(required_portability_exts) : 0,
++      .ppEnabledExtensionNames = has_portability_enumeration ? required_portability_exts : NULL,
+    };
+ 
+    vk->CreateInstance =
+       (PFN_vkCreateInstance)get_proc_addr(VK_NULL_HANDLE, "vkCreateInstance");
+    res = vk->CreateInstance(&inst_info, NULL, &vkr_allocator.instance);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      goto early_fail;
+ 
+    vkr_allocator_inst_proc_table_init(vkr_allocator.instance, get_proc_addr, vk);
+ 
+@@ -270,6 +332,11 @@
+ 
+       memcpy(vkr_allocator.device_uuids[i], id_props.deviceUUID, VK_UUID_SIZE);
+ 
++      required_extension = vkr_allocator_get_external_mem_ext(vk, physical_dev_handle);
++      if (!required_extension) {
++         continue;
++      }
++
+       float priority = 1.0;
+       VkDeviceQueueCreateInfo queue_info = {
+          .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+@@ -284,8 +351,8 @@
+          .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+          .queueCreateInfoCount = 1,
+          .pQueueCreateInfos = &queue_info,
+-         .enabledExtensionCount = ARRAY_SIZE(required_extensions),
+-         .ppEnabledExtensionNames = required_extensions,
++         .enabledExtensionCount = 1,
++         .ppEnabledExtensionNames = &required_extension,
+       };
+ 
+       res = vk->CreateDevice(physical_dev_handle, &dev_info, NULL,
+@@ -312,6 +379,7 @@
+    }
+    vk->DestroyInstance(vkr_allocator.instance, NULL);
+ 
++early_fail:
+    memset(&vkr_allocator, 0, sizeof(vkr_allocator));
+ 
+    vkr_library_unload(&vkr_allocator.vulkan_library);
+--- a/src/venus/vkr_buffer.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_buffer.c	2026-01-11 12:53:17
+@@ -9,9 +9,36 @@
+ #include "vkr_physical_device.h"
+ 
+ static void
++vkr_buffer_fix_create_info(struct vkr_device *dev,
++                           VkBufferCreateInfo *pCreateInfo)
++{
++   VkExternalMemoryBufferCreateInfo *ext_create_info;
++
++   ext_create_info = vkr_find_struct(
++            pCreateInfo, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO);
++   if (ext_create_info) {
++      /* strip out dmabuf */
++      if ((ext_create_info->handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) != 0) {
++         ext_create_info->handleTypes &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++         /* add in supported handles */
++         if (dev->physical_device->is_metal_export_supported) {
++            ext_create_info->handleTypes |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT;
++         }
++      }
++   }
++}
++
++static void
+ vkr_dispatch_vkCreateBuffer(struct vn_dispatch_context *dispatch,
+                             struct vn_command_vkCreateBuffer *args)
+ {
++   struct vkr_device *dev = vkr_device_from_handle(args->device);
++
++   /* if host does not natively support dmabuf we need to patch create info */
++   if (dev->physical_device->is_dma_buf_emulated) {
++      vkr_buffer_fix_create_info(dev, (VkBufferCreateInfo *)args->pCreateInfo);
++   }
++
+    /* XXX If VkExternalMemoryBufferCreateInfo is chained by the app, all is
+     * good.  If it is not chained, we might still bind an external memory to
+     * the buffer, because vkr_dispatch_vkAllocateMemory makes any HOST_VISIBLE
+@@ -139,6 +166,11 @@
+    struct vkr_device *dev = vkr_device_from_handle(args->device);
+    struct vn_device_proc_table *vk = &dev->proc_table;
+ 
++   /* if host does not natively support dmabuf we need to patch create info */
++   if (dev->physical_device->is_dma_buf_emulated) {
++      vkr_buffer_fix_create_info(dev, (VkBufferCreateInfo *)args->pInfo->pCreateInfo);
++   }
++
+    vn_replace_vkGetDeviceBufferMemoryRequirements_args_handle(args);
+    vk->GetDeviceBufferMemoryRequirements(args->device, args->pInfo,
+                                          args->pMemoryRequirements);
+--- a/src/venus/vkr_common.h	2026-01-01 08:05:29
++++ b/src/venus/vkr_common.h	2026-01-11 12:53:17
+@@ -79,6 +79,11 @@
+    if (name != _stack_##name)                                                            \
+    free(name)
+ 
++/* Used for DRM format emulation when extension is not available */
++#ifndef DRM_FORMAT_MOD_LINEAR
++#define DRM_FORMAT_MOD_LINEAR (0)
++#endif
++
+ struct vn_info_extension_table;
+ struct vkr_context;
+ struct vkr_ring;
+--- a/src/venus/vkr_context.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_context.c	2026-01-11 12:53:17
+@@ -33,6 +33,13 @@
+ #include "vkr_render_pass.h"
+ #include "vkr_ring.h"
+ #include "vkr_transport.h"
++
++#ifdef __APPLE__
++#include <CoreFoundation/CoreFoundation.h>
++#else
++#define CFRetain(x) (x)
++#define CFRelease(x)
++#endif
+ 
+ void
+ vkr_context_add_instance(struct vkr_context *ctx,
+@@ -189,6 +196,8 @@
+    struct vkr_resource *res = entry->data;
+    if (res->fd_type == VIRGL_RESOURCE_FD_SHM)
+       munmap(res->u.data, res->size);
++   else if (res->fd_type == VIRGL_RESOURCE_METAL_HEAP)
++      CFRelease(res->u.metal_heap);
+    else if (res->u.fd >= 0)
+       close(res->u.fd);
+    free(res);
+@@ -302,6 +311,34 @@
+       .u.fd = fd,
+       .map_info = VIRGL_RENDERER_MAP_CACHE_CACHED,
+    };
++
++   return true;
++}
++
++static bool
++vkr_context_import_resource_metal(struct vkr_context *ctx,
++                                  uint32_t res_id,
++                                  uint64_t blob_size,
++                                  enum virgl_resource_fd_type fd_type,
++                                  void *metal_heap)
++{
++   assert(!vkr_context_get_resource(ctx, res_id));
++   assert(fd_type == VIRGL_RESOURCE_METAL_HEAP);
++
++   struct vkr_resource *res = malloc(sizeof(*res));
++   if (!res)
++      return false;
++
++   res->res_id = res_id;
++   res->fd_type = fd_type;
++   res->size = blob_size;
++   res->u.metal_heap = (void *)CFRetain(metal_heap);
++
++   if (!vkr_context_add_resource(ctx, res)) {
++      CFRelease(metal_heap);
++      free(res);
++      return false;
++   }
+ 
+    return true;
+ }
+@@ -324,6 +361,11 @@
+    if (!vkr_device_memory_export_blob(mem, blob_size, blob_flags, &blob))
+       return false;
+ 
++   if (blob.type == VIRGL_RESOURCE_METAL_HEAP) {
++      *out_blob = blob;
++      return vkr_context_import_resource_metal(ctx, res_id, blob_size, blob.type, blob.u.metal_heap);
++   }
++
+    /* If memory might get exported, store a dup'ed fd in vkr_resource for:
+     * - vkAllocateMemory for dma_buf import
+     * - vkGetMemoryFdPropertiesKHR for dma_buf fd properties query
+--- a/src/venus/vkr_context.h	2026-01-01 08:05:29
++++ b/src/venus/vkr_context.h	2026-01-11 12:53:17
+@@ -29,6 +29,8 @@
+       int fd;
+       /* valid when fd_type is shm */
+       uint8_t *data;
++      /* valid when fd_type is metal heap */
++      MTLResource_id metal_heap;
+    } u;
+ 
+    size_t size;
+--- a/src/venus/vkr_device.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_device.c	2026-01-11 12:53:17
+@@ -130,29 +130,49 @@
+    /* append extensions for our own use */
+    const char **exts = NULL;
+    uint32_t ext_count = args->pCreateInfo->enabledExtensionCount;
+-   ext_count += physical_dev->KHR_external_memory_fd;
+-   ext_count += physical_dev->EXT_external_memory_dma_buf;
+-   ext_count += physical_dev->KHR_external_fence_fd;
+-   if (ext_count > args->pCreateInfo->enabledExtensionCount) {
+-      exts = malloc(sizeof(*exts) * ext_count);
+-      if (!exts) {
+-         args->ret = VK_ERROR_OUT_OF_HOST_MEMORY;
+-         return;
+-      }
+-      for (uint32_t i = 0; i < args->pCreateInfo->enabledExtensionCount; i++)
+-         exts[i] = args->pCreateInfo->ppEnabledExtensionNames[i];
++   uint32_t add_count = 0;
++   add_count += physical_dev->KHR_external_memory_fd;
++   add_count += physical_dev->EXT_external_memory_dma_buf;
++   add_count += physical_dev->KHR_external_fence_fd;
++   add_count += physical_dev->EXT_external_memory_metal;
++   add_count += physical_dev->KHR_portability_subset;
++   exts = malloc(sizeof(*exts) * (ext_count + add_count));
++   if (!exts) {
++      args->ret = VK_ERROR_OUT_OF_HOST_MEMORY;
++      return;
++   }
+ 
+-      ext_count = args->pCreateInfo->enabledExtensionCount;
+-      if (physical_dev->KHR_external_memory_fd)
+-         exts[ext_count++] = "VK_KHR_external_memory_fd";
+-      if (physical_dev->EXT_external_memory_dma_buf)
+-         exts[ext_count++] = "VK_EXT_external_memory_dma_buf";
+-      if (physical_dev->KHR_external_fence_fd)
+-         exts[ext_count++] = "VK_KHR_external_fence_fd";
+-
+-      ((VkDeviceCreateInfo *)args->pCreateInfo)->ppEnabledExtensionNames = exts;
+-      ((VkDeviceCreateInfo *)args->pCreateInfo)->enabledExtensionCount = ext_count;
++   /* skip any emulated extensions */
++   ext_count = 0;
++   for (uint32_t i = 0; i < args->pCreateInfo->enabledExtensionCount; i++) {
++      if (physical_dev->is_dma_buf_emulated &&
++            !strcmp(args->pCreateInfo->ppEnabledExtensionNames[i], VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME))
++         continue;
++      if (physical_dev->is_dma_buf_emulated &&
++            !strcmp(args->pCreateInfo->ppEnabledExtensionNames[i], VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME))
++         continue;
++      if (!physical_dev->EXT_image_drm_format_modifier &&
++            !strcmp(args->pCreateInfo->ppEnabledExtensionNames[i], VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME))
++         continue;
++      if (!physical_dev->EXT_queue_family_foreign &&
++            !strcmp(args->pCreateInfo->ppEnabledExtensionNames[i], VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME))
++         continue;
++      exts[ext_count++] = args->pCreateInfo->ppEnabledExtensionNames[i];
+    }
++
++   if (physical_dev->KHR_external_memory_fd)
++      exts[ext_count++] = VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
++   if (physical_dev->EXT_external_memory_dma_buf)
++      exts[ext_count++] = VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME;
++   if (physical_dev->KHR_external_fence_fd)
++      exts[ext_count++] = VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME;
++   if (physical_dev->EXT_external_memory_metal)
++      exts[ext_count++] = VK_EXT_EXTERNAL_MEMORY_METAL_EXTENSION_NAME;
++   if (physical_dev->KHR_portability_subset)
++      exts[ext_count++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
++
++   ((VkDeviceCreateInfo *)args->pCreateInfo)->ppEnabledExtensionNames = exts;
++   ((VkDeviceCreateInfo *)args->pCreateInfo)->enabledExtensionCount = ext_count;
+ 
+    struct vkr_device *dev =
+       vkr_context_alloc_object(ctx, sizeof(*dev), VK_OBJECT_TYPE_DEVICE, args->pDevice);
+--- a/src/venus/vkr_device_memory.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_device_memory.c	2026-01-11 12:53:17
+@@ -43,6 +43,31 @@
+       .pNext = res_info->pNext,
+       .fd = fd,
+       .handleType = handle_type,
++   };
++   return true;
++}
++
++static bool
++vkr_get_metal_info_from_resource_info(struct vkr_context *ctx,
++                                      const VkImportMemoryResourceInfoMESA *res_info,
++                                      VkImportMemoryMetalHandleInfoEXT *out)
++{
++   struct vkr_resource *res = vkr_context_get_resource(ctx, res_info->resourceId);
++   if (!res) {
++      vkr_log("failed to import resource: invalid res_id %u", res_info->resourceId);
++      vkr_context_set_fatal(ctx);
++      return false;
++   }
++
++   if (res->fd_type != VIRGL_RESOURCE_METAL_HEAP) {
++      return false;
++   }
++
++   *out = (VkImportMemoryMetalHandleInfoEXT){
++      .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_METAL_HANDLE_INFO_EXT,
++      .pNext = res_info->pNext,
++      .handle = res->u.metal_heap,
++      .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT,
+    };
+    return true;
+ }
+@@ -245,17 +270,22 @@
+ 
+    /* translate VkImportMemoryResourceInfoMESA into VkImportMemoryFdInfoKHR in place */
+    VkImportMemoryFdInfoKHR local_import_info = { .fd = -1 };
++   VkImportMemoryMetalHandleInfoEXT local_metal_import_info = { 0 };
+    VkImportMemoryResourceInfoMESA *res_info = NULL;
+    VkBaseInStructure *prev_of_res_info = vkr_find_prev_struct(
+       alloc_info, VK_STRUCTURE_TYPE_IMPORT_MEMORY_RESOURCE_INFO_MESA);
+    if (prev_of_res_info) {
+       res_info = (VkImportMemoryResourceInfoMESA *)prev_of_res_info->pNext;
+       if (!vkr_get_fd_info_from_resource_info(ctx, res_info, &local_import_info)) {
+-         args->ret = VK_ERROR_INVALID_EXTERNAL_HANDLE;
+-         return;
++         if (!vkr_get_metal_info_from_resource_info(ctx, res_info, &local_metal_import_info)) {
++            args->ret = VK_ERROR_INVALID_EXTERNAL_HANDLE;
++            return;
++         } else {
++            prev_of_res_info->pNext = (const struct VkBaseInStructure *)&local_metal_import_info;
++         }
++      } else {
++         prev_of_res_info->pNext = (const struct VkBaseInStructure *)&local_import_info;
+       }
+-
+-      prev_of_res_info->pNext = (const struct VkBaseInStructure *)&local_import_info;
+    }
+ 
+    VkExportMemoryAllocateInfo *export_info =
+@@ -355,14 +385,33 @@
+ 
+          alloc_info->pNext = &local_import_info;
+          valid_fd_types = 1 << VIRGL_RESOURCE_FD_DMABUF;
++      } else if (physical_dev->is_metal_export_supported) {
++         assert(physical_dev->is_dma_buf_emulated);
++         /* Align to 4KiB, which is what Linux expects */
++         alloc_info->allocationSize = align(alloc_info->allocationSize, 0x1000);
++         if (!export_info) {
++            local_export_info = (const VkExportMemoryAllocateInfo){
++               .sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
++               .pNext = alloc_info->pNext,
++               .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT,
++            };
++            export_info = &local_export_info;
++            alloc_info->pNext = &local_export_info;
++         }
+       }
+    }
+ 
+    if (export_info) {
++      if (physical_dev->is_dma_buf_emulated && physical_dev->is_metal_export_supported) {
++         export_info->handleTypes &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++         export_info->handleTypes |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT;
++      }
+       if (export_info->handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT)
+          valid_fd_types |= 1 << VIRGL_RESOURCE_FD_OPAQUE;
+       if (export_info->handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT)
+          valid_fd_types |= 1 << VIRGL_RESOURCE_FD_DMABUF;
++      if (export_info->handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT)
++         valid_fd_types |= 1 << VIRGL_RESOURCE_METAL_HEAP;
+    }
+ 
+    struct vkr_device_memory *mem = vkr_device_memory_create_and_add(ctx, args);
+@@ -438,26 +487,41 @@
+       return;
+    }
+ 
+-   if (res->fd_type != VIRGL_RESOURCE_FD_DMABUF) {
++   uint32_t memoryTypeBits;
++   vn_replace_vkGetMemoryResourcePropertiesMESA_args_handle(args);
++   if (res->fd_type == VIRGL_RESOURCE_FD_DMABUF) {
++      static const VkExternalMemoryHandleTypeFlagBits handle_type =
++         VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++      VkMemoryFdPropertiesKHR mem_fd_props = {
++         .sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR,
++         .pNext = NULL,
++         .memoryTypeBits = 0,
++      };
++      args->ret =
++         vk->GetMemoryFdPropertiesKHR(args->device, handle_type, res->u.fd, &mem_fd_props);
++      if (args->ret != VK_SUCCESS)
++         return;
++      memoryTypeBits = mem_fd_props.memoryTypeBits;
++   } else if (res->fd_type == VIRGL_RESOURCE_METAL_HEAP) {
++      static const VkExternalMemoryHandleTypeFlagBits handle_type =
++         VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT;
++      VkMemoryMetalHandlePropertiesEXT mem_metal_props = {
++         .sType = VK_STRUCTURE_TYPE_MEMORY_METAL_HANDLE_PROPERTIES_EXT,
++         .pNext = NULL,
++         .memoryTypeBits = 0,
++      };
++      args->ret =
++         vk->GetMemoryMetalHandlePropertiesEXT(args->device, handle_type, res->u.metal_heap, &mem_metal_props);
++      if (args->ret != VK_SUCCESS)
++         return;
++      memoryTypeBits = mem_metal_props.memoryTypeBits;
++   } else {
+       args->ret = VK_ERROR_INVALID_EXTERNAL_HANDLE;
+       return;
+    }
+ 
+-   static const VkExternalMemoryHandleTypeFlagBits handle_type =
+-      VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+-   VkMemoryFdPropertiesKHR mem_fd_props = {
+-      .sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR,
+-      .pNext = NULL,
+-      .memoryTypeBits = 0,
+-   };
+-   vn_replace_vkGetMemoryResourcePropertiesMESA_args_handle(args);
+-   args->ret =
+-      vk->GetMemoryFdPropertiesKHR(args->device, handle_type, res->u.fd, &mem_fd_props);
+-   if (args->ret != VK_SUCCESS)
+-      return;
++   args->pMemoryResourceProperties->memoryTypeBits = memoryTypeBits;
+ 
+-   args->pMemoryResourceProperties->memoryTypeBits = mem_fd_props.memoryTypeBits;
+-
+    VkMemoryResourceAllocationSizePropertiesMESA *alloc_size_props =
+       vkr_find_struct(args->pMemoryResourceProperties->pNext,
+                       VK_STRUCTURE_TYPE_MEMORY_RESOURCE_ALLOCATION_SIZE_PROPERTIES_MESA);
+@@ -527,6 +591,7 @@
+ 
+    const bool can_export_dma_buf = mem->valid_fd_types & (1 << VIRGL_RESOURCE_FD_DMABUF);
+    const bool can_export_opaque = mem->valid_fd_types & (1 << VIRGL_RESOURCE_FD_OPAQUE);
++   const bool can_export_metal = mem->valid_fd_types & (1 << VIRGL_RESOURCE_METAL_HEAP);
+    enum virgl_resource_fd_type fd_type;
+    VkExternalMemoryHandleTypeFlagBits handle_type;
+    struct virgl_resource_vulkan_info vulkan_info;
+@@ -541,10 +606,16 @@
+       /* prefer dmabuf for easier mapping? */
+       fd_type = VIRGL_RESOURCE_FD_DMABUF;
+       handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+-   } else if (can_export_opaque) {
++   } else if (can_export_opaque || can_export_metal) {
+       /* prefer opaque for performance? */
+-      fd_type = VIRGL_RESOURCE_FD_OPAQUE;
+-      handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
++      if (can_export_opaque) {
++         fd_type = VIRGL_RESOURCE_FD_OPAQUE;
++         handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
++      } else {
++         assert(can_export_metal);
++         fd_type = VIRGL_RESOURCE_METAL_HEAP;
++         handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT;
++      }
+ 
+       STATIC_ASSERT(sizeof(vulkan_info.device_uuid) == VK_UUID_SIZE);
+       STATIC_ASSERT(sizeof(vulkan_info.driver_uuid) == VK_UUID_SIZE);
+@@ -562,6 +633,7 @@
+    }
+ 
+    int fd;
++   MTLResource_id metal_heap;
+    if (mem->udmabuf_fd >= 0) {
+       fd = os_dupfd_cloexec(mem->udmabuf_fd);
+       if (fd < 0) {
+@@ -577,6 +649,19 @@
+          vkr_log("mem gbm bo export failed (ret %d)", fd);
+          return false;
+       }
++   } else if (can_export_metal) {
++      assert(handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT);
++      struct vn_device_proc_table *vk = &mem->device->proc_table;
++      const VkMemoryGetMetalHandleInfoEXT metal_info = {
++         .sType = VK_STRUCTURE_TYPE_MEMORY_GET_METAL_HANDLE_INFO_EXT,
++         .memory = mem->base.handle.device_memory,
++         .handleType = handle_type,
++      };
++      VkResult ret = vk->GetMemoryMetalHandleEXT(mem->device->base.handle.device, &metal_info, &metal_heap);
++      if (ret != VK_SUCCESS) {
++         vkr_log("metal export failed (vk ret %d)", ret);
++         return false;
++      }
+    } else {
+       struct vn_device_proc_table *vk = &mem->device->proc_table;
+       const VkMemoryGetFdInfoKHR fd_info = {
+@@ -605,10 +690,15 @@
+ 
+    *out_blob = (struct virgl_context_blob){
+       .type = fd_type,
+-      .u.fd = fd,
+       .map_info = map_info,
+       .vulkan_info = vulkan_info,
+    };
+ 
++   if (fd_type == VIRGL_RESOURCE_METAL_HEAP) {
++      out_blob->u.metal_heap = metal_heap;
++   } else {
++      out_blob->u.fd = fd;
++   }
++
+    return true;
+ }
+--- a/src/venus/vkr_image.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_image.c	2026-01-11 12:53:17
+@@ -9,9 +9,81 @@
+ #include "vkr_physical_device.h"
+ 
+ static void
++vkr_image_fix_create_info(struct vkr_device *dev,
++                          VkImageCreateInfo *pCreateInfo)
++{
++   VkExternalMemoryImageCreateInfo *ext_create_info;
++
++   ext_create_info = vkr_find_struct(
++            pCreateInfo, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO);
++   if (ext_create_info) {
++      /* strip out dmabuf */
++      if ((ext_create_info->handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) != 0) {
++         ext_create_info->handleTypes &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++         /* add in supported handles */
++         if (dev->physical_device->is_metal_export_supported) {
++            ext_create_info->handleTypes |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT;
++         }
++      }
++   }
++}
++
++static VkResult
++vkr_image_fix_drm_format(struct vkr_device *dev,
++                         VkImageCreateInfo *pCreateInfo)
++{
++   const VkImageDrmFormatModifierExplicitCreateInfoEXT* drm_format_info =
++            vkr_find_struct(pCreateInfo, VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT);
++   const VkImageDrmFormatModifierListCreateInfoEXT* drm_format_list =
++            vkr_find_struct(pCreateInfo, VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT);
++
++   if (pCreateInfo->tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT || (!drm_format_info && !drm_format_list)) {
++      return VK_SUCCESS;
++   }
++
++   if (drm_format_info && drm_format_info->drmFormatModifier == DRM_FORMAT_MOD_LINEAR) {
++      pCreateInfo->tiling = VK_IMAGE_TILING_LINEAR;
++      return VK_SUCCESS;
++   }
++
++   for (int i = 0; drm_format_list && i < drm_format_list->drmFormatModifierCount; i++) {
++      if (drm_format_list->pDrmFormatModifiers[i] == DRM_FORMAT_MOD_LINEAR) {
++         pCreateInfo->tiling = VK_IMAGE_TILING_LINEAR;
++         return VK_SUCCESS;
++      }
++   }
++
++   vkr_log("only DRM_FORMAT_MOD_LINEAR is supported");
++   return VK_ERROR_FORMAT_NOT_SUPPORTED;
++}
++
++static VkResult
++vkr_image_emulate_drm_format_modifier_properties(UNUSED struct vkr_device *dev,
++                                                 UNUSED VkImage image,
++                                                 VkImageDrmFormatModifierPropertiesEXT* pProperties)
++{
++   pProperties->drmFormatModifier = DRM_FORMAT_MOD_LINEAR;
++   return VK_SUCCESS;
++}
++
++static void
+ vkr_dispatch_vkCreateImage(struct vn_dispatch_context *dispatch,
+                            struct vn_command_vkCreateImage *args)
+ {
++   struct vkr_device *dev = vkr_device_from_handle(args->device);
++
++   /* if host does not natively support dmabuf we need to patch create info */
++   if (dev->physical_device->is_dma_buf_emulated) {
++      vkr_image_fix_create_info(dev, (VkImageCreateInfo *)args->pCreateInfo);
++   }
++
++   if (!dev->physical_device->EXT_image_drm_format_modifier) {
++      args->ret = vkr_image_fix_drm_format(dev, (VkImageCreateInfo *)args->pCreateInfo);
++      if (args->ret != VK_SUCCESS) {
++         return;
++      }
++   }
++
+    /* XXX If VkExternalMemoryImageCreateInfo is chained by the app, all is
+     * good.  If it is not chained, we might still bind an external memory to
+     * the image, because vkr_dispatch_vkAllocateMemory makes any HOST_VISIBLE
+@@ -149,6 +221,11 @@
+ {
+    struct vkr_device *dev = vkr_device_from_handle(args->device);
+    struct vn_device_proc_table *vk = &dev->proc_table;
++
++   /* if host does not natively support dmabuf we need to patch create info */
++   if (dev->physical_device->is_dma_buf_emulated) {
++      vkr_image_fix_create_info(dev, (VkImageCreateInfo *)args->pInfo->pCreateInfo);
++   }
+ 
+    vn_replace_vkGetDeviceImageSubresourceLayout_args_handle(args);
+    vk->GetDeviceImageSubresourceLayout(args->device, args->pInfo, args->pLayout);
+@@ -163,8 +240,14 @@
+    struct vn_device_proc_table *vk = &dev->proc_table;
+ 
+    vn_replace_vkGetImageDrmFormatModifierPropertiesEXT_args_handle(args);
+-   args->ret = vk->GetImageDrmFormatModifierPropertiesEXT(args->device, args->image,
+-                                                          args->pProperties);
++
++   if (dev->physical_device->EXT_image_drm_format_modifier) {
++      args->ret = vk->GetImageDrmFormatModifierPropertiesEXT(args->device, args->image,
++                                                            args->pProperties);
++   } else {
++      args->ret = vkr_image_emulate_drm_format_modifier_properties(dev, args->image,
++                                                                   args->pProperties);
++   }
+ }
+ 
+ static void
+@@ -219,6 +302,11 @@
+    struct vkr_device *dev = vkr_device_from_handle(args->device);
+    struct vn_device_proc_table *vk = &dev->proc_table;
+ 
++   /* if host does not natively support dmabuf we need to patch create info */
++   if (dev->physical_device->is_dma_buf_emulated) {
++      vkr_image_fix_create_info(dev, (VkImageCreateInfo *)args->pInfo->pCreateInfo);
++   }
++
+    vn_replace_vkGetDeviceImageMemoryRequirements_args_handle(args);
+    vk->GetDeviceImageMemoryRequirements(args->device, args->pInfo,
+                                         args->pMemoryRequirements);
+@@ -232,6 +320,11 @@
+    struct vkr_device *dev = vkr_device_from_handle(args->device);
+    struct vn_device_proc_table *vk = &dev->proc_table;
+ 
++   /* if host does not natively support dmabuf we need to patch create info */
++   if (dev->physical_device->is_dma_buf_emulated) {
++      vkr_image_fix_create_info(dev, (VkImageCreateInfo *)args->pInfo->pCreateInfo);
++   }
++
+    vn_replace_vkGetDeviceImageSparseMemoryRequirements_args_handle(args);
+    vk->GetDeviceImageSparseMemoryRequirements(args->device, args->pInfo,
+                                               args->pSparseMemoryRequirementCount,
+--- a/src/venus/vkr_instance.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_instance.c	2026-01-11 12:53:17
+@@ -177,6 +177,11 @@
+       create_info->pNext = &messenger_create_info;
+    }
+ 
++   if (vkr_library_has_portability_enumeration(vk->EnumerateInstanceExtensionProperties)) {
++      ext_names[ext_count++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
++      create_info->flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
++   }
++
+    assert(layer_count <= ARRAY_SIZE(layer_names));
+    create_info->enabledLayerCount = layer_count;
+    create_info->ppEnabledLayerNames = layer_names;
+--- a/src/venus/vkr_library.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_library.c	2026-01-11 12:53:17
+@@ -35,15 +35,23 @@
+ 
+ #if defined(ENABLE_VULKAN_DLOAD)
+ 
++#ifdef __APPLE__
++#define LIBVULKAN1 "libvulkan.1.dylib"
++#define LIBVULKAN  "libvulkan.dylib"
++#else
++#define LIBVULKAN1 "libvulkan.so.1"
++#define LIBVULKAN  "libvulkan.so"
++#endif
++
+ bool
+ vkr_library_load(struct vulkan_library *lib)
+ {
+    if (lib->handle)
+       return true;
+ 
+-   lib->handle = dlopen("libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
++   lib->handle = dlopen(LIBVULKAN1, RTLD_NOW | RTLD_LOCAL);
+    if (lib->handle == NULL)
+-      lib->handle = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
++      lib->handle = dlopen(LIBVULKAN, RTLD_NOW | RTLD_LOCAL);
+    if (lib->handle == NULL) {
+       vkr_log("failed to open libvulkan: %s", dlerror());
+       return false;
+@@ -89,3 +97,27 @@
+ }
+ 
+ #endif /* ENABLE_VULKAN_DLOAD */
++
++bool
++vkr_library_has_portability_enumeration(PFN_vkEnumerateInstanceExtensionProperties enum_inst_ext_props)
++{
++   uint32_t propertyCount = 0;
++   VkExtensionProperties *properties;
++   VkResult ret;
++   bool has_portability_enumeration = false;
++
++   ret = enum_inst_ext_props(NULL, &propertyCount, NULL);
++   if (ret != VK_SUCCESS) {
++      return false;
++   }
++   properties = calloc(propertyCount, sizeof(*properties));
++   ret = enum_inst_ext_props(NULL, &propertyCount, properties);
++   for (int i = 0; ret == VK_SUCCESS && i < propertyCount; i++) {
++      if (!strcmp(properties[i].extensionName, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
++         has_portability_enumeration = true;
++         break;
++      }
++   }
++   free(properties);
++   return has_portability_enumeration;
++}
+--- a/src/venus/vkr_library.h	2026-01-01 08:05:29
++++ b/src/venus/vkr_library.h	2026-01-11 12:53:17
+@@ -44,4 +44,7 @@
+ 
+ #endif /* ENABLE_VULKAN_DLOAD */
+ 
++bool
++vkr_library_has_portability_enumeration(PFN_vkEnumerateInstanceExtensionProperties enum_inst_ext_props);
++
+ #endif /* VKR_LIBRARY_H */
+--- a/src/venus/vkr_physical_device.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_physical_device.c	2026-01-11 12:53:17
+@@ -225,6 +225,16 @@
+           VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT) &&
+          (props.externalMemoryProperties.exportFromImportedHandleTypes &
+           VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
++   }
++
++   if (physical_dev->EXT_external_memory_metal) {
++      info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT,
++      vk->GetPhysicalDeviceExternalBufferProperties(handle, &info, &props);
++      physical_dev->is_metal_export_supported =
++         (props.externalMemoryProperties.externalMemoryFeatures &
++          VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT) &&
++         (props.externalMemoryProperties.exportFromImportedHandleTypes &
++          VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT);
+    }
+ 
+    /* fallback to gbm allocation with dma-buf import */
+@@ -269,12 +279,25 @@
+    for (uint32_t i = 0; i < count; i++) {
+       VkExtensionProperties *props = &exts[i];
+ 
+-      if (!strcmp(props->extensionName, "VK_KHR_external_memory_fd"))
+-         physical_dev->KHR_external_memory_fd = true;
+-      else if (!strcmp(props->extensionName, "VK_EXT_external_memory_dma_buf"))
++      if (!strcmp(props->extensionName, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME)) {
++         physical_dev->KHR_external_memory_fd = true;
++      } else if (!strcmp(props->extensionName, VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME)) {
+          physical_dev->EXT_external_memory_dma_buf = true;
+-      else if (!strcmp(props->extensionName, "VK_KHR_external_fence_fd"))
++      } else if (!strcmp(props->extensionName, VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME)) {
+          physical_dev->KHR_external_fence_fd = true;
++      } else if (!strcmp(props->extensionName, VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME)) {
++         physical_dev->EXT_image_drm_format_modifier = true;
++      } else if (!strcmp(props->extensionName, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME)) {
++         physical_dev->EXT_queue_family_foreign = true;
++      } else if (!strcmp(props->extensionName, VK_EXT_EXTERNAL_MEMORY_METAL_EXTENSION_NAME)) {
++         physical_dev->EXT_external_memory_metal = true;
++         /* hide from guest */
++         continue;
++      } else if (!strcmp(props->extensionName, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)) {
++         physical_dev->KHR_portability_subset = true;
++         /* hide from guest */
++         continue;
++      }
+ 
+       const uint32_t spec_ver = vkr_extension_get_spec_version(props->extensionName);
+       if (spec_ver) {
+@@ -282,7 +305,35 @@
+             props->specVersion = spec_ver;
+          exts[advertised_count++] = exts[i];
+       }
++   }
++
++   /* add any emulated properties to show to the guest */
++   VkExtensionProperties prop;
++   uint32_t emulated_count = 0;
++   physical_dev->is_dma_buf_emulated = !physical_dev->EXT_external_memory_dma_buf && physical_dev->EXT_external_memory_metal;
++   emulated_count += 2*physical_dev->is_dma_buf_emulated;
++   emulated_count += !physical_dev->EXT_image_drm_format_modifier;
++   emulated_count += !physical_dev->EXT_queue_family_foreign;
++   exts = realloc(exts, sizeof(*exts) * (advertised_count + emulated_count));
++   if (physical_dev->is_dma_buf_emulated) {
++      strcpy(prop.extensionName, VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME);
++      prop.specVersion = vkr_extension_get_spec_version(prop.extensionName);
++      exts[advertised_count++] = prop;
++      strcpy(prop.extensionName, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
++      prop.specVersion = vkr_extension_get_spec_version(prop.extensionName);
++      exts[advertised_count++] = prop;
+    }
++   if (!physical_dev->EXT_image_drm_format_modifier) {
++      strcpy(prop.extensionName, VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME);
++      prop.specVersion = vkr_extension_get_spec_version(prop.extensionName);
++      exts[advertised_count++] = prop;
++   }
++   if (!physical_dev->EXT_queue_family_foreign) {
++      /* FIXME: we don't actually emulate this yet as MoltenVK ignores queue family transfers... */
++      strcpy(prop.extensionName, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME);
++      prop.specVersion = vkr_extension_get_spec_version(prop.extensionName);
++      exts[advertised_count++] = prop;
++   }
+ 
+    if (physical_dev->KHR_external_fence_fd) {
+       const VkPhysicalDeviceExternalFenceInfo fence_info = {
+@@ -344,6 +395,21 @@
+ }
+ 
+ static void
++vkr_physical_device_emulate_drm_props(VkDrmFormatModifierPropertiesListEXT *drm_props_list)
++{
++    drm_props_list->drmFormatModifierCount = 1;
++    if (drm_props_list->pDrmFormatModifierProperties) {
++      drm_props_list->pDrmFormatModifierProperties[0] = (VkDrmFormatModifierPropertiesEXT){
++         .drmFormatModifier = DRM_FORMAT_MOD_LINEAR,
++         .drmFormatModifierPlaneCount = 1,
++         .drmFormatModifierTilingFeatures = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
++                                            VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT |
++                                            VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT,
++      };
++    };
++}
++
++static void
+ vkr_dispatch_vkEnumeratePhysicalDevices(struct vn_dispatch_context *dispatch,
+                                         struct vn_command_vkEnumeratePhysicalDevices *args)
+ {
+@@ -701,6 +767,15 @@
+    vn_replace_vkGetPhysicalDeviceFormatProperties2_args_handle(args);
+    vk->GetPhysicalDeviceFormatProperties2(args->physicalDevice, args->format,
+                                           args->pFormatProperties);
++
++   /* emulate support for drm format modifiers */
++   if (!physical_dev->EXT_image_drm_format_modifier) {
++      VkDrmFormatModifierPropertiesListEXT* drm_props_list =
++         vkr_find_struct(args->pFormatProperties, VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT);
++      if (drm_props_list) {
++         vkr_physical_device_emulate_drm_props(drm_props_list);
++      }
++   }
+ }
+ 
+ static void
+@@ -712,9 +787,71 @@
+       vkr_physical_device_from_handle(args->physicalDevice);
+    struct vn_physical_device_proc_table *vk = &physical_dev->proc_table;
+ 
++   /* filter unsupported drm format modifiers */
++   if (!physical_dev->EXT_image_drm_format_modifier) {
++      VkPhysicalDeviceImageFormatInfo2 *pImageFormatInfo =
++         (VkPhysicalDeviceImageFormatInfo2 *)args->pImageFormatInfo;
++      VkBaseInStructure *prev_struct =
++         vkr_find_prev_struct(pImageFormatInfo, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT);
++      if (prev_struct) {
++         const VkPhysicalDeviceImageDrmFormatModifierInfoEXT *drm_format_mod =
++            (const VkPhysicalDeviceImageDrmFormatModifierInfoEXT *)prev_struct->pNext;
++         if (drm_format_mod->drmFormatModifier == DRM_FORMAT_MOD_LINEAR) {
++            /* Remove the struct from the list */
++            prev_struct->pNext = drm_format_mod->pNext;
++            vkr_log("emulating DRM_FORMAT_MOD_LINEAR with VK_IMAGE_TILING_LINEAR");
++            pImageFormatInfo->tiling = VK_IMAGE_TILING_LINEAR;
++            pImageFormatInfo->usage &=
++               ~(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
++         } else {
++            vkr_log("only DRM_FORMAT_MOD_LINEAR is supported");
++            args->ret = VK_ERROR_FORMAT_NOT_SUPPORTED;
++            return;
++         }
++      }
++   }
++
++   /* emulate handle for dmabuf */
++   if (physical_dev->is_dma_buf_emulated && physical_dev->is_metal_export_supported) {
++      VkPhysicalDeviceExternalImageFormatInfo *info =
++         vkr_find_struct(args->pImageFormatInfo, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO);
++      if (info && info->handleType & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) {
++         info->handleType &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++         info->handleType |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT;
++      }
++      if (info && info->handleType & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) {
++         info->handleType &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++         info->handleType |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT;
++      }
++   }
++
+    vn_replace_vkGetPhysicalDeviceImageFormatProperties2_args_handle(args);
+    args->ret = vk->GetPhysicalDeviceImageFormatProperties2(
+       args->physicalDevice, args->pImageFormatInfo, args->pImageFormatProperties);
++
++   /* emulate handle for dmabuf */
++   if (physical_dev->is_dma_buf_emulated && physical_dev->is_metal_export_supported) {
++      VkExternalImageFormatProperties *img_props = vkr_find_struct(
++         args->pImageFormatProperties->pNext, VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES);
++      VkExternalMemoryProperties *props = &img_props->externalMemoryProperties;
++      if (img_props && (props->exportFromImportedHandleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT)) {
++         props->exportFromImportedHandleTypes &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT;
++         props->exportFromImportedHandleTypes |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++      }
++      if (img_props && (props->compatibleHandleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT)) {
++         props->compatibleHandleTypes &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT;
++         props->compatibleHandleTypes |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++      }
++   }
++
++   /* emulate support for drm format modifiers */
++   if (!physical_dev->EXT_image_drm_format_modifier) {
++      VkDrmFormatModifierPropertiesListEXT* drm_props_list =
++         vkr_find_struct(args->pImageFormatProperties, VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT);
++      if (drm_props_list) {
++         vkr_physical_device_emulate_drm_props(drm_props_list);
++      }
++   }
+ }
+ 
+ static void
+@@ -740,9 +877,35 @@
+       vkr_physical_device_from_handle(args->physicalDevice);
+    struct vn_physical_device_proc_table *vk = &physical_dev->proc_table;
+ 
++   /* emulate handle for dmabuf */
++   if (physical_dev->is_dma_buf_emulated && physical_dev->is_metal_export_supported) {
++      VkPhysicalDeviceExternalBufferInfo *info = (VkPhysicalDeviceExternalBufferInfo *)&args->pExternalBufferInfo;
++      if (info->handleType & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) {
++         info->handleType &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++         info->handleType |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT;
++      }
++      if (info->handleType & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) {
++         info->handleType &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++         info->handleType |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT;
++      }
++   }
++
+    vn_replace_vkGetPhysicalDeviceExternalBufferProperties_args_handle(args);
+    vk->GetPhysicalDeviceExternalBufferProperties(
+       args->physicalDevice, args->pExternalBufferInfo, args->pExternalBufferProperties);
++
++   /* emulate handle for dmabuf */
++   if (physical_dev->is_dma_buf_emulated && physical_dev->is_metal_export_supported) {
++      VkExternalMemoryProperties *props = &args->pExternalBufferProperties->externalMemoryProperties;
++      if (props->exportFromImportedHandleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT) {
++         props->exportFromImportedHandleTypes &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT;
++         props->exportFromImportedHandleTypes |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++      }
++      if (props->compatibleHandleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT) {
++         props->compatibleHandleTypes &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT;
++         props->compatibleHandleTypes |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++      }
++   }
+ }
+ 
+ static void
+--- a/src/venus/vkr_physical_device.h	2026-01-01 08:05:29
++++ b/src/venus/vkr_physical_device.h	2026-01-11 12:53:17
+@@ -23,14 +23,19 @@
+ 
+    bool KHR_external_memory_fd;
+    bool EXT_external_memory_dma_buf;
++   bool EXT_external_memory_metal;
++   bool KHR_portability_subset;
++   bool EXT_image_drm_format_modifier;
++   bool EXT_queue_family_foreign;
+ 
+    bool KHR_external_fence_fd;
+-   bool KHR_external_semaphore_fd;
+ 
+    VkPhysicalDeviceMemoryProperties memory_properties;
+    VkPhysicalDeviceIDProperties id_properties;
+    bool is_dma_buf_fd_export_supported;
+    bool is_opaque_fd_export_supported;
++   bool is_metal_export_supported;
++   bool is_dma_buf_emulated;
+    void *gbm_device;
+    int udmabuf_dev_fd;
+ 
+--- a/src/venus/vkr_queue.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_queue.c	2026-01-11 12:53:17
+@@ -481,19 +481,23 @@
+ 
+    vn_replace_vkResetFenceResourceMESA_args_handle(args);
+ 
+-   const VkFenceGetFdInfoKHR info = {
+-      .sType = VK_STRUCTURE_TYPE_FENCE_GET_FD_INFO_KHR,
+-      .fence = args->fence,
+-      .handleType = VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT,
+-   };
+-   VkResult result = vk->GetFenceFdKHR(args->device, &info, &fd);
+-   if (result != VK_SUCCESS) {
+-      vkr_context_set_fatal(ctx);
+-      return;
+-   }
++   if (dev->physical_device->KHR_external_fence_fd) {
++      const VkFenceGetFdInfoKHR info = {
++         .sType = VK_STRUCTURE_TYPE_FENCE_GET_FD_INFO_KHR,
++         .fence = args->fence,
++         .handleType = VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT,
++      };
++      VkResult result = vk->GetFenceFdKHR(args->device, &info, &fd);
++      if (result != VK_SUCCESS) {
++         vkr_context_set_fatal(ctx);
++         return;
++      }
+ 
+-   if (fd >= 0)
+-      close(fd);
++      if (fd >= 0)
++         close(fd);
++   } else {
++      vk->ResetFences(args->device, 1, &args->fence);
++   }
+ }
+ 
+ static void
+--- a/src/venus/vkr_renderer.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_renderer.c	2026-01-11 12:53:17
+@@ -69,8 +69,10 @@
+       return false;
+ 
+    vkr_debug_init();
+-   virgl_log_set_handler(cbs->debug_logger, NULL, NULL);
+ 
++   if (cbs->debug_logger)
++      virgl_log_set_handler(cbs->debug_logger, NULL, NULL);
++
+    vkr_state.cbs = cbs;
+    list_inithead(&vkr_state.contexts);
+ 
+@@ -177,6 +179,7 @@
+                              uint32_t blob_flags,
+                              enum virgl_resource_fd_type *out_fd_type,
+                              int *out_res_fd,
++                             void **out_res_ptr,
+                              uint32_t *out_map_info,
+                              struct virgl_resource_vulkan_info *out_vulkan_info)
+ {
+@@ -194,13 +197,17 @@
+       return false;
+ 
+    assert(blob.type == VIRGL_RESOURCE_FD_SHM || blob.type == VIRGL_RESOURCE_FD_DMABUF ||
+-          blob.type == VIRGL_RESOURCE_FD_OPAQUE);
++          blob.type == VIRGL_RESOURCE_FD_OPAQUE || blob.type == VIRGL_RESOURCE_METAL_HEAP);
+ 
+    *out_fd_type = blob.type;
+-   *out_res_fd = blob.u.fd;
++   if (blob.type == VIRGL_RESOURCE_METAL_HEAP) {
++      *out_res_ptr = blob.u.metal_heap;
++   } else {
++      *out_res_fd = blob.u.fd;
++   }
+    *out_map_info = blob.map_info;
+ 
+-   if (blob.type == VIRGL_RESOURCE_FD_OPAQUE) {
++   if (blob.type == VIRGL_RESOURCE_FD_OPAQUE || blob.type == VIRGL_RESOURCE_METAL_HEAP) {
+       assert(out_vulkan_info);
+       *out_vulkan_info = blob.vulkan_info;
+    }
+--- a/src/venus/vkr_renderer.h	2026-01-01 08:05:29
++++ b/src/venus/vkr_renderer.h	2026-01-11 12:53:17
+@@ -61,6 +61,7 @@
+                              uint32_t blob_flags,
+                              enum virgl_resource_fd_type *out_fd_type,
+                              int *out_res_fd,
++                             void **out_res_ptr,
+                              uint32_t *out_map_info,
+                              struct virgl_resource_vulkan_info *out_vulkan_info);
+ 

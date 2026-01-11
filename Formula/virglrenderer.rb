@@ -36,6 +36,11 @@ class Virglrenderer < Formula
     ohai "Applying Venus/macOS support patch..."
     system "patch", "-p1", "--batch", "--verbose", "-i", patch_file
 
+    # Apply Venus dylib loading fix for macOS (libvulkan.so -> libvulkan.dylib)
+    patch_venus_dylib = "#{__dir__}/../patches/venus-macos-dylib.patch"
+    ohai "Applying Venus dylib loading fix for macOS..."
+    system "patch", "-p1", "--batch", "--verbose", "-i", patch_venus_dylib
+
     # Get ANGLE and libepoxy paths
     angle = Formula["startergo/angle/angle"]
     libepoxy = Formula["startergo/libepoxy/libepoxy"]
