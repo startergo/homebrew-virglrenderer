@@ -1,0 +1,126 @@
+diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
+index 91e24352..7a035712 100644
+--- a/src/vrend/vrend_blitter.h
++++ b/src/vrend/vrend_blitter.h
+@@ -35,6 +35,12 @@
+    "%s"                                         \
+ 
+ #define FS_HEADER_GLES                             \
++   "#version 300 es\n"                          \
++   "// Blitter\n"                               \
++   "%s"                                         \
++   "precision mediump float;\n"                 \
++
++#define FS_HEADER_GLES_MS                       \
+    "#version 310 es\n"                          \
+    "// Blitter\n"                               \
+    "%s"                                         \
+@@ -52,6 +58,11 @@
+    "// Blitter\n"                               \
+ 
+ #define HEADER_GLES                             \
++   "#version 300 es\n"                          \
++   "// Blitter\n"                               \
++   "precision mediump float;\n"                 \
++
++#define HEADER_GLES_MS                          \
+    "#version 310 es\n"                          \
+    "// Blitter\n"                               \
+    "precision mediump float;\n"                 \
+@@ -145,7 +156,7 @@
+    "}\n"
+ 
+ #define FS_TEXFETCH_COL_MSAA_GL FS_HEADER_GL FS_TEXFETCH_COL_MSAA_BODY
+-#define FS_TEXFETCH_COL_MSAA_GLES FS_HEADER_GLES FS_TEXFETCH_COL_MSAA_BODY
++#define FS_TEXFETCH_COL_MSAA_GLES FS_HEADER_GLES_MS FS_TEXFETCH_COL_MSAA_BODY
+ #define FS_TEXFETCH_COL_MSAA_ARRAY_GLES FS_HEADER_GLES_MS_ARRAY FS_TEXFETCH_COL_MSAA_BODY
+ 
+ #define FS_TEXFETCH_DS_BODY                             \
+@@ -178,7 +189,7 @@ struct vrend_context;
+ struct vrend_resource;
+ struct vrend_blit_info;
+ #define FS_TEXFETCH_DS_MSAA_GL HEADER_GL FS_TEXFETCH_DS_MSAA_BODY
+-#define FS_TEXFETCH_DS_MSAA_GLES HEADER_GLES FS_TEXFETCH_DS_MSAA_BODY_GLES
++#define FS_TEXFETCH_DS_MSAA_GLES HEADER_GLES_MS FS_TEXFETCH_DS_MSAA_BODY_GLES
+ #define FS_TEXFETCH_DS_MSAA_ARRAY_GLES HEADER_GLES_MS_ARRAY FS_TEXFETCH_DS_MSAA_BODY_GLES
+ 
+ /* implement blitting using OpenGL. */
+diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+index 4bf88e09..0f589064 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -2519,7 +2519,13 @@ static GLuint convert_wrap(struct vrend_context *ctx, int wrap)
+    case PIPE_TEX_WRAP_CLAMP: if (vrend_state.use_core_profile == false) return GL_CLAMP; else return GL_CLAMP_TO_EDGE;
+ 
+    case PIPE_TEX_WRAP_CLAMP_TO_EDGE: return GL_CLAMP_TO_EDGE;
+-   case PIPE_TEX_WRAP_CLAMP_TO_BORDER: return GL_CLAMP_TO_BORDER;
++   case PIPE_TEX_WRAP_CLAMP_TO_BORDER:
++      if (has_feature(feat_sampler_border_colors))
++         return GL_CLAMP_TO_BORDER;
++      else {
++         virgl_warn("Sampler border color setting requested but not supported\n");
++         return GL_CLAMP_TO_EDGE;
++      }
+ 
+    case PIPE_TEX_WRAP_MIRROR_REPEAT: return GL_MIRRORED_REPEAT;
+    case PIPE_TEX_WRAP_MIRROR_CLAMP:
+@@ -3455,7 +3461,8 @@ void vrend_bind_vertex_elements_state(struct vrend_context *ctx,
+       return;
+    }
+ 
+-   if (has_feature(feat_gles31_vertex_attrib_binding) && v->id == 0) {
++   if (has_feature(feat_gles31_vertex_attrib_binding)) {
++      if (v->id == 0) {
+       glGenVertexArrays(1, &v->id);
+       glBindVertexArray(v->id);
+       for (uint32_t i = 0; i < v->count; i++) {
+@@ -3473,6 +3480,17 @@ void vrend_bind_vertex_elements_state(struct vrend_context *ctx,
+          glVertexAttribBinding(i, ve->base.vertex_buffer_index);
+          glVertexBindingDivisor(i, ve->base.instance_divisor);
+          glEnableVertexAttribArray(i);
++         }
++      }
++   } else {
++      for (uint32_t i = 0; i < v->count; i++) {
++         struct vrend_vertex_element *ve = &v->elements[i];
++
++         if (util_format_is_pure_integer(ve->base.src_format)) {
++            UPDATE_INT_SIGN_MASK(ve->base.src_format, i,
++                                 v->signed_int_bitmask,
++                                 v->unsigned_int_bitmask);
++         }
+       }
+    }
+ }
+@@ -7556,11 +7574,7 @@ static bool use_integer(void) {
+       return true;
+ 
+    const char * a = (const char *) glGetString(GL_VENDOR);
+-   if (!a)
+-       return false;
+-   if (strcmp(a, "ARM") == 0)
+-      return true;
+-   return false;
++   return a && !(strcmp(a, "ARM") && strcmp(a, "Google Inc. (Apple)"));
+ }
+ 
+ static bool vrend_use_gbm_layout_feature(UNUSED uint32_t flags)
+diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
+index 67c48424..4ddcd0df 100644
+--- a/src/vrend/vrend_winsys_egl.c
++++ b/src/vrend/vrend_winsys_egl.c
+@@ -356,12 +356,12 @@ struct virgl_egl *virgl_egl_init(EGLNativeDisplayType display_id, bool surfacele
+          goto fail;
+       if (surfaceless) {
+          egl->egl_display = egl->funcs.eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA,
+-                                                             EGL_DEFAULT_DISPLAY, NULL);
++                                                             (void *)EGL_DEFAULT_DISPLAY, NULL);
+       }
+ #ifdef ENABLE_GBM
+       else
+          egl->egl_display = egl->funcs.eglGetPlatformDisplay(EGL_PLATFORM_GBM_KHR,
+-                                                             (EGLNativeDisplayType*)egl->gbm->device, NULL);
++                                                             egl->gbm->device, NULL);
+ #endif
+    } else {
+ #ifdef ENABLE_GBM

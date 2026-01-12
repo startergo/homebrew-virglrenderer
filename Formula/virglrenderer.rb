@@ -33,7 +33,7 @@ class Virglrenderer < Formula
 
     # Apply macOS patches
     patches = [
-      "virglrenderer-main-macos.patch",
+      "virglrenderer-nonvenus.patch",
     ]
 
     patches.each do |patch|
