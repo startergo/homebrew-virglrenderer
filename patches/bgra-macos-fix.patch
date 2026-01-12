@@ -66,9 +66,9 @@
        glReadPixels(x, y, width, height, format, type, data);
 +
 +#ifdef __APPLE__
-+   /* macOS Metal backend: glReadPixels returns RGBA data even when GL_BGRA is requested.
-+    * Swizzle back to BGRA for guest consistency. */
-+   if (format == GL_BGRA && type == GL_UNSIGNED_BYTE) {
++   /* macOS Metal backend: We use GL_RGBA format for BGRA resources (macos_bgra_formats).
++    * glReadPixels returns RGBA data, so swizzle back to BGRA for guest consistency. */
++   if (format == GL_RGBA && type == GL_UNSIGNED_BYTE) {
 +      const size_t pixel_count = width * height;
 +      const size_t size = pixel_count * 4; /* BGRA = 4 bytes per pixel */
 +      VREND_DEBUG(dbg_bgra, NULL, "swizzling rgba->bgra on readback: w=%d h=%d size=%zu\n",
