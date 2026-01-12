@@ -1,6 +1,6 @@
-diff -Naur --exclude=.git virgl-upstream-clean/server/render_socket.c virglrenderer-main-fresh/server/render_socket.c
---- virgl-upstream-clean/server/render_socket.c	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/server/render_socket.c	2026-01-11 09:07:30
+diff --git a/server/render_socket.c b/server/render_socket.c
+--- a/server/render_socket.c	2026-01-01 08:05:29
++++ b/server/render_socket.c	2026-01-11 09:07:30
 @@ -4,6 +4,7 @@
   */
  
@@ -51,9 +51,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/server/render_socket.c virglrende
        if (unlikely(s <= 0)) {
           if (!s)
              return false;
-diff -Naur --exclude=.git virgl-upstream-clean/server/render_worker.c virglrenderer-main-fresh/server/render_worker.c
---- virgl-upstream-clean/server/render_worker.c	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/server/render_worker.c	2026-01-11 09:07:30
+diff --git a/server/render_worker.c b/server/render_worker.c
+--- a/server/render_worker.c	2026-01-01 08:05:29
++++ b/server/render_worker.c	2026-01-11 09:07:30
 @@ -24,10 +24,15 @@
  #include <errno.h>
  #include <fcntl.h>
@@ -104,9 +104,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/server/render_worker.c virglrende
     } while (true);
  
     return true;
-diff -Naur --exclude=.git virgl-upstream-clean/src/proxy/proxy_socket.c virglrenderer-main-fresh/src/proxy/proxy_socket.c
---- virgl-upstream-clean/src/proxy/proxy_socket.c	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/proxy/proxy_socket.c	2026-01-11 09:07:30
+diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
+--- a/src/proxy/proxy_socket.c	2026-01-01 08:05:29
++++ b/src/proxy/proxy_socket.c	2026-01-11 09:07:30
 @@ -100,7 +100,12 @@
  proxy_socket_recvmsg(struct proxy_socket *socket, struct msghdr *msg)
  {
@@ -121,9 +121,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/src/proxy/proxy_socket.c virglren
        if (unlikely(s < 0)) {
           if (errno == EAGAIN || errno == EINTR)
              continue;
-diff -Naur --exclude=.git virgl-upstream-clean/src/venus/vkr_ring.c virglrenderer-main-fresh/src/venus/vkr_ring.c
---- virgl-upstream-clean/src/venus/vkr_ring.c	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/venus/vkr_ring.c	2026-01-11 09:07:30
+diff --git a/src/venus/vkr_ring.c b/src/venus/vkr_ring.c
+--- a/src/venus/vkr_ring.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_ring.c	2026-01-11 09:07:30
 @@ -13,6 +13,18 @@
  
  #include "vkr_context.h"
@@ -143,9 +143,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/src/venus/vkr_ring.c virglrendere
  static inline void *
  get_resource_pointer(const struct vkr_resource *res, size_t offset)
  {
-diff -Naur --exclude=.git virgl-upstream-clean/src/virglrenderer.c virglrenderer-main-fresh/src/virglrenderer.c
---- virgl-upstream-clean/src/virglrenderer.c	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/virglrenderer.c	2026-01-11 09:07:30
+diff --git a/src/virglrenderer.c b/src/virglrenderer.c
+--- a/src/virglrenderer.c	2026-01-01 08:05:29
++++ b/src/virglrenderer.c	2026-01-11 09:07:30
 @@ -178,11 +178,37 @@
  void virgl_renderer_fill_caps(uint32_t set, uint32_t version,
                                void *caps)
@@ -211,9 +211,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/src/virglrenderer.c virglrenderer
  }
  
  void virgl_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
-diff -Naur --exclude=.git virgl-upstream-clean/src/virglrenderer.h virglrenderer-main-fresh/src/virglrenderer.h
---- virgl-upstream-clean/src/virglrenderer.h	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/virglrenderer.h	2026-01-11 09:07:30
+diff --git a/src/virglrenderer.h b/src/virglrenderer.h
+--- a/src/virglrenderer.h	2026-01-01 08:05:29
++++ b/src/virglrenderer.h	2026-01-11 09:07:30
 @@ -380,6 +380,9 @@
  VIRGL_EXPORT int virgl_renderer_resource_get_info_ext(int res_handle,
                                                        struct virgl_renderer_resource_info_ext *info);
@@ -224,9 +224,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/src/virglrenderer.h virglrenderer
  VIRGL_EXPORT void virgl_renderer_cleanup(void *cookie);
  
  /* reset the rendererer - destroy all contexts and resource */
-diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_blitter.h virglrenderer-main-fresh/src/vrend/vrend_blitter.h
---- virgl-upstream-clean/src/vrend/vrend_blitter.h	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/vrend/vrend_blitter.h	2026-01-11 09:07:30
+diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
+--- a/src/vrend/vrend_blitter.h	2026-01-01 08:05:29
++++ b/src/vrend/vrend_blitter.h	2026-01-11 09:07:30
 @@ -35,6 +35,12 @@
     "%s"                                         \
  
@@ -270,9 +270,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_blitter.h virglre
  #define FS_TEXFETCH_DS_MSAA_ARRAY_GLES HEADER_GLES_MS_ARRAY FS_TEXFETCH_DS_MSAA_BODY_GLES
  
  /* implement blitting using OpenGL. */
-diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_decode.c virglrenderer-main-fresh/src/vrend/vrend_decode.c
---- virgl-upstream-clean/src/vrend/vrend_decode.c	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/vrend/vrend_decode.c	2026-01-11 09:07:30
+diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
+--- a/src/vrend/vrend_decode.c	2026-01-01 08:05:29
++++ b/src/vrend/vrend_decode.c	2026-01-11 09:07:30
 @@ -888,6 +888,17 @@
        return EINVAL;
     }
@@ -315,9 +315,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_decode.c virglren
        if (ret) {
           virgl_error("context %d failed to dispatch %s: %d\n",
                 gdctx->base.ctx_id, vrend_get_comand_name(cmd), ret);
-diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_formats.c virglrenderer-main-fresh/src/vrend/vrend_formats.c
---- virgl-upstream-clean/src/vrend/vrend_formats.c	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/vrend/vrend_formats.c	2026-01-11 09:07:30
+diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
+--- a/src/vrend/vrend_formats.c	2026-01-01 08:05:29
++++ b/src/vrend/vrend_formats.c	2026-01-11 09:07:30
 @@ -364,6 +364,19 @@
    { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
  };
@@ -550,9 +550,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_formats.c virglre
     return max_samples_confirmed;
  }
  
-diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_renderer.c virglrenderer-main-fresh/src/vrend/vrend_renderer.c
---- virgl-upstream-clean/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/vrend/vrend_renderer.c	2026-01-11 09:08:17
+diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+--- a/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
++++ b/src/vrend/vrend_renderer.c	2026-01-11 09:08:17
 @@ -28,6 +28,7 @@
  #include <unistd.h>
  #include <stdatomic.h>
@@ -1627,9 +1627,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_renderer.c virglr
 +{
 +   return vrend_state.video_available;
 +}
-diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_renderer.h virglrenderer-main-fresh/src/vrend/vrend_renderer.h
---- virgl-upstream-clean/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/vrend/vrend_renderer.h	2026-01-11 09:07:30
+diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
+--- a/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
++++ b/src/vrend/vrend_renderer.h	2026-01-11 09:07:30
 @@ -564,6 +564,8 @@
  void vrend_renderer_resource_get_info(struct pipe_resource *pres,
                                        struct vrend_renderer_resource_info *info);
@@ -1648,9 +1648,9 @@ diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_renderer.h virglr
  
  int vrend_renderer_export_query(struct pipe_resource *pres,
                                  struct virgl_renderer_export_query *export_query);
-diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_shader.c virglrenderer-main-fresh/src/vrend/vrend_shader.c
---- virgl-upstream-clean/src/vrend/vrend_shader.c	2026-01-01 08:05:29
-+++ virglrenderer-main-fresh/src/vrend/vrend_shader.c	2026-01-11 09:07:30
+diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
+--- a/src/vrend/vrend_shader.c	2026-01-01 08:05:29
++++ b/src/vrend/vrend_shader.c	2026-01-11 09:07:30
 @@ -6301,10 +6301,26 @@
  
        if (ctx->prog_type == TGSI_PROCESSOR_VERTEX && ctx->cfg->use_explicit_locations)

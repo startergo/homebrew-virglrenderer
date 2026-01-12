@@ -31,9 +31,10 @@ class Virglrenderer < Formula
     system "curl", "-L", upstream_url, "-o", "virglrenderer.tar.gz"
     system "tar", "-xzf", "virglrenderer.tar.gz", "--strip-components=1"
 
-    # Apply unified macOS patch (includes all fixes from old separate patches)
+    # Apply macOS patches
     patches = [
-      "virglrenderer-main-macos.patch",  # All macOS Metal support fixes
+      "virglrenderer-main-macos.patch",
+      "bgra-cpu-swizzle.patch",
     ]
 
     patches.each do |patch|

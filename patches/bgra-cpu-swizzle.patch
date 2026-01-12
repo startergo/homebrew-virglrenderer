@@ -1,0 +1,27 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -9629,6 +9629,7 @@ static int vrend_renderer_transfer_write_iov(struct vrend_context *ctx,
+          x = info->box->x;
+          y = invert ? (int)res->base.height0 - info->box->y - info->box->height : info->box->y;
+ 
++#ifdef __APPLE__
+          /* GLES doesn't allow format conversions, which we need for BGRA resources with RGBA
+           * internal format. So we fallback to performing a CPU swizzle before uploading. */
+          if (vrend_state.use_gles) {
+@@ -9666,7 +9667,16 @@ static int vrend_renderer_transfer_write_iov(struct vrend_context *ctx,
+                VREND_DEBUG(dbg_bgra, ctx, "manually swizzling bgra->rgba on upload since gles+bgra\n");
+                vrend_swizzle_data_bgra(send_size, data);
+             }
++         }
++
++#else
++         /* macOS: GL_BGRA doesn't work on Metal backend. We use GL_RGBA format
++          * for macos_bgra_formats, so we need to manually swizzle BGRA->RGBA. */
++         if (vrend_format_is_bgra(res->base.format)) {
++            VREND_DEBUG(dbg_bgra, ctx, "manually swizzling bgra->rgba on upload since macos+bgra\n");
++            vrend_swizzle_data_bgra(send_size, data);
+          }
++#endif
+ 
+          /* mipmaps are usually passed in one iov, and we need to keep the offset
+           * into the data in case we want to read back the data of a surface
