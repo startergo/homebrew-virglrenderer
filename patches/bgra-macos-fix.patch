@@ -1,23 +1,24 @@
---- a/src/vrend/vrend_formats.c
-+++ b/src/vrend/vrend_formats.c
-@@ -356,6 +356,19 @@
+--- a/src/vrend/vrend_formats.c	2026-01-12 14:31:24
++++ b/src/vrend/vrend_formats.c	2026-01-12 14:31:43
+@@ -355,7 +355,20 @@
+   { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
    { VIRGL_FORMAT_B8G8R8X8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
    { VIRGL_FORMAT_B8G8R8A8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
- };
++};
 +
 +#ifdef __APPLE__
 +/*
-+ * macOS with Metal backend has broken GL_BGRA format as a render target.
-+ * Use GL_RGBA format (which works) with texture swizzle to convert back to BGRA.
++ * macOS with Metal backend: Use GL_BGRA format like other platforms.
++ * Modern ANGLE/Metal handles GL_BGRA correctly as both texture and render target.
 + */
 +static struct vrend_format_table macos_bgra_formats[] = {
-+  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, BGR1_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, BGRA_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, BGR1_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, BGRA_SWIZZLE, view_class_32 }
-+};
++  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_BGRA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_BGRA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_BGRA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_BGRA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 }
+ };
 +#endif
-
+ 
  static struct vrend_format_table gles_bgra_formats[] = {
    { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
 @@ -593,7 +606,12 @@
@@ -25,7 +26,7 @@
     */
    add_formats(gl_base_rgba_formats);
 -  add_formats(gl_bgra_formats);
-+  /* macOS: Use GL_RGBA format like GLES (GL_BGRA is broken on Metal backend) */
++  /* macOS: Use GL_BGRA format like other platforms */
 +#if defined(__APPLE__)
 +     add_formats(macos_bgra_formats);
 +  #else
@@ -33,49 +34,4 @@
 +  #endif
    add_formats(gl_bit10_formats);
  }
-
---- a/src/vrend/vrend_renderer.c
-+++ b/src/vrend/vrend_renderer.c
-@@ -9586,6 +9586,7 @@
-          x = info->box->x;
-          y = invert ? (int)res->base.height0 - info->box->y - info->box->height : info->box->y;
-
-+#ifdef __APPLE__
-          /* GLES doesn't allow format conversions, which we need for BGRA resources with RGBA
-           * internal format. So we fallback to performing a CPU swizzle before uploading. */
-          if (vrend_state.use_gles) {
-@@ -9697,6 +9698,15 @@
-          }
-       }
-
-+#else
-+         /* macOS: GL_BGRA doesn't work on Metal backend. We use GL_RGBA format
-+          * for macos_bgra_formats, so we need to manually swizzle BGRA->RGBA. */
-+         if (vrend_format_is_bgra(res->base.format)) {
-+            VREND_DEBUG(dbg_bgra, ctx, "manually swizzling bgra->rgba on upload since macos+bgra\n");
-+            vrend_swizzle_data_bgra(send_size, data);
-+         }
-+#endif
-+
-       if (stride && !need_temp) {
-          glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-          glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
-@@ -9878,6 +9888,18 @@
-       glReadnPixelsKHR(x, y, width, height, format, type, bufSize, data);
-    else
-       glReadPixels(x, y, width, height, format, type, data);
-+
-+#ifdef __APPLE__
-+   /* macOS Metal backend: We use GL_RGBA format for BGRA resources (macos_bgra_formats).
-+    * glReadPixels returns RGBA data, so swizzle back to BGRA for guest consistency. */
-+   if (vrend_format_is_bgra(res->base.format) && type == GL_UNSIGNED_BYTE) {
-+      const size_t pixel_count = width * height;
-+      const size_t size = pixel_count * 4; /* BGRA = 4 bytes per pixel */
-+      VREND_DEBUG(dbg_bgra, NULL, "swizzling rgba->bgra on readback: w=%d h=%d size=%zu\n",
-+                  width, height, size);
-+      vrend_swizzle_data_bgra(size, data);
-+   }
-+#endif
-
-    if (dump_present) {
-       /* Simple rolling hash (not cryptographic) to detect non-zero content. */
+ 
