@@ -1,7 +1,9 @@
---- fresh-from-gitlab/src/vrend/vrend_winsys_egl.c	2026-01-11 18:10:14
-+++ angle-fix/src/vrend/vrend_winsys_egl.c	2026-01-11 18:42:14
+diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
+index 1111111..2222222 100644
+--- a/src/vrend/vrend_winsys_egl.c
++++ b/src/vrend/vrend_winsys_egl.c
 @@ -32,6 +32,22 @@
- 
+
  #define EGL_EGLEXT_PROTOTYPES
  #include <errno.h>
 +

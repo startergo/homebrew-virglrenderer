@@ -1,0 +1,46 @@
+diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
+index 1111111..2222222 100644
+--- a/src/vrend/vrend_decode.c
++++ b/src/vrend/vrend_decode.c
+@@ -888,6 +888,17 @@
+       return EINVAL;
+    }
+
++   /* Surface GL errors with object metadata to pinpoint bad creations. */
++   if (!vrend_check_no_error(ctx) && ret == 0) {
++      virgl_error("GL error during CREATE_OBJECT type=%s handle=0x%x len=%u\n",
++                  vrend_get_object_type_name(obj_type), handle, length);
++      /* Dump a small slice of the payload for quick diagnosis. */
++      for (uint32_t i = 0; i < length && i < 12; i++) {
++         virgl_error("  dword[%u]=0x%x\n", i, buf[i]);
++      }
++      ret = EINVAL;
++   }
++
+    return ret;
+ }
+
+@@ -2095,9 +2106,22 @@
+
+       TRACE_SCOPE_SLOW(vrend_get_comand_name(cmd));
+
++      /* If video is disabled at runtime, drop video commands quietly to avoid
++       * noisy errors from guest probes (e.g., gst-plugin-scan).
++       */
++      if (!vrend_renderer_video_available() &&
++          cmd >= VIRGL_CCMD_CREATE_VIDEO_CODEC && cmd <= VIRGL_CCMD_END_FRAME) {
++         continue;
++      }
++
+       ret = decode_table[cmd](gdctx->grctx, buf, len);
+-      if (!vrend_check_no_error(gdctx->grctx) && !ret)
++      if (!vrend_check_no_error(gdctx->grctx) && !ret) {
++         /* Surface the offending command when a GL error is observed. */
++         virgl_error("GL error after %s (ctx %d cmd=0x%x len=%u offset=%u)\n",
++                     vrend_get_comand_name(cmd), gdctx->base.ctx_id,
++                     cmd, len, cur_offset);
+          ret = EINVAL;
++      }
+       if (ret) {
+          virgl_error("context %d failed to dispatch %s: %d\n",
+                gdctx->base.ctx_id, vrend_get_comand_name(cmd), ret);

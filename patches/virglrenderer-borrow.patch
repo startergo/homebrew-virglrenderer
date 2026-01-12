@@ -1,0 +1,83 @@
+diff --git a/src/virglrenderer.c b/src/virglrenderer.c
+index 1111111..2222222 100644
+--- a/src/virglrenderer.c
++++ b/src/virglrenderer.c
+@@ -178,11 +178,37 @@
+ void virgl_renderer_fill_caps(uint32_t set, uint32_t version,
+                               void *caps)
+ {
++   if (getenv("VIRGL_DEBUG_CAPS")) {
++      fprintf(stderr, "DEBUG virgl_renderer_fill_caps: set=%u version=%u\n", set, version);
++      fflush(stderr);
++   }
++   
+    switch (set) {
+    case VIRTGPU_DRM_CAPSET_VIRGL:
+    case VIRTGPU_DRM_CAPSET_VIRGL2:
+-      if (state.vrend_initialized)
++      if (state.vrend_initialized) {
+          vrend_renderer_fill_caps(set, version, (union virgl_caps *)caps);
++         if (getenv("VIRGL_DEBUG_CAPS")) {
++            union virgl_caps *vcaps = (union virgl_caps *)caps;
++            fprintf(stderr, "DEBUG virgl_renderer_fill_caps returning to QEMU:\n");
++            fprintf(stderr, "  max_version=%u\n", vcaps->max_version);
++            fprintf(stderr, "  v1.glsl_level=%u at address %p\n", vcaps->v1.glsl_level, (void*)&vcaps->v1.glsl_level);
++            fprintf(stderr, "  v2.v1.glsl_level=%u at address %p\n", vcaps->v2.v1.glsl_level, (void*)&vcaps->v2.v1.glsl_level);
++            fprintf(stderr, "  caps base address=%p\n", (void*)caps);
++            
++            /* Calculate actual offset */
++            size_t glsl_offset = (uint8_t*)&vcaps->v1.glsl_level - (uint8_t*)caps;
++            fprintf(stderr, "  glsl_level offset from caps base: %zu bytes\n", glsl_offset);
++            
++            /* Dump bytes at that offset */
++            uint8_t *bytes = (uint8_t *)caps;
++            fprintf(stderr, "  Bytes at glsl_level offset (%zu-%zu): ", glsl_offset, glsl_offset+7);
++            for (size_t i = glsl_offset; i < glsl_offset + 8 && i < 1024; i++) 
++               fprintf(stderr, "%02x ", bytes[i]);
++            fprintf(stderr, "\n");
++            fflush(stderr);
++         }
++      }
+       break;
+    case VIRTGPU_DRM_CAPSET_VENUS:
+       if (state.proxy_initialized)
+@@ -556,6 +582,25 @@
+ 
+    return 0;
+ }
++ 
++int virgl_renderer_borrow_texture_for_scanout(int res_handle,
++                                              struct virgl_renderer_resource_info_ext *info)
++{
++   TRACE_FUNC();
++   struct virgl_resource *res = virgl_resource_lookup(res_handle);
++ 
++   if (!res)
++      return EINVAL;
++   if (!info)
++      return EINVAL;
++ 
++   if (!res->pipe_resource)
++      return 0;
++ 
++   vrend_renderer_borrow_texture_for_scanout(res->pipe_resource);
++ 
++   return virgl_renderer_resource_get_info_ext(res_handle, info);
++}
+ 
+ void virgl_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
+                                 uint32_t *max_size)
+diff --git a/src/virglrenderer.h b/src/virglrenderer.h
+index 1111111..2222222 100644
+--- a/src/virglrenderer.h
++++ b/src/virglrenderer.h
+@@ -380,6 +380,9 @@
+ VIRGL_EXPORT int virgl_renderer_resource_get_info_ext(int res_handle,
+                                                       struct virgl_renderer_resource_info_ext *info);
+ 
++VIRGL_EXPORT int virgl_renderer_borrow_texture_for_scanout(int res_handle,
++                                                           struct virgl_renderer_resource_info_ext *info);
++ 
+ VIRGL_EXPORT void virgl_renderer_cleanup(void *cookie);
+ 
+ /* reset the rendererer - destroy all contexts and resource */

@@ -1,0 +1,36 @@
+--- virgl-upstream/src/vrend/vrend_formats.c	2026-01-01 08:05:29
++++ virgl-modified/src/vrend/vrend_formats.c	2026-01-11 23:18:06
+@@ -355,7 +355,20 @@
+   { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
+   { VIRGL_FORMAT_B8G8R8X8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
+   { VIRGL_FORMAT_B8G8R8A8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
++};
++
++#ifdef __APPLE__
++/*
++ * macOS with Metal backend has broken GL_BGRA format as a render target.
++ * Use GL_RGBA format (which works) with the same swizzle as GLES.
++ */
++static struct vrend_format_table macos_bgra_formats[] = {
++  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 }
+ };
++#endif
+ 
+ static struct vrend_format_table gles_bgra_formats[] = {
+   { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
+@@ -593,7 +606,12 @@
+    * transfer operations. So we only register support for it in GL.
+    */
+   add_formats(gl_base_rgba_formats);
++  /* macOS: Use GL_RGBA format like GLES (GL_BGRA is broken on Metal backend) */
++#if defined(__APPLE__)
++   add_formats(macos_bgra_formats);
++#else
+   add_formats(gl_bgra_formats);
++#endif
+   add_formats(gl_bit10_formats);
+ }
+ 

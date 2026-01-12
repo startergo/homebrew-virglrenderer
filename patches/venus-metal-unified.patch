@@ -315,7 +315,7 @@ diff -Naur a/server/render_socket.c b/server/render_socket.c
  {
 -   int ret = socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, out_fds);
 +#ifdef __APPLE__
-+   int type = SOCK_STREAM;
++   int type = SOCK_SEQPACKET;
 +#else
 +   int type = SOCK_SEQPACKET;
 +#endif
@@ -1040,7 +1040,7 @@ diff -Naur a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
  {
 -   int ret = socketpair(AF_UNIX, SOCK_SEQPACKET, 0, out_fds);
 +#ifdef __APPLE__
-+   int type = SOCK_STREAM;
++   int type = SOCK_SEQPACKET;
 +#else
 +   int type = SOCK_SEQPACKET;
 +#endif
