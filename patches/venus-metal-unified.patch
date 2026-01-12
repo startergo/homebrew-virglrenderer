@@ -1,6 +1,6 @@
-diff -Naur virglrenderer-with-dylib/config.h.meson virglrenderer-with-metal/config.h.meson
---- virglrenderer-with-dylib/config.h.meson	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/config.h.meson	2026-01-11 20:06:14
+diff -Naur a/config.h.meson b/config.h.meson
+--- a/config.h.meson	2026-01-01 08:05:29
++++ b/config.h.meson	2026-01-11 20:06:14
 @@ -38,6 +38,7 @@
  #mesondefine ENABLE_VULKAN_DLOAD
  #mesondefine ENABLE_VULKAN_PRELOAD
@@ -9,9 +9,9 @@ diff -Naur virglrenderer-with-dylib/config.h.meson virglrenderer-with-metal/conf
  #mesondefine ENABLE_DRM
  #mesondefine ENABLE_DRM_MSM
  #mesondefine ENABLE_DRM_AMDGPU
-diff -Naur virglrenderer-with-dylib/meson.build virglrenderer-with-metal/meson.build
---- virglrenderer-with-dylib/meson.build	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/meson.build	2026-01-11 20:06:14
+diff -Naur a/meson.build b/meson.build
+--- a/meson.build	2026-01-01 08:05:29
++++ b/meson.build	2026-01-11 20:06:14
 @@ -84,6 +84,7 @@
  thread_dep = dependency('threads')
  epoxy_dep = dependency('epoxy', version: '>= 1.5.4')
@@ -89,9 +89,9 @@ diff -Naur virglrenderer-with-dylib/meson.build virglrenderer-with-metal/meson.b
          'venus': with_venus,
          'drm-amdgpu': with_drm_amdgpu,
          'drm-asahi': with_drm_asahi,
-diff -Naur virglrenderer-with-dylib/server/meson.build virglrenderer-with-metal/server/meson.build
---- virglrenderer-with-dylib/server/meson.build	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/meson.build	2026-01-11 20:06:14
+diff -Naur a/server/meson.build b/server/meson.build
+--- a/server/meson.build	2026-01-01 08:05:29
++++ b/server/meson.build	2026-01-11 20:06:14
 @@ -27,6 +27,7 @@
  virgl_render_server = executable(
     'virgl_render_server',
@@ -100,9 +100,9 @@ diff -Naur virglrenderer-with-dylib/server/meson.build virglrenderer-with-metal/
     dependencies : virgl_render_server_depends,
     install : true,
     install_dir : render_server_install_dir,
-diff -Naur virglrenderer-with-dylib/server/render_client.c virglrenderer-with-metal/server/render_client.c
---- virglrenderer-with-dylib/server/render_client.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_client.c	2026-01-11 20:06:14
+diff -Naur a/server/render_client.c b/server/render_client.c
+--- a/server/render_client.c	2026-01-01 08:05:29
++++ b/server/render_client.c	2026-01-11 20:06:14
 @@ -76,13 +76,15 @@
  init_context_args(struct render_context_args *ctx_args,
                    uint32_t init_flags,
@@ -130,9 +130,9 @@ diff -Naur virglrenderer-with-dylib/server/render_client.c virglrenderer-with-me
  
  #ifdef ENABLE_RENDER_SERVER_WORKER_THREAD
     rec->worker = render_worker_create(srv->worker_jail, render_client_worker_thread,
-diff -Naur virglrenderer-with-dylib/server/render_common.c virglrenderer-with-metal/server/render_common.c
---- virglrenderer-with-dylib/server/render_common.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_common.c	2026-01-11 20:06:14
+diff -Naur a/server/render_common.c b/server/render_common.c
+--- a/server/render_common.c	2026-01-01 08:05:29
++++ b/server/render_common.c	2026-01-11 20:06:14
 @@ -4,6 +4,9 @@
   */
  
@@ -164,9 +164,9 @@ diff -Naur virglrenderer-with-dylib/server/render_common.c virglrenderer-with-me
 +#endif
     va_end(va);
  }
-diff -Naur virglrenderer-with-dylib/server/render_context.c virglrenderer-with-metal/server/render_context.c
---- virglrenderer-with-dylib/server/render_context.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_context.c	2026-01-11 20:06:14
+diff -Naur a/server/render_context.c b/server/render_context.c
+--- a/server/render_context.c	2026-01-01 08:05:29
++++ b/server/render_context.c	2026-01-11 20:06:14
 @@ -108,16 +108,28 @@
     struct render_context_op_create_resource_reply reply = {
        .fd_type = VIRGL_RESOURCE_FD_INVALID,
@@ -209,9 +209,9 @@ diff -Naur virglrenderer-with-dylib/server/render_context.c virglrenderer-with-m
  
     if (!render_context_init_name(ctx, args->ctx_id, args->ctx_name))
        return false;
-diff -Naur virglrenderer-with-dylib/server/render_context.h virglrenderer-with-metal/server/render_context.h
---- virglrenderer-with-dylib/server/render_context.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_context.h	2026-01-11 20:06:14
+diff -Naur a/server/render_context.h b/server/render_context.h
+--- a/server/render_context.h	2026-01-01 08:05:29
++++ b/server/render_context.h	2026-01-11 20:06:14
 @@ -25,12 +25,15 @@
  
     int timeline_count;
@@ -228,9 +228,9 @@ diff -Naur virglrenderer-with-dylib/server/render_context.h virglrenderer-with-m
  
     uint32_t init_flags;
  
-diff -Naur virglrenderer-with-dylib/server/render_protocol.h virglrenderer-with-metal/server/render_protocol.h
---- virglrenderer-with-dylib/server/render_protocol.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_protocol.h	2026-01-11 20:06:14
+diff -Naur a/server/render_protocol.h b/server/render_protocol.h
+--- a/server/render_protocol.h	2026-01-01 08:05:29
++++ b/server/render_protocol.h	2026-01-11 20:06:14
 @@ -148,9 +148,11 @@
  struct render_context_op_create_resource_reply {
     enum virgl_resource_fd_type fd_type;
@@ -263,9 +263,9 @@ diff -Naur virglrenderer-with-dylib/server/render_protocol.h virglrenderer-with-
  };
  
  #endif /* RENDER_PROTOCOL_H */
-diff -Naur virglrenderer-with-dylib/server/render_server.c virglrenderer-with-metal/server/render_server.c
---- virglrenderer-with-dylib/server/render_server.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_server.c	2026-01-11 20:06:14
+diff -Naur a/server/render_server.c b/server/render_server.c
+--- a/server/render_server.c	2026-01-01 08:05:29
++++ b/server/render_server.c	2026-01-11 20:06:14
 @@ -148,7 +148,7 @@
        return false;
     }
@@ -275,9 +275,9 @@ diff -Naur virglrenderer-with-dylib/server/render_server.c virglrenderer-with-me
        render_log("no valid client fd specified");
        return false;
     }
-diff -Naur virglrenderer-with-dylib/server/render_socket.c virglrenderer-with-metal/server/render_socket.c
---- virglrenderer-with-dylib/server/render_socket.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_socket.c	2026-01-11 20:06:14
+diff -Naur a/server/render_socket.c b/server/render_socket.c
+--- a/server/render_socket.c	2026-01-01 08:05:29
++++ b/server/render_socket.c	2026-01-11 20:06:14
 @@ -12,6 +12,30 @@
  
  #define RENDER_SOCKET_MAX_FD_COUNT 8
@@ -539,9 +539,9 @@ diff -Naur virglrenderer-with-dylib/server/render_socket.c virglrenderer-with-me
     } while (true);
  }
  
-diff -Naur virglrenderer-with-dylib/server/render_socket.h virglrenderer-with-metal/server/render_socket.h
---- virglrenderer-with-dylib/server/render_socket.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_socket.h	2026-01-11 20:06:14
+diff -Naur a/server/render_socket.h b/server/render_socket.h
+--- a/server/render_socket.h	2026-01-01 08:05:29
++++ b/server/render_socket.h	2026-01-11 20:06:14
 @@ -10,6 +10,7 @@
  
  struct render_socket {
@@ -550,9 +550,9 @@ diff -Naur virglrenderer-with-dylib/server/render_socket.h virglrenderer-with-me
  };
  
  bool
-diff -Naur virglrenderer-with-dylib/server/render_state.c virglrenderer-with-metal/server/render_state.c
---- virglrenderer-with-dylib/server/render_state.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_state.c	2026-01-11 20:06:14
+diff -Naur a/server/render_state.c b/server/render_state.c
+--- a/server/render_state.c	2026-01-01 08:05:29
++++ b/server/render_state.c	2026-01-11 20:06:14
 @@ -93,6 +93,7 @@
     return ctx;
  }
@@ -596,9 +596,9 @@ diff -Naur virglrenderer-with-dylib/server/render_state.c virglrenderer-with-met
  }
  
  bool
-diff -Naur virglrenderer-with-dylib/server/render_state.h virglrenderer-with-metal/server/render_state.h
---- virglrenderer-with-dylib/server/render_state.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_state.h	2026-01-11 20:06:14
+diff -Naur a/server/render_state.h b/server/render_state.h
+--- a/server/render_state.h	2026-01-01 08:05:29
++++ b/server/render_state.h	2026-01-11 20:06:14
 @@ -40,6 +40,7 @@
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
@@ -607,9 +607,9 @@ diff -Naur virglrenderer-with-dylib/server/render_state.h virglrenderer-with-met
                               uint32_t *out_map_info,
                               struct virgl_resource_vulkan_info *out_vulkan_info);
  
-diff -Naur virglrenderer-with-dylib/server/render_worker.c virglrenderer-with-metal/server/render_worker.c
---- virglrenderer-with-dylib/server/render_worker.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/server/render_worker.c	2026-01-11 20:06:14
+diff -Naur a/server/render_worker.c b/server/render_worker.c
+--- a/server/render_worker.c	2026-01-01 08:05:29
++++ b/server/render_worker.c	2026-01-11 20:06:14
 @@ -3,6 +3,12 @@
   * SPDX-License-Identifier: MIT
   */
@@ -738,9 +738,9 @@ diff -Naur virglrenderer-with-dylib/server/render_worker.c virglrenderer-with-me
  
     return true;
  }
-diff -Naur virglrenderer-with-dylib/src/meson.build virglrenderer-with-metal/src/meson.build
---- virglrenderer-with-dylib/src/meson.build	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/meson.build	2026-01-11 20:06:14
+diff -Naur a/src/meson.build b/src/meson.build
+--- a/src/meson.build	2026-01-01 08:05:29
++++ b/src/meson.build	2026-01-11 20:06:14
 @@ -60,6 +60,10 @@
     'vrend/vrend_winsys_glx.c',
  ]
@@ -797,9 +797,9 @@ diff -Naur virglrenderer-with-dylib/src/meson.build virglrenderer-with-metal/src
  endif
  
  if with_video
-diff -Naur virglrenderer-with-dylib/src/proxy/proxy_client.c virglrenderer-with-metal/src/proxy/proxy_client.c
---- virglrenderer-with-dylib/src/proxy/proxy_client.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/proxy/proxy_client.c	2026-01-11 20:06:14
+diff -Naur a/src/proxy/proxy_client.c b/src/proxy/proxy_client.c
+--- a/src/proxy/proxy_client.c	2026-01-01 08:05:29
++++ b/src/proxy/proxy_client.c	2026-01-11 20:06:14
 @@ -55,11 +55,6 @@
        return false;
     }
@@ -812,9 +812,9 @@ diff -Naur virglrenderer-with-dylib/src/proxy/proxy_client.c virglrenderer-with-
     *out_ctx_fd = ctx_fd;
     return true;
  }
-diff -Naur virglrenderer-with-dylib/src/proxy/proxy_context.c virglrenderer-with-metal/src/proxy/proxy_context.c
---- virglrenderer-with-dylib/src/proxy/proxy_context.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/proxy/proxy_context.c	2026-01-11 20:06:14
+diff -Naur a/src/proxy/proxy_context.c b/src/proxy/proxy_context.c
+--- a/src/proxy/proxy_context.c	2026-01-01 08:05:29
++++ b/src/proxy/proxy_context.c	2026-01-11 20:06:14
 @@ -367,7 +367,16 @@
        return -1;
     }
@@ -833,9 +833,9 @@ diff -Naur virglrenderer-with-dylib/src/proxy/proxy_context.c virglrenderer-with
        proxy_log("invalid reply for blob %" PRIu64, blob_id);
        return -1;
     }
-diff -Naur virglrenderer-with-dylib/src/proxy/proxy_renderer.c virglrenderer-with-metal/src/proxy/proxy_renderer.c
---- virglrenderer-with-dylib/src/proxy/proxy_renderer.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/proxy/proxy_renderer.c	2026-01-11 20:06:14
+diff -Naur a/src/proxy/proxy_renderer.c b/src/proxy/proxy_renderer.c
+--- a/src/proxy/proxy_renderer.c	2026-01-01 08:05:29
++++ b/src/proxy/proxy_renderer.c	2026-01-11 20:06:14
 @@ -15,12 +15,14 @@
  int
  proxy_renderer_init(const struct proxy_renderer_cbs *cbs, uint32_t flags)
@@ -852,9 +852,9 @@ diff -Naur virglrenderer-with-dylib/src/proxy/proxy_renderer.c virglrenderer-wit
     if (!proxy_renderer.server)
        goto fail;
  
-diff -Naur virglrenderer-with-dylib/src/proxy/proxy_server.c virglrenderer-with-metal/src/proxy/proxy_server.c
---- virglrenderer-with-dylib/src/proxy/proxy_server.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/proxy/proxy_server.c	2026-01-11 20:06:14
+diff -Naur a/src/proxy/proxy_server.c b/src/proxy/proxy_server.c
+--- a/src/proxy/proxy_server.c	2026-01-01 08:05:29
++++ b/src/proxy/proxy_server.c	2026-01-11 20:06:14
 @@ -9,7 +9,9 @@
  #include <sys/wait.h>
  #include <unistd.h>
@@ -969,9 +969,9 @@ diff -Naur virglrenderer-with-dylib/src/proxy/proxy_server.c virglrenderer-with-
     }
  
     proxy_log("proxy server with pid %d", srv->pid);
-diff -Naur virglrenderer-with-dylib/src/proxy/proxy_server.h virglrenderer-with-metal/src/proxy/proxy_server.h
---- virglrenderer-with-dylib/src/proxy/proxy_server.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/proxy/proxy_server.h	2026-01-11 20:06:14
+diff -Naur a/src/proxy/proxy_server.h b/src/proxy/proxy_server.h
+--- a/src/proxy/proxy_server.h	2026-01-01 08:05:29
++++ b/src/proxy/proxy_server.h	2026-01-11 20:06:14
 @@ -10,13 +10,21 @@
  
  #include <sys/types.h>
@@ -995,9 +995,9 @@ diff -Naur virglrenderer-with-dylib/src/proxy/proxy_server.h virglrenderer-with-
  
  void
  proxy_server_destroy(struct proxy_server *srv);
-diff -Naur virglrenderer-with-dylib/src/proxy/proxy_socket.c virglrenderer-with-metal/src/proxy/proxy_socket.c
---- virglrenderer-with-dylib/src/proxy/proxy_socket.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/proxy/proxy_socket.c	2026-01-11 20:06:14
+diff -Naur a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
+--- a/src/proxy/proxy_socket.c	2026-01-01 08:05:29
++++ b/src/proxy/proxy_socket.c	2026-01-11 20:06:14
 @@ -4,6 +4,7 @@
   */
  
@@ -1243,9 +1243,9 @@ diff -Naur virglrenderer-with-dylib/src/proxy/proxy_socket.c virglrenderer-with-
     } while (true);
  }
  
-diff -Naur virglrenderer-with-dylib/src/proxy/proxy_socket.h virglrenderer-with-metal/src/proxy/proxy_socket.h
---- virglrenderer-with-dylib/src/proxy/proxy_socket.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/proxy/proxy_socket.h	2026-01-11 20:06:14
+diff -Naur a/src/proxy/proxy_socket.h b/src/proxy/proxy_socket.h
+--- a/src/proxy/proxy_socket.h	2026-01-01 08:05:29
++++ b/src/proxy/proxy_socket.h	2026-01-11 20:06:14
 @@ -10,6 +10,7 @@
  
  struct proxy_socket {
@@ -1254,18 +1254,18 @@ diff -Naur virglrenderer-with-dylib/src/proxy/proxy_socket.h virglrenderer-with-
  };
  
  bool
-diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer.h virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer.h
---- virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer.h	2026-01-11 20:06:14
+diff -Naur a/src/venus/venus-protocol/vn_protocol_renderer.h b/src/venus/venus-protocol/vn_protocol_renderer.h
+--- a/src/venus/venus-protocol/vn_protocol_renderer.h	2026-01-01 08:05:29
++++ b/src/venus/venus-protocol/vn_protocol_renderer.h	2026-01-11 20:06:14
 @@ -1,4 +1,4 @@
 -/* This file is generated by venus-protocol git-9fa07f3c. */
 +/* This file is generated by venus-protocol git-ce1b3c7c. */
  
  /*
   * Copyright 2020 Google LLC
-diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer_defines.h virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer_defines.h
---- virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer_defines.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer_defines.h	2026-01-11 20:06:14
+diff -Naur a/src/venus/venus-protocol/vn_protocol_renderer_defines.h b/src/venus/venus-protocol/vn_protocol_renderer_defines.h
+--- a/src/venus/venus-protocol/vn_protocol_renderer_defines.h	2026-01-01 08:05:29
++++ b/src/venus/venus-protocol/vn_protocol_renderer_defines.h	2026-01-11 20:06:14
 @@ -465,7 +465,9 @@
      VK_COMMAND_TYPE_vkCmdSetAttachmentFeedbackLoopEnableEXT_EXT = 329,
      VK_COMMAND_TYPE_vkCmdSetDepthClampRangeEXT_EXT = 330,
@@ -1309,9 +1309,9 @@ diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_rendere
      void (*dispatch_vkSetReplyCommandStreamMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkSetReplyCommandStreamMESA *args);
      void (*dispatch_vkSeekReplyCommandStreamMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkSeekReplyCommandStreamMESA *args);
      void (*dispatch_vkExecuteCommandStreamsMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkExecuteCommandStreamsMESA *args);
-diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h
---- virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h	2026-01-11 20:06:14
+diff -Naur a/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h b/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h
+--- a/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h	2026-01-01 08:05:29
++++ b/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h	2026-01-11 20:06:14
 @@ -25,6 +25,8 @@
   *   vkGetMemoryFdKHR
   *   vkGetMemoryFdPropertiesKHR
@@ -1416,9 +1416,9 @@ diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_rendere
              break;
          case VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO:
              vn_replace_VkMemoryAllocateFlagsInfo_handle_self((VkMemoryAllocateFlagsInfo *)pnext);
-diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer_info.h virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer_info.h
---- virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer_info.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer_info.h	2026-01-11 20:06:14
+diff -Naur a/src/venus/venus-protocol/vn_protocol_renderer_info.h b/src/venus/venus-protocol/vn_protocol_renderer_info.h
+--- a/src/venus/venus-protocol/vn_protocol_renderer_info.h	2026-01-01 08:05:29
++++ b/src/venus/venus-protocol/vn_protocol_renderer_info.h	2026-01-11 20:06:14
 @@ -12,7 +12,7 @@
  
  struct vn_info_extension_table {
@@ -1455,9 +1455,9 @@ diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_rendere
     { "VK_EXT_filter_cubic", 171, 3 },
     { "VK_EXT_fragment_shader_interlock", 252, 1 },
     { "VK_EXT_global_priority", 175, 2 },
-diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer_util.h virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer_util.h
---- virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_renderer_util.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/venus/venus-protocol/vn_protocol_renderer_util.h	2026-01-11 20:06:14
+diff -Naur a/src/venus/venus-protocol/vn_protocol_renderer_util.h b/src/venus/venus-protocol/vn_protocol_renderer_util.h
+--- a/src/venus/venus-protocol/vn_protocol_renderer_util.h	2026-01-01 08:05:29
++++ b/src/venus/venus-protocol/vn_protocol_renderer_util.h	2026-01-11 20:06:14
 @@ -300,6 +300,8 @@
     PFN_vkGetImageSubresourceLayout2 GetImageSubresourceLayout2;
     PFN_vkGetMemoryFdKHR GetMemoryFdKHR;
@@ -1480,9 +1480,9 @@ diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vn_protocol_rendere
        NULL;
     proc_table->GetPipelineCacheData = VN_GDPA(dev, vkGetPipelineCacheData);
     proc_table->GetPrivateData =
-diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vulkan.h virglrenderer-with-metal/src/venus/venus-protocol/vulkan.h
---- virglrenderer-with-dylib/src/venus/venus-protocol/vulkan.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/venus/venus-protocol/vulkan.h	2026-01-11 20:06:14
+diff -Naur a/src/venus/venus-protocol/vulkan.h b/src/venus/venus-protocol/vulkan.h
+--- a/src/venus/venus-protocol/vulkan.h	2026-01-01 08:05:29
++++ b/src/venus/venus-protocol/vulkan.h	2026-01-11 20:06:14
 @@ -28,9 +28,9 @@
  #include "vulkan_macos.h"
  #endif
@@ -1507,9 +1507,9 @@ diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vulkan.h virglrende
  
  #ifdef VK_USE_PLATFORM_OHOS
  #include "vulkan_ohos.h"
-diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vulkan_beta.h virglrenderer-with-metal/src/venus/venus-protocol/vulkan_beta.h
---- virglrenderer-with-dylib/src/venus/venus-protocol/vulkan_beta.h	1969-12-31 19:00:00
-+++ virglrenderer-with-metal/src/venus/venus-protocol/vulkan_beta.h	2026-01-11 20:06:14
+diff -Naur a/src/venus/venus-protocol/vulkan_beta.h b/src/venus/venus-protocol/vulkan_beta.h
+--- a/src/venus/venus-protocol/vulkan_beta.h	1969-12-31 19:00:00
++++ b/src/venus/venus-protocol/vulkan_beta.h	2026-01-11 20:06:14
 @@ -0,0 +1,226 @@
 +#ifndef VULKAN_BETA_H_
 +#define VULKAN_BETA_H_ 1
@@ -1737,9 +1737,9 @@ diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vulkan_beta.h virgl
 +#endif
 +
 +#endif
-diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vulkan_metal.h virglrenderer-with-metal/src/venus/venus-protocol/vulkan_metal.h
---- virglrenderer-with-dylib/src/venus/venus-protocol/vulkan_metal.h	1969-12-31 19:00:00
-+++ virglrenderer-with-metal/src/venus/venus-protocol/vulkan_metal.h	2026-01-11 20:06:14
+diff -Naur a/src/venus/venus-protocol/vulkan_metal.h b/src/venus/venus-protocol/vulkan_metal.h
+--- a/src/venus/venus-protocol/vulkan_metal.h	1969-12-31 19:00:00
++++ b/src/venus/venus-protocol/vulkan_metal.h	2026-01-11 20:06:14
 @@ -0,0 +1,238 @@
 +#ifndef VULKAN_METAL_H_
 +#define VULKAN_METAL_H_ 1
@@ -1979,9 +1979,9 @@ diff -Naur virglrenderer-with-dylib/src/venus/venus-protocol/vulkan_metal.h virg
 +#endif
 +
 +#endif
-diff -Naur virglrenderer-with-dylib/src/venus/vkr_ring.c virglrenderer-with-metal/src/venus/vkr_ring.c
---- virglrenderer-with-dylib/src/venus/vkr_ring.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/venus/vkr_ring.c	2026-01-11 20:06:14
+diff -Naur a/src/venus/vkr_ring.c b/src/venus/vkr_ring.c
+--- a/src/venus/vkr_ring.c	2026-01-01 08:05:29
++++ b/src/venus/vkr_ring.c	2026-01-11 20:06:14
 @@ -204,7 +204,11 @@
        .tv_sec = us / 1000000,
        .tv_nsec = (us % 1000000) * 1000,
@@ -1994,9 +1994,9 @@ diff -Naur virglrenderer-with-dylib/src/venus/vkr_ring.c virglrenderer-with-meta
  }
  
  static bool
-diff -Naur virglrenderer-with-dylib/src/virgl_context.h virglrenderer-with-metal/src/virgl_context.h
---- virglrenderer-with-dylib/src/virgl_context.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/virgl_context.h	2026-01-11 20:06:14
+diff -Naur a/src/virgl_context.h b/src/virgl_context.h
+--- a/src/virgl_context.h	2026-01-01 08:05:29
++++ b/src/virgl_context.h	2026-01-11 20:06:14
 @@ -44,6 +44,7 @@
        int fd;
        uint32_t opaque_handle;
@@ -2005,9 +2005,9 @@ diff -Naur virglrenderer-with-dylib/src/virgl_context.h virglrenderer-with-metal
     } u;
  
     uint32_t map_info;
-diff -Naur virglrenderer-with-dylib/src/virgl_resource.c virglrenderer-with-metal/src/virgl_resource.c
---- virglrenderer-with-dylib/src/virgl_resource.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/virgl_resource.c	2026-01-11 20:06:14
+diff -Naur a/src/virgl_resource.c b/src/virgl_resource.c
+--- a/src/virgl_resource.c	2026-01-01 08:05:29
++++ b/src/virgl_resource.c	2026-01-11 20:06:14
 @@ -36,6 +36,13 @@
  #include "virgl_util.h"
  #include "virgl_context.h"
@@ -2068,9 +2068,9 @@ diff -Naur virglrenderer-with-dylib/src/virgl_resource.c virglrenderer-with-meta
     } else if (res->fd_type != VIRGL_RESOURCE_FD_INVALID) {
        *fd = os_dupfd_cloexec(res->fd);
        return *fd >= 0 ? res->fd_type : VIRGL_RESOURCE_FD_INVALID;
-diff -Naur virglrenderer-with-dylib/src/virgl_resource.h virglrenderer-with-metal/src/virgl_resource.h
---- virglrenderer-with-dylib/src/virgl_resource.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/virgl_resource.h	2026-01-11 20:06:14
+diff -Naur a/src/virgl_resource.h b/src/virgl_resource.h
+--- a/src/virgl_resource.h	2026-01-01 08:05:29
++++ b/src/virgl_resource.h	2026-01-11 20:06:14
 @@ -50,6 +50,12 @@
      */
     VIRGL_RESOURCE_OPAQUE_HANDLE,
@@ -2107,9 +2107,9 @@ diff -Naur virglrenderer-with-dylib/src/virgl_resource.h virglrenderer-with-meta
  
  void
  virgl_resource_remove(uint32_t res_id);
-diff -Naur virglrenderer-with-dylib/src/virgl_util.c virglrenderer-with-metal/src/virgl_util.c
---- virglrenderer-with-dylib/src/virgl_util.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/virgl_util.c	2026-01-11 20:06:14
+diff -Naur a/src/virgl_util.c b/src/virgl_util.c
+--- a/src/virgl_util.c	2026-01-01 08:05:29
++++ b/src/virgl_util.c	2026-01-11 20:06:14
 @@ -257,10 +257,15 @@
                           va_list va)
  {
@@ -2127,9 +2127,9 @@ diff -Naur virglrenderer-with-dylib/src/virgl_util.c virglrenderer-with-metal/sr
        return;
  
     virgl_logv(log_level, prefixed_fmt, va);
-diff -Naur virglrenderer-with-dylib/src/virglrenderer.c virglrenderer-with-metal/src/virglrenderer.c
---- virglrenderer-with-dylib/src/virglrenderer.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/virglrenderer.c	2026-01-11 20:06:14
+diff -Naur a/src/virglrenderer.c b/src/virglrenderer.c
+--- a/src/virglrenderer.c	2026-01-01 08:05:29
++++ b/src/virglrenderer.c	2026-01-11 20:06:14
 @@ -46,6 +46,10 @@
  #include "vrend/vrend_renderer.h"
  #include "vrend/vrend_winsys.h"
@@ -2203,14 +2203,6 @@ diff -Naur virglrenderer-with-dylib/src/virglrenderer.c virglrenderer-with-metal
        if (flags & VIRGL_RENDERER_COMPAT_PROFILE)
           renderer_flags |= VREND_USE_COMPAT_CONTEXT;
        if (flags & VIRGL_RENDERER_USE_GLES)
-@@ -928,7 +945,7 @@
-       state.vrend_initialized = true;
-    }
- 
-   if (!state.proxy_initialized && (flags & VIRGL_RENDERER_RENDER_SERVER)) {
-       ret = proxy_renderer_init(&proxy_cbs, flags | VIRGL_RENDERER_NO_VIRGL);
-       if (ret) {
-          virgl_error("failed to initialize venus renderer");
 @@ -1203,6 +1220,10 @@
        res = virgl_resource_create_from_opaque_handle(ctx, args->res_handle, blob.u.opaque_handle);
        if (!res)
@@ -2315,9 +2307,9 @@ diff -Naur virglrenderer-with-dylib/src/virglrenderer.c virglrenderer-with-metal
  }
  
  int
-diff -Naur virglrenderer-with-dylib/src/virglrenderer.h virglrenderer-with-metal/src/virglrenderer.h
---- virglrenderer-with-dylib/src/virglrenderer.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/virglrenderer.h	2026-01-11 20:06:14
+diff -Naur a/src/virglrenderer.h b/src/virglrenderer.h
+--- a/src/virglrenderer.h	2026-01-01 08:05:29
++++ b/src/virglrenderer.h	2026-01-11 20:06:14
 @@ -163,7 +163,9 @@
  #endif /* VIRGL_RENDERER_UNSTABLE_APIS */
  
@@ -2407,9 +2399,9 @@ diff -Naur virglrenderer-with-dylib/src/virglrenderer.h virglrenderer-with-metal
  
  /* vtest semi-private APIs: */
  VIRGL_EXPORT int virgl_renderer_attach_fence(int ctx_id, int fence_fd);
-diff -Naur virglrenderer-with-dylib/src/vrend/vrend_blitter.h virglrenderer-with-metal/src/vrend/vrend_blitter.h
---- virglrenderer-with-dylib/src/vrend/vrend_blitter.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/vrend/vrend_blitter.h	2026-01-11 20:06:14
+diff -Naur a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
+--- a/src/vrend/vrend_blitter.h	2026-01-01 08:05:29
++++ b/src/vrend/vrend_blitter.h	2026-01-11 20:06:14
 @@ -35,6 +35,12 @@
     "%s"                                         \
  
@@ -2453,9 +2445,9 @@ diff -Naur virglrenderer-with-dylib/src/vrend/vrend_blitter.h virglrenderer-with
  #define FS_TEXFETCH_DS_MSAA_ARRAY_GLES HEADER_GLES_MS_ARRAY FS_TEXFETCH_DS_MSAA_BODY_GLES
  
  /* implement blitting using OpenGL. */
-diff -Naur virglrenderer-with-dylib/src/vrend/vrend_formats.c virglrenderer-with-metal/src/vrend/vrend_formats.c
---- virglrenderer-with-dylib/src/vrend/vrend_formats.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/vrend/vrend_formats.c	2026-01-11 20:06:14
+diff -Naur a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
+--- a/src/vrend/vrend_formats.c	2026-01-01 08:05:29
++++ b/src/vrend/vrend_formats.c	2026-01-11 20:06:14
 @@ -716,48 +716,183 @@
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
@@ -2654,9 +2646,9 @@ diff -Naur virglrenderer-with-dylib/src/vrend/vrend_formats.c virglrenderer-with
     return max_samples_confirmed;
  }
  
-diff -Naur virglrenderer-with-dylib/src/vrend/vrend_metal.h virglrenderer-with-metal/src/vrend/vrend_metal.h
---- virglrenderer-with-dylib/src/vrend/vrend_metal.h	1969-12-31 19:00:00
-+++ virglrenderer-with-metal/src/vrend/vrend_metal.h	2026-01-11 20:06:14
+diff -Naur a/src/vrend/vrend_metal.h b/src/vrend/vrend_metal.h
+--- a/src/vrend/vrend_metal.h	1969-12-31 19:00:00
++++ b/src/vrend/vrend_metal.h	2026-01-11 20:06:14
 @@ -0,0 +1,34 @@
 +/*
 + * Copyright 2025 Turing Software, LLC
@@ -2692,9 +2684,9 @@ diff -Naur virglrenderer-with-dylib/src/vrend/vrend_metal.h virglrenderer-with-m
 +void virgl_metal_release_texture(MTLTexture_id tex);
 +
 +#endif
-diff -Naur virglrenderer-with-dylib/src/vrend/vrend_metal.m virglrenderer-with-metal/src/vrend/vrend_metal.m
---- virglrenderer-with-dylib/src/vrend/vrend_metal.m	1969-12-31 19:00:00
-+++ virglrenderer-with-metal/src/vrend/vrend_metal.m	2026-01-11 20:06:14
+diff -Naur a/src/vrend/vrend_metal.m b/src/vrend/vrend_metal.m
+--- a/src/vrend/vrend_metal.m	1969-12-31 19:00:00
++++ b/src/vrend/vrend_metal.m	2026-01-11 20:06:14
 @@ -0,0 +1,149 @@
 +/*
 + * Copyright 2025 Turing Software, LLC
@@ -2845,9 +2837,9 @@ diff -Naur virglrenderer-with-dylib/src/vrend/vrend_metal.m virglrenderer-with-m
 +
 +   [mtl_texture release];
 +}
-diff -Naur virglrenderer-with-dylib/src/vrend/vrend_renderer.c virglrenderer-with-metal/src/vrend/vrend_renderer.c
---- virglrenderer-with-dylib/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/vrend/vrend_renderer.c	2026-01-11 20:06:14
+diff -Naur a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+--- a/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
++++ b/src/vrend/vrend_renderer.c	2026-01-11 20:06:14
 @@ -28,6 +28,7 @@
  #include <unistd.h>
  #include <stdatomic.h>
@@ -3901,9 +3893,9 @@ diff -Naur virglrenderer-with-dylib/src/vrend/vrend_renderer.c virglrenderer-wit
           FREE(gr);
           virgl_error("%s: no EGL/GBM support \n", __func__);
           return EINVAL;
-diff -Naur virglrenderer-with-dylib/src/vrend/vrend_renderer.h virglrenderer-with-metal/src/vrend/vrend_renderer.h
---- virglrenderer-with-dylib/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/vrend/vrend_renderer.h	2026-01-11 20:06:14
+diff -Naur a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
+--- a/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
++++ b/src/vrend/vrend_renderer.h	2026-01-11 20:06:14
 @@ -42,6 +42,9 @@
  #ifdef WIN32
  #include <d3d11.h>
@@ -3961,9 +3953,9 @@ diff -Naur virglrenderer-with-dylib/src/vrend/vrend_renderer.h virglrenderer-wit
 +#endif
  
  #endif
-diff -Naur virglrenderer-with-dylib/src/vrend/vrend_shader.c virglrenderer-with-metal/src/vrend/vrend_shader.c
---- virglrenderer-with-dylib/src/vrend/vrend_shader.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/vrend/vrend_shader.c	2026-01-11 20:06:14
+diff -Naur a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
+--- a/src/vrend/vrend_shader.c	2026-01-01 08:05:29
++++ b/src/vrend/vrend_shader.c	2026-01-11 20:06:14
 @@ -6301,10 +6301,12 @@
  
        if (ctx->prog_type == TGSI_PROCESSOR_VERTEX && ctx->cfg->use_explicit_locations)
@@ -3989,9 +3981,9 @@ diff -Naur virglrenderer-with-dylib/src/vrend/vrend_shader.c virglrenderer-with-
  
     if (ctx.shader_req_bits & SHADER_REQ_FP64)
        ctx.glsl_ver_required = require_glsl_ver(&ctx, 150);
-diff -Naur virglrenderer-with-dylib/src/vrend/vrend_winsys_egl.c virglrenderer-with-metal/src/vrend/vrend_winsys_egl.c
---- virglrenderer-with-dylib/src/vrend/vrend_winsys_egl.c	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/vrend/vrend_winsys_egl.c	2026-01-11 20:06:14
+diff -Naur a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
+--- a/src/vrend/vrend_winsys_egl.c	2026-01-01 08:05:29
++++ b/src/vrend/vrend_winsys_egl.c	2026-01-11 20:06:14
 @@ -110,6 +110,9 @@
  #ifdef WIN32
     ID3D11Device *d3d11_device;
@@ -4087,9 +4079,9 @@ diff -Naur virglrenderer-with-dylib/src/vrend/vrend_winsys_egl.c virglrenderer-w
  void virgl_egl_image_destroy(struct virgl_egl *egl, void *image)
  {
     eglDestroyImageKHR(egl->egl_display, image);
-diff -Naur virglrenderer-with-dylib/src/vrend/vrend_winsys_egl.h virglrenderer-with-metal/src/vrend/vrend_winsys_egl.h
---- virglrenderer-with-dylib/src/vrend/vrend_winsys_egl.h	2026-01-01 08:05:29
-+++ virglrenderer-with-metal/src/vrend/vrend_winsys_egl.h	2026-01-11 20:06:14
+diff -Naur a/src/vrend/vrend_winsys_egl.h b/src/vrend/vrend_winsys_egl.h
+--- a/src/vrend/vrend_winsys_egl.h	2026-01-01 08:05:29
++++ b/src/vrend/vrend_winsys_egl.h	2026-01-11 20:06:14
 @@ -32,6 +32,9 @@
  #ifdef WIN32
  #include <d3d11.h>
