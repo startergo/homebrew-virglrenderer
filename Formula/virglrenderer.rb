@@ -34,7 +34,6 @@ class Virglrenderer < Formula
     # Apply macOS patches
     patches = [
       "virglrenderer-main-macos.patch",
-      "bgra-cpu-swizzle.patch",
     ]
 
     patches.each do |patch|

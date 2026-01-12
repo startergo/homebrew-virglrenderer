@@ -1,6 +1,7 @@
 diff --git a/server/render_socket.c b/server/render_socket.c
---- a/server/render_socket.c	2026-01-01 08:05:29
-+++ b/server/render_socket.c	2026-01-11 09:07:30
+index 58edcf4..162b71d 100644
+--- a/server/render_socket.c
++++ b/server/render_socket.c
 @@ -4,6 +4,7 @@
   */
  
@@ -37,7 +38,7 @@ diff --git a/server/render_socket.c b/server/render_socket.c
  
     return true;
  }
-@@ -80,7 +97,12 @@
+@@ -80,7 +97,12 @@ static bool
  render_socket_recvmsg(struct render_socket *socket, struct msghdr *msg, size_t *out_size)
  {
     do {
@@ -52,8 +53,9 @@ diff --git a/server/render_socket.c b/server/render_socket.c
           if (!s)
              return false;
 diff --git a/server/render_worker.c b/server/render_worker.c
---- a/server/render_worker.c	2026-01-01 08:05:29
-+++ b/server/render_worker.c	2026-01-11 09:07:30
+index 24d2c36..2d22d64 100644
+--- a/server/render_worker.c
++++ b/server/render_worker.c
 @@ -24,10 +24,15 @@
  #include <errno.h>
  #include <fcntl.h>
@@ -70,7 +72,7 @@ diff --git a/server/render_worker.c b/server/render_worker.c
  #include <unistd.h>
  
  struct minijail;
-@@ -182,7 +187,13 @@
+@@ -182,7 +187,13 @@ create_sigchld_fd(void)
        return -1;
     }
  
@@ -85,7 +87,7 @@ diff --git a/server/render_worker.c b/server/render_worker.c
     if (fd < 0) {
        render_log("failed to create signalfd");
        return -1;
-@@ -322,6 +333,10 @@
+@@ -322,6 +333,10 @@ render_worker_jail_drain_sigchld_fd(struct render_worker_jail *jail)
        return true;
  
     do {
@@ -96,7 +98,7 @@ diff --git a/server/render_worker.c b/server/render_worker.c
        struct signalfd_siginfo siginfos[8];
        const ssize_t r = read(jail->sigchld_fd, siginfos, sizeof(siginfos));
        if (r == sizeof(siginfos))
-@@ -331,6 +346,7 @@
+@@ -331,6 +346,7 @@ render_worker_jail_drain_sigchld_fd(struct render_worker_jail *jail)
  
        render_log("failed to read signalfd");
        return false;
@@ -105,9 +107,10 @@ diff --git a/server/render_worker.c b/server/render_worker.c
  
     return true;
 diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
---- a/src/proxy/proxy_socket.c	2026-01-01 08:05:29
-+++ b/src/proxy/proxy_socket.c	2026-01-11 09:07:30
-@@ -100,7 +100,12 @@
+index 51223c6..8a28afa 100644
+--- a/src/proxy/proxy_socket.c
++++ b/src/proxy/proxy_socket.c
+@@ -100,7 +100,12 @@ static bool
  proxy_socket_recvmsg(struct proxy_socket *socket, struct msghdr *msg)
  {
     do {
@@ -122,8 +125,9 @@ diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
           if (errno == EAGAIN || errno == EINTR)
              continue;
 diff --git a/src/venus/vkr_ring.c b/src/venus/vkr_ring.c
---- a/src/venus/vkr_ring.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_ring.c	2026-01-11 09:07:30
+index 0e46df8..e9d26ba 100644
+--- a/src/venus/vkr_ring.c
++++ b/src/venus/vkr_ring.c
 @@ -13,6 +13,18 @@
  
  #include "vkr_context.h"
@@ -138,15 +142,16 @@ diff --git a/src/venus/vkr_ring.c b/src/venus/vkr_ring.c
 +   return nanosleep(&req, remain);
 +}
 +#endif
-+ 
-+ 
++
++
  static inline void *
  get_resource_pointer(const struct vkr_resource *res, size_t offset)
  {
 diff --git a/src/virglrenderer.c b/src/virglrenderer.c
---- a/src/virglrenderer.c	2026-01-01 08:05:29
-+++ b/src/virglrenderer.c	2026-01-11 09:07:30
-@@ -178,11 +178,37 @@
+index 79717fc..33f6a7b 100644
+--- a/src/virglrenderer.c
++++ b/src/virglrenderer.c
+@@ -178,11 +178,37 @@ void virgl_renderer_resource_unref(uint32_t res_handle)
  void virgl_renderer_fill_caps(uint32_t set, uint32_t version,
                                void *caps)
  {
@@ -185,48 +190,50 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
        break;
     case VIRTGPU_DRM_CAPSET_VENUS:
        if (state.proxy_initialized)
-@@ -555,6 +581,25 @@
-    }
- 
+@@ -557,6 +583,25 @@ int virgl_renderer_resource_get_info_ext(int res_handle,
     return 0;
-+}
-+ 
+ }
+ 
 +int virgl_renderer_borrow_texture_for_scanout(int res_handle,
 +                                              struct virgl_renderer_resource_info_ext *info)
 +{
 +   TRACE_FUNC();
 +   struct virgl_resource *res = virgl_resource_lookup(res_handle);
-+ 
++
 +   if (!res)
 +      return EINVAL;
 +   if (!info)
 +      return EINVAL;
-+ 
++
 +   if (!res->pipe_resource)
 +      return 0;
-+ 
++
 +   vrend_renderer_borrow_texture_for_scanout(res->pipe_resource);
-+ 
++
 +   return virgl_renderer_resource_get_info_ext(res_handle, info);
- }
- 
++}
++
  void virgl_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
+                                 uint32_t *max_size)
+ {
 diff --git a/src/virglrenderer.h b/src/virglrenderer.h
---- a/src/virglrenderer.h	2026-01-01 08:05:29
-+++ b/src/virglrenderer.h	2026-01-11 09:07:30
-@@ -380,6 +380,9 @@
+index 0bcafef..854368e 100644
+--- a/src/virglrenderer.h
++++ b/src/virglrenderer.h
+@@ -380,6 +380,9 @@ VIRGL_EXPORT int virgl_renderer_resource_get_info(int res_handle,
  VIRGL_EXPORT int virgl_renderer_resource_get_info_ext(int res_handle,
                                                        struct virgl_renderer_resource_info_ext *info);
  
 +VIRGL_EXPORT int virgl_renderer_borrow_texture_for_scanout(int res_handle,
 +                                                           struct virgl_renderer_resource_info_ext *info);
-+ 
++
  VIRGL_EXPORT void virgl_renderer_cleanup(void *cookie);
  
  /* reset the rendererer - destroy all contexts and resource */
 diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
---- a/src/vrend/vrend_blitter.h	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_blitter.h	2026-01-11 09:07:30
+index 91e2435..7a03571 100644
+--- a/src/vrend/vrend_blitter.h
++++ b/src/vrend/vrend_blitter.h
 @@ -35,6 +35,12 @@
     "%s"                                         \
  
@@ -235,7 +242,7 @@ diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
 +   "// Blitter\n"                               \
 +   "%s"                                         \
 +   "precision mediump float;\n"                 \
-+ 
++
 +#define FS_HEADER_GLES_MS                       \
     "#version 310 es\n"                          \
     "// Blitter\n"                               \
@@ -247,7 +254,7 @@ diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
 +   "#version 300 es\n"                          \
 +   "// Blitter\n"                               \
 +   "precision mediump float;\n"                 \
-+ 
++
 +#define HEADER_GLES_MS                          \
     "#version 310 es\n"                          \
     "// Blitter\n"                               \
@@ -261,7 +268,7 @@ diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
  #define FS_TEXFETCH_COL_MSAA_ARRAY_GLES FS_HEADER_GLES_MS_ARRAY FS_TEXFETCH_COL_MSAA_BODY
  
  #define FS_TEXFETCH_DS_BODY                             \
-@@ -178,7 +189,7 @@
+@@ -178,7 +189,7 @@ struct vrend_context;
  struct vrend_resource;
  struct vrend_blit_info;
  #define FS_TEXFETCH_DS_MSAA_GL HEADER_GL FS_TEXFETCH_DS_MSAA_BODY
@@ -271,9 +278,10 @@ diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
  
  /* implement blitting using OpenGL. */
 diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
---- a/src/vrend/vrend_decode.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_decode.c	2026-01-11 09:07:30
-@@ -888,6 +888,17 @@
+index 7774a25..277cde9 100644
+--- a/src/vrend/vrend_decode.c
++++ b/src/vrend/vrend_decode.c
+@@ -888,6 +888,17 @@ static int vrend_decode_create_object(struct vrend_context *ctx, const uint32_t
        return EINVAL;
     }
  
@@ -287,11 +295,11 @@ diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
 +      }
 +      ret = EINVAL;
 +   }
-+ 
++
     return ret;
  }
  
-@@ -2095,9 +2106,22 @@
+@@ -2095,9 +2106,22 @@ static int vrend_decode_ctx_submit_cmd(struct virgl_context *ctx,
  
        TRACE_SCOPE_SLOW(vrend_get_comand_name(cmd));
  
@@ -302,7 +310,7 @@ diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
 +          cmd >= VIRGL_CCMD_CREATE_VIDEO_CODEC && cmd <= VIRGL_CCMD_END_FRAME) {
 +         continue;
 +      }
-+ 
++
        ret = decode_table[cmd](gdctx->grctx, buf, len);
 -      if (!vrend_check_no_error(gdctx->grctx) && !ret)
 +      if (!vrend_check_no_error(gdctx->grctx) && !ret) {
@@ -316,43 +324,10 @@ diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
           virgl_error("context %d failed to dispatch %s: %d\n",
                 gdctx->base.ctx_id, vrend_get_comand_name(cmd), ret);
 diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
---- a/src/vrend/vrend_formats.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_formats.c	2026-01-11 09:07:30
-@@ -364,6 +364,19 @@
-   { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
- };
- 
-+
-+#ifdef __APPLE__
-+/*
-+ * macOS with Metal backend has broken GL_BGRA format as a render target.
-+ * Use GL_RGBA format (which works) with the same swizzle as GLES.
-+ */
-+static struct vrend_format_table macos_bgra_formats[] = {
-+  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
-+};
-+#endif
- static bool color_format_can_readback(struct vrend_format_table *virgl_format, int gles_ver)
- {
-    GLint imp = 0;
-@@ -593,7 +606,12 @@
-    * transfer operations. So we only register support for it in GL.
-    */
-   add_formats(gl_base_rgba_formats);
--  add_formats(gl_bgra_formats);
-+  /* macOS: Use GL_RGBA format like GLES (GL_BGRA is broken on Metal backend) */
-+#if defined(__APPLE__)
-+   add_formats(macos_bgra_formats);
-+#else
-+add_formats(gl_bgra_formats);
-+#endif
-   add_formats(gl_bit10_formats);
- }
- 
-@@ -716,48 +734,183 @@
+index 670b3a4..3ba7238 100644
+--- a/src/vrend/vrend_formats.c
++++ b/src/vrend/vrend_formats.c
+@@ -716,48 +716,183 @@ unsigned vrend_renderer_query_multisample_caps(unsigned max_samples, struct virg
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
  
@@ -427,7 +402,7 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
 +                      version_str ? version_str : "unknown",
 +                      renderer ? renderer : "unknown");
 +   }
-+ 
++
 +   fprintf(stderr, "[VREND FORMATS] Starting MSAA capability test with max_samples=%u\n", max_samples);
 +   
     glGenFramebuffers( 1, &fbo );
@@ -533,15 +508,15 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
           glBindFramebuffer(GL_FRAMEBUFFER, 0);
 +      } else {
 +         fprintf(stderr, "[VREND FORMATS] ✗ %u samples GL_ERROR=0x%x\n", test_num_samples[i], status);
-       }
--      glDeleteTextures(1, &tex);
++      }
 +      
 +      /* Cleanup - delete texture or renderbuffer */
 +      if (has_tex_storage_ms || has_tex_image_ms) {
 +         glDeleteTextures(1, &tex);
 +      } else {
 +         glDeleteRenderbuffers(1, &tex);
-+      }
+       }
+-      glDeleteTextures(1, &tex);
     }
     glDeleteFramebuffers(1, &fbo);
 +   
@@ -551,8 +526,9 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
  }
  
 diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
---- a/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.c	2026-01-11 09:08:17
+index 4bf88e0..2ef6bf6 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
 @@ -28,6 +28,7 @@
  #include <unistd.h>
  #include <stdatomic.h>
@@ -572,7 +548,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
   *
   * VIRTGPU_DRM_CAPSET_VIRGL2 has version 0, 1, and 2, but they are
   * all virgl_caps_v2 and are exactly the same.
-@@ -323,7 +328,7 @@
+@@ -323,7 +328,7 @@ static const  struct {
     FEAT(texture_mirror_clamp_to_edge, UNAVAIL, UNAVAIL, "GL_ATI_texture_mirror_once", "GL_EXT_texture_mirror_clamp", "GL_ARB_texture_mirror_clamp_to_edge", "GL_EXT_texture_mirror_clamp_to_edge"),
     FEAT(texture_mirror_clamp, UNAVAIL, UNAVAIL, "GL_ATI_texture_mirror_once", "GL_EXT_texture_mirror_clamp"),
     FEAT(texture_mirror_clamp_to_border, UNAVAIL, UNAVAIL, "GL_EXT_texture_mirror_clamp"),
@@ -581,129 +557,86 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     FEAT(texture_query_lod, 40, UNAVAIL, "GL_ARB_texture_query_lod", "GL_EXT_texture_query_lod"),
     FEAT(texture_shadow_lod, UNAVAIL, UNAVAIL, "GL_EXT_texture_shadow_lod"),
     FEAT(texture_srgb_decode, UNAVAIL, UNAVAIL,  "GL_EXT_texture_sRGB_decode" ),
-@@ -403,6 +408,9 @@
+@@ -403,6 +408,9 @@ struct global_renderer_state {
  #endif
     bool d3d_share_texture : 1;
     bool gbm_layout_feat : 1;
-+ 
++
 +   /* host-side video acceleration availability */
 +   bool video_available;
  };
  
  struct sysval_uniform_block {
-@@ -1389,13 +1397,109 @@
+@@ -1389,12 +1397,65 @@ static bool vrend_compile_shader(struct vrend_sub_context *sub_ctx,
  {
     GLint param;
     const char *shader_parts[SHADER_MAX_STRINGS];
-+   char *modified_shaders[SHADER_MAX_STRINGS] = {NULL};
- 
+-
 -   for (int i = 0; i < shader->glsl_strings.num_strings; i++)
 -      shader_parts[i] = shader->glsl_strings.strings[i].buf;
-+   if (getenv("VIRGL_DEBUG_SHADERS")) {
-+      fprintf(stderr, "DEBUG: vrend_compile_shader called (type=%d, num_strings=%d)\n",
-+              shader->sel->type, shader->glsl_strings.num_strings);
-+      fflush(stderr);
-+   }
- 
++   char *modified_shaders[SHADER_MAX_STRINGS] = {NULL};
++
 +   /* GL_EXT_shader_texture_lod is a GLES extension that Firefox may require.
 +    * In desktop GL core profile, this functionality is available as core (since GLSL 1.30).
 +    * For core profile: Remove the extension directive entirely.
 +    * For GLES: Keep the replacement (if needed) */
 +   for (int i = 0; i < shader->glsl_strings.num_strings; i++) {
 +      const char *src = shader->glsl_strings.strings[i].buf;
-+      const char *ext_check = strstr(src, "GL_EXT_shader_texture_lod");
++      const char *ext_check = strstr(src, "#extension GL_EXT_shader_texture_lod");
 +      
 +      if (ext_check) {
-+         /* Found GL_EXT_shader_texture_lod - verify it's an #extension directive */
-+         const char *line_start = ext_check;
-+         while (line_start > src && *(line_start - 1) != '\n')
-+            line_start--;
-+ 
-+         if (strncmp(line_start, "#extension", 9) == 0) {
-+            /* This is an extension directive - remove it entirely */
-+            if (getenv("VIRGL_DEBUG_SHADERS")) {
-+               fprintf(stderr, "DEBUG: Removing #extension GL_EXT_shader_texture_lod directive\n");
-+               fflush(stderr);
++         /* Found the extension directive - remove it entirely */
++         if (getenv("VIRGL_DEBUG_SHADERS")) {
++            fprintf(stderr, "DEBUG: Removing #extension GL_EXT_shader_texture_lod (functionality is core in GLSL 1.30+)\n");
++            fflush(stderr);
++         }
++         size_t src_len = strlen(src);
++         char *modified = malloc(src_len + 1);
++         if (modified) {
++            /* Remove the entire #extension directive line */
++            char *dst = modified;
++            const char *read_pos = src;
++            
++            while ((ext_check = strstr(read_pos, "#extension GL_EXT_shader_texture_lod")) != NULL) {
++               /* Find the end of the line */
++               const char *line_end = strchr(ext_check, '\n');
++               if (!line_end)
++                  line_end = read_pos + strlen(read_pos);
++               /* Copy up to the extension directive */
++               size_t prefix_len = ext_check - read_pos;
++               memcpy(dst, read_pos, prefix_len);
++               dst += prefix_len;
++               /* Skip the entire extension directive line */
++               read_pos = line_end;
++               if (*read_pos == '\n')
++                  read_pos++; /* Skip the newline too */
 +            }
-+            size_t src_len = strlen(src);
-+            char *modified = malloc(src_len + 1);
-+            if (modified) {
-+               char *dst = modified;
-+               const char *read_pos = src;
-+ 
-+               while ((ext_check = strstr(read_pos, "GL_EXT_shader_texture_lod")) != NULL) {
-+                  /* Verify it's actually an #extension directive */
-+                  line_start = ext_check;
-+                  while (line_start > read_pos && *(line_start - 1) != '\n')
-+                     line_start--;
-+ 
-+                  if (strncmp(line_start, "#extension", 9) != 0) {
-+                     /* Not an extension directive, just copy past it */
-+                     size_t copy_len = ext_check + 25 - read_pos;
-+                     memcpy(dst, read_pos, copy_len);
-+                     dst += copy_len;
-+                     read_pos = ext_check + 25;
-+                     continue;
-+                  }
-+ 
-+                  /* Find the end of the line */
-+                  const char *line_end = strchr(ext_check, '\n');
-+                  if (!line_end)
-+                     line_end = read_pos + strlen(read_pos);
-+ 
-+                  /* Copy up to the extension directive */
-+                  size_t prefix_len = line_start - read_pos;
-+                  memcpy(dst, read_pos, prefix_len);
-+                  dst += prefix_len;
-+ 
-+                  /* Skip the entire extension directive line */
-+                  read_pos = line_end;
-+                  if (*read_pos == '\n')
-+                     read_pos++; /* Skip the newline too */
-+               }
-+ 
-+               /* Copy remaining string */
-+               strcpy(dst, read_pos);
-+               shader_parts[i] = modified;
-+               modified_shaders[i] = modified;
-+            } else {
-+               shader_parts[i] = src;
-+            }
++            
++            /* Copy remaining string */
++            strcpy(dst, read_pos);
++            shader_parts[i] = modified;
++            modified_shaders[i] = modified;
 +         } else {
-+            /* Contains extension name but not in #extension directive */
 +            shader_parts[i] = src;
 +         }
 +      } else {
 +         shader_parts[i] = src;
 +      }
 +   }
-+
-+   if (getenv("VIRGL_DEBUG_SHADERS")) {
-+      bool found_lod_ext = false;
-+      for (int i = 0; i < shader->glsl_strings.num_strings; i++) {
-+         if (strstr(shader->glsl_strings.strings[i].buf, "GL_EXT_shader_texture_lod")) {
-+            found_lod_ext = true;
-+            break;
-+         }
-+      }
-+      fprintf(stderr, "DEBUG: vrend_compile_shader - GL_EXT_shader_texture_lod %s\n",
-+              found_lod_ext ? "FOUND" : "NOT FOUND");
-+      fflush(stderr);
-+   }
-+
+ 
     shader->id = glCreateShader(conv_shader_type(shader->sel->type));
     glShaderSource(shader->id, shader->glsl_strings.num_strings, shader_parts, NULL);
-    glCompileShader(shader->id);
-+   /* Free temporary modified shader strings after compilation */
++   
++   /* Free temporary modified shader strings */
 +   for (int i = 0; i < shader->glsl_strings.num_strings; i++) {
 +      if (modified_shaders[i])
 +         free(modified_shaders[i]);
 +   }
-+ 
++   
+    glCompileShader(shader->id);
     glGetShaderiv(shader->id, GL_COMPILE_STATUS, &param);
     if (param == GL_FALSE) {
-       char infolog[65536];
-@@ -2519,30 +2623,32 @@
+@@ -2519,30 +2580,32 @@ static GLuint convert_wrap(struct vrend_context *ctx, int wrap)
     case PIPE_TEX_WRAP_CLAMP: if (vrend_state.use_core_profile == false) return GL_CLAMP; else return GL_CLAMP_TO_EDGE;
  
     case PIPE_TEX_WRAP_CLAMP_TO_EDGE: return GL_CLAMP_TO_EDGE;
@@ -748,7 +681,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     default:
        assert(0);
        return -1;
-@@ -3094,6 +3200,11 @@
+@@ -3094,6 +3157,11 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
  
     if (sub_ctx->nr_cbufs == 0) {
        glReadBuffer(GL_NONE);
@@ -760,7 +693,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        if (has_feature(feat_srgb_write_control)) {
           glDisable(GL_FRAMEBUFFER_SRGB_EXT);
           sub_ctx->framebuffer_srgb_enabled = false;
-@@ -3455,7 +3566,8 @@
+@@ -3455,7 +3523,8 @@ void vrend_bind_vertex_elements_state(struct vrend_context *ctx,
        return;
     }
  
@@ -770,37 +703,36 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        glGenVertexArrays(1, &v->id);
        glBindVertexArray(v->id);
        for (uint32_t i = 0; i < v->count; i++) {
-@@ -3473,7 +3585,18 @@
+@@ -3473,6 +3542,17 @@ void vrend_bind_vertex_elements_state(struct vrend_context *ctx,
           glVertexAttribBinding(i, ve->base.vertex_buffer_index);
           glVertexBindingDivisor(i, ve->base.instance_divisor);
           glEnableVertexAttribArray(i);
 +         }
-       }
++      }
 +   } else {
 +      for (uint32_t i = 0; i < v->count; i++) {
 +         struct vrend_vertex_element *ve = &v->elements[i];
-+ 
++
 +         if (util_format_is_pure_integer(ve->base.src_format)) {
 +            UPDATE_INT_SIGN_MASK(ve->base.src_format, i,
 +                                 v->signed_int_bitmask,
 +                                 v->unsigned_int_bitmask);
 +         }
-+      }
+       }
     }
  }
- 
-@@ -4871,6 +4994,10 @@
+@@ -4871,6 +4951,10 @@ int vrend_clear_texture(struct vrend_context* ctx,
     format = tex_conv_table[fmt].glformat;
     type = tex_conv_table[fmt].gltype;
  
 +   if (!has_feature(feat_clear_texture)) {
 +      return EINVAL;
 +   }
-+ 
++
     /* 32-bit BGRA resources are always reordered to RGBA ordering before
      * submission to the host driver. Reorder red/blue color bytes in
      * the clear color to match. */
-@@ -7556,11 +7683,7 @@
+@@ -7556,11 +7640,7 @@ static bool use_integer(void) {
        return true;
  
     const char * a = (const char *) glGetString(GL_VENDOR);
@@ -813,7 +745,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  }
  
  static bool vrend_use_gbm_layout_feature(UNUSED uint32_t flags)
-@@ -7630,6 +7753,35 @@
+@@ -7630,6 +7710,35 @@ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
     vrend_clicbs->make_current(gl_context);
     gl_ver = epoxy_gl_version();
  
@@ -821,7 +753,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +   const GLubyte *gl_ver_str = glGetString(GL_VERSION);
 +   const GLubyte *gl_renderer_str = glGetString(GL_RENDERER);
 +   const GLubyte *glsl_ver_str = glGetString(GL_SHADING_LANGUAGE_VERSION);
-+ 
++
 +   /* On macOS+Metal the GL_VERSION string can start with just the numeric
 +    * version and "Metal"; reshape it to a clearer OpenGL 4.x label for logs.
 +    */
@@ -835,7 +767,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      gl_ver_display = gl_ver_buf;
 +   }
 +#endif
-+ 
++
 +      virgl_info("GL strings: version='%s' renderer='%s' glsl='%s'\n",
 +            gl_ver_display,
 +            gl_renderer_str ? (const char *)gl_renderer_str : "(null)",
@@ -845,11 +777,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +         gl_ver_display,
 +         gl_renderer_str ? (const char *)gl_renderer_str : "(null)",
 +         glsl_ver_str ? (const char *)glsl_ver_str : "(null)");
-+ 
++
     /* enable error output as early as possible */
     if (vrend_debug(NULL, dbg_khr) && epoxy_has_gl_extension("GL_KHR_debug")) {
        glDebugMessageCallback(vrend_debug_cb, NULL);
-@@ -7661,6 +7813,18 @@
+@@ -7661,6 +7770,18 @@ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
     init_features(gles ? 0 : gl_ver,
                   gles ? gl_ver : 0);
  
@@ -859,16 +791,16 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +    * the advertised zero video caps below.
 +    */
 +   vrend_state.video_available = false;
-+ 
++
 +#ifdef __APPLE__
 +   /* macOS core GL 4.1 lacks GL_ARB_copy_image; force fallback paths. */
 +   clear_feature(feat_copy_image);
 +#endif
-+ 
++
     if (!vrend_winsys_has_gl_colorspace())
        clear_feature(feat_srgb_write_control) ;
  
-@@ -8737,7 +8901,19 @@
+@@ -8737,7 +8858,19 @@ static int vrend_resource_alloc_texture(struct vrend_resource *gr,
        }
  
        if (pr->nr_samples > 1) {
@@ -889,7 +821,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
              if (gr->target == GL_TEXTURE_2D_MULTISAMPLE) {
                 glTexStorage2DMultisample(gr->target, pr->nr_samples,
                                           internalformat, pr->width0, pr->height0,
-@@ -8758,7 +8934,9 @@
+@@ -8758,7 +8891,9 @@ static int vrend_resource_alloc_texture(struct vrend_resource *gr,
                                         GL_TRUE);
              }
           }
@@ -900,7 +832,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
              int i;
              if (format_can_texture_storage)
                 glTexStorage2D(GL_TEXTURE_CUBE_MAP, pr->last_level + 1, internalformat, pr->width0, pr->height0);
-@@ -9677,6 +9855,24 @@
+@@ -9677,6 +9812,24 @@ static void do_readpixels(struct vrend_resource *res,
                            GLenum format, GLenum type,
                            GLsizei bufSize, void *data)
  {
@@ -921,11 +853,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +                 width, height, format, type, bufSize);
 +      logged_entry = true;
 +   }
-+ 
++
     GLuint fb_id;
  
     glGenFramebuffers(1, &fb_id);
-@@ -9726,6 +9922,21 @@
+@@ -9726,6 +9879,21 @@ static void do_readpixels(struct vrend_resource *res,
     else
        glReadPixels(x, y, width, height, format, type, data);
  
@@ -943,11 +875,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      /* Only log first hit to avoid spam. */
 +      dump_present = false;
 +   }
-+ 
++
     glDeleteFramebuffers(1, &fb_id);
  }
  
-@@ -9975,6 +10186,12 @@
+@@ -9975,6 +10143,12 @@ static int vrend_renderer_transfer_send_iov(struct vrend_context *ctx,
     return 0;
  }
  
@@ -956,11 +888,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +                                    struct vrend_resource *src_res,
 +                                    struct vrend_resource *dst_res,
 +                                    const struct pipe_blit_info *info);
-+ 
++
  static int vrend_renderer_transfer_internal(struct vrend_context *ctx,
                                              struct vrend_resource *res,
                                              const struct vrend_transfer_info *info,
-@@ -10105,7 +10322,123 @@
+@@ -10105,6 +10279,122 @@ int vrend_transfer_inline_write(struct vrend_context *ctx,
     return vrend_renderer_transfer_write_iov(ctx, res, info->iovec, info->iovec_cnt, info);
  
  }
@@ -975,15 +907,15 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +   if (dst_res->target != GL_TEXTURE_2D_MULTISAMPLE &&
 +       dst_res->target != GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
 +      return EINVAL;
- 
++
 +   const GLenum staging_target = (dst_res->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY) ?
 +                                 GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
-+ 
++
 +   virgl_warn("copy_transfer3d msaa staging: dst target=%u samples=%u level=%u box=[%d,%d,%d %dx%dx%d]\n",
 +              dst_res->target, dst_res->base.nr_samples, info->level,
 +              info->box->x, info->box->y, info->box->z,
 +              info->box->width, info->box->height, info->box->depth);
-+ 
++
 +   struct vrend_resource staging = *dst_res;
 +   staging.target = staging_target;
 +   staging.base.nr_samples = 1;
@@ -998,17 +930,17 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +   staging.egl_image = 0;
 +   staging.iov = NULL;
 +   staging.num_iovs = 0;
-+ 
++
 +   glGenTextures(1, &staging.gl_id);
 +   glBindTexture(staging_target, staging.gl_id);
 +   glTexParameteri(staging_target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 +   glTexParameteri(staging_target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-+ 
++
 +   const GLint internalformat = tex_conv_table[staging.base.format].internalformat;
 +   const GLsizei level_w = u_minify(staging.base.width0, info->level);
 +   const GLsizei level_h = u_minify(staging.base.height0, info->level);
 +   const GLsizei level_d = (staging_target == GL_TEXTURE_2D_ARRAY) ? staging.base.array_size : 1;
-+ 
++
 +   if (util_format_is_compressed(staging.base.format)) {
 +      const GLsizei comp_size = util_format_get_2d_size(staging.base.format,
 +                                                        util_format_get_stride(staging.base.format, level_w),
@@ -1036,14 +968,14 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +                      NULL);
 +      }
 +   }
-+ 
++
 +   int ret = vrend_renderer_transfer_write_iov(ctx, &staging, src_res->iov,
 +                                               src_res->num_iovs, info);
 +   if (ret) {
 +      glDeleteTextures(1, &staging.gl_id);
 +      return ret;
 +   }
-+ 
++
 +   struct pipe_blit_info blit = { 0 };
 +   blit.src.resource = &staging.base;
 +   blit.src.level = info->level;
@@ -1054,12 +986,12 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +   blit.src.box.height = info->box->height;
 +   blit.src.box.depth = info->box->depth;
 +   blit.src.format = staging.base.format;
-+ 
++
 +   blit.dst.resource = &dst_res->base;
 +   blit.dst.level = info->level;
 +   blit.dst.box = blit.src.box;
 +   blit.dst.format = dst_res->base.format;
-+ 
++
 +   blit.mask = PIPE_MASK_RGBA;
 +   if (vrend_format_is_ds(dst_res->base.format)) {
 +      blit.mask = PIPE_MASK_Z;
@@ -1070,21 +1002,20 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +   blit.scissor_enable = false;
 +   blit.render_condition_enable = false;
 +   blit.alpha_blend = false;
-+ 
++
 +   /* Force shader-based blit to MSAA target; GL forbids single->multi FBO blits. */
 +   vrend_renderer_blit_int(ctx, &staging, dst_res, &blit);
-+ 
++
 +   virgl_warn("copy_transfer3d msaa staging: shader blit completed\n");
-+ 
++
 +   glDeleteTextures(1, &staging.gl_id);
 +   return 0;
 +}
-+ 
-+ 
++
+ 
  int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
                                     uint32_t dst_handle,
- 
-@@ -10113,6 +10446,16 @@
+@@ -10113,6 +10403,16 @@ int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
                                     struct vrend_resource *src_res,
                                     const struct vrend_transfer_info *info)
  {
@@ -1097,11 +1028,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +                 info->box->width, info->box->height, info->box->depth);
 +      copy_log_budget--;
 +   }
-+ 
++
     if (!resource_contains_box(dst_res, info->box, info->level)) {
        vrend_report_context_error(ctx, VIRGL_ERROR_CTX_ILLEGAL_CMD_BUFFER, dst_handle);
        return EINVAL;
-@@ -10159,6 +10502,14 @@
+@@ -10159,6 +10459,14 @@ int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
     }
  #endif
  
@@ -1112,11 +1043,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +        return 0;
 +     virgl_warn("copy_transfer3d MSAA staging fallback failed (%d), trying direct upload\n", ret);
 +  }
-+ 
++
    return vrend_renderer_transfer_write_iov(ctx, dst_res, src_res->iov,
                                             src_res->num_iovs, info);
  }
-@@ -10550,7 +10901,10 @@
+@@ -10550,7 +10858,10 @@ static void vrend_resource_copy_fallback(struct vrend_resource *src_res,
     slice_offset = src_box->z * slice_size;
     cube_slice = (src_res->target == GL_TEXTURE_CUBE_MAP) ? src_box->z + src_box->depth : cube_slice;
     i = (src_res->target == GL_TEXTURE_CUBE_MAP) ? src_box->z : 0;
@@ -1128,7 +1059,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        virgl_error("Offset out of bound: %d\n", src_box->z);
        goto cleanup;
     }
-@@ -10714,9 +11068,32 @@
+@@ -10714,9 +11025,32 @@ void vrend_renderer_resource_copy_region(struct vrend_context *ctx,
     if (dst_res->egl_image)
        comp_flags ^= VREND_COPY_COMPAT_FLAG_ONE_IS_EGL_IMAGE;
  
@@ -1140,7 +1071,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +                                                     dst_res->base.format,
 +                                                     comp_flags) &&
 +                           src_res->base.nr_samples == dst_res->base.nr_samples;
-+ 
++
 +   /* ANGLE/Metal on macOS returns GL_INVALID_ENUM for multisample copy_image
 +    * targets when running in GLES mode. Prefer the blit fallback instead.
 +    */
@@ -1159,12 +1090,12 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      allow_copy_image = false;
 +   }
 +#endif
-+ 
++
 +   if (allow_copy_image) {
        VREND_DEBUG(dbg_copy_resource, ctx, "COPY_REGION: use glCopyImageSubData\n");
        vrend_copy_sub_image(src_res, dst_res, src_level, src_box,
                             dst_level, dstx, dsty, dstz);
-@@ -11296,7 +11673,7 @@
+@@ -11296,7 +11630,7 @@ void vrend_renderer_blit(struct vrend_context *ctx,
      * to resource_copy_region, in this case and if no render states etx need
      * to be applied, forward the call to glCopyImageSubData, otherwise do a
      * normal blit. */
@@ -1173,13 +1104,13 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
         (!info->render_condition_enable || !ctx->sub->cond_render_gl_mode) &&
         format_is_copy_compatible(info->src.format,info->dst.format, comp_flags) &&
         eglimage_copy_compatible &&
-@@ -11309,7 +11686,26 @@
+@@ -11309,7 +11643,26 @@ void vrend_renderer_blit(struct vrend_context *ctx,
         info->dst.box.y + info->dst.box.height <= dst_height &&
         info->src.box.width == info->dst.box.width &&
         info->src.box.height == info->dst.box.height &&
 -       info->src.box.depth == info->dst.box.depth) {
 +       info->src.box.depth == info->dst.box.depth;
-+ 
++
 +   /* ANGLE/Metal GLES path returns GL_INVALID_ENUM for copy_image on MSAA
 +    * targets; avoid copy_image there. Also prefer shader blit when running
 +    * GLES on macOS even for non-MSAA to steer clear of driver quirks.
@@ -1196,12 +1127,12 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      allow_copy_image = false;
 +   }
 +#endif
-+ 
++
 +   if (allow_copy_image) {
        VREND_DEBUG(dbg_blit, ctx,  "  Use glCopyImageSubData\n");
        vrend_copy_sub_image(src_res, dst_res, info->src.level, &info->src.box,
                             info->dst.level, info->dst.box.x, info->dst.box.y,
-@@ -12100,6 +12496,30 @@
+@@ -12100,6 +12453,30 @@ static int get_glsl_version(void)
  static void vrend_fill_caps_glsl_version(int gl_ver, int gles_ver,
                                           union virgl_caps *caps)
  {
@@ -1228,11 +1159,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      return;
 +   }
 +#endif
-+ 
++
     if (gles_ver > 0) {
        caps->v1.glsl_level = 120;
  
-@@ -12145,7 +12565,7 @@
+@@ -12145,7 +12522,7 @@ static void vrend_fill_caps_glsl_version(int gl_ver, int gles_ver,
           }
        }
     }
@@ -1241,7 +1172,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  }
  
  static void set_format_bit(struct virgl_supported_format_mask *mask, enum virgl_formats fmt)
-@@ -12166,6 +12586,10 @@
+@@ -12166,6 +12543,10 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  {
     int i;
     GLint max;
@@ -1252,7 +1183,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     /*
      * We can't fully support this feature on GLES,
-@@ -12210,9 +12634,27 @@
+@@ -12210,9 +12591,27 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  
     if (has_feature(feat_ubo)) {
        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &max);
@@ -1282,7 +1213,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     }
  
     if (has_feature(feat_depth_clamp))
-@@ -12231,8 +12673,13 @@
+@@ -12231,8 +12630,13 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
     if (has_feature(feat_seamless_cubemap_per_texture))
        caps->v1.bset.seamless_cube_map_per_texture = 1;
  
@@ -1297,7 +1228,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     if (has_feature(feat_tessellation))
        caps->v1.bset.has_tessellation_shaders = 1;
-@@ -12349,6 +12796,7 @@
+@@ -12349,6 +12753,7 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  
     glGetIntegerv(GL_MAX_SAMPLES, &max);
     caps->v1.max_samples = max;
@@ -1305,7 +1236,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     /* All of the formats are common. */
     for (i = 0; i < VIRGL_FORMAT_MAX; i++) {
-@@ -12376,6 +12824,7 @@
+@@ -12376,6 +12781,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
     GLfloat range[2];
     uint32_t video_memory;
     const char *renderer = (const char *)glGetString(GL_RENDERER);
@@ -1313,15 +1244,13 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     /* Count this up when you add a feature flag that is used to set a CAP in
      * the guest that was set unconditionally before. Then check that flag and
-@@ -12383,10 +12832,134 @@
+@@ -12383,9 +12789,133 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
      * run on an old virgl host. Use it also to indicate non-cap fixes on the
      * host that help enable features in the guest. */
     caps->v2.host_feature_check_version = 23;
 +   if (gles_ver > 0 && angle_in_renderer)
 +      caps->v2.host_feature_check_version = 4;
- 
--   /* Forward host GL_RENDERER to the guest. */
--   strncpy(caps->v2.renderer, renderer, sizeof(caps->v2.renderer) - 1);
++
 +   /* Forward host GL_RENDERER to the guest.
 +    *
 +    * Firefox has an ANGLE-specific GL_RENDERER parser that triggers on the
@@ -1341,14 +1270,14 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      const char *device_start = metal_start + strlen("ANGLE Metal Renderer:");
 +      while (*device_start == ' ')
 +         device_start++;
- 
++
 +      const char *device_end = device_start;
 +      while (*device_end && *device_end != ',' && *device_end != ')')
 +         device_end++;
-+ 
++
 +      while (device_end > device_start && device_end[-1] == ' ')
 +         device_end--;
-+ 
++
 +      /* Forward the real Metal device name.
 +       * If it isn't vendor-prefixed, try to prefix it with the ANGLE vendor
 +       * field from the leading "ANGLE (vendor, ...)" without including the
@@ -1356,7 +1285,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +       */
 +      if (device_end > device_start) {
 +         const size_t device_len = (size_t)(device_end - device_start);
-+ 
++
 +         /* If already vendor-prefixed (common on Apple), keep as-is. */
 +         if (device_len >= 5 && !strncmp(device_start, "Apple", 5)) {
 +            snprintf(caps->v2.renderer, sizeof(caps->v2.renderer), "%.*s",
@@ -1373,7 +1302,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +                  while (vendor_end > vendor_start && vendor_end[-1] == ' ')
 +                     vendor_end--;
 +               }
-+ 
++
 +               if (vendor_end && vendor_end > vendor_start) {
 +                  snprintf(caps->v2.renderer, sizeof(caps->v2.renderer), "%.*s %.*s",
 +                           (int)(vendor_end - vendor_start), vendor_start,
@@ -1400,27 +1329,27 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      const char *p = renderer + 7; /* after "ANGLE (" */
 +      while (*p == ' ')
 +         p++;
-+ 
++
 +      const char *vendor_start = p;
 +      const char *vendor_end = strchr(vendor_start, ',');
 +      if (!vendor_end)
 +         goto angle_generic;
-+ 
++
 +      const char *device_start = vendor_end + 1;
 +      while (*device_start == ' ')
 +         device_start++;
-+ 
++
 +      const char *device_end = strchr(device_start, ',');
 +      if (!device_end)
 +         goto angle_generic;
-+ 
++
 +      while (device_end > device_start && device_end[-1] == ' ')
 +         device_end--;
-+ 
++
 +      const size_t device_len = (size_t)(device_end - device_start);
 +      if (!device_len)
 +         goto angle_generic;
-+ 
++
 +      if (device_len >= 5 && !strncmp(device_start, "Apple", 5)) {
 +         snprintf(caps->v2.renderer, sizeof(caps->v2.renderer), "%.*s",
 +                  (int)device_len, device_start);
@@ -1438,19 +1367,20 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +         strncpy(caps->v2.renderer, "(null)", sizeof(caps->v2.renderer) - 1);
 +      caps->v2.renderer[sizeof(caps->v2.renderer) - 1] = '\0';
 +   }
-+ 
+ 
+-   /* Forward host GL_RENDERER to the guest. */
+-   strncpy(caps->v2.renderer, renderer, sizeof(caps->v2.renderer) - 1);
 +   goto angle_done;
-+ 
++
 +angle_generic:
 +   strncpy(caps->v2.renderer, "Generic Renderer", sizeof(caps->v2.renderer) - 1);
 +   caps->v2.renderer[sizeof(caps->v2.renderer) - 1] = '\0';
-+ 
++
 +angle_done:
-+ 
+ 
     /* glamor reject llvmpipe, and since the renderer string is
      * composed of "virgl" and this renderer string we have to
-     * hide the "llvmpipe" part */
-@@ -12507,8 +13080,25 @@
+@@ -12507,8 +13037,25 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
           glGetIntegerv(GL_MAX_IMAGE_SAMPLES, (GLint*)&caps->v2.max_image_samples);
     }
  
@@ -1478,7 +1408,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     caps->v2.capability_bits |= VIRGL_CAP_TGSI_INVARIANT | VIRGL_CAP_SET_MIN_SAMPLES |
                                 VIRGL_CAP_TGSI_PRECISE | VIRGL_CAP_APP_TWEAK_SUPPORT;
-@@ -12670,6 +13260,10 @@
+@@ -12670,6 +13217,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
              readback_str = "readback";
              set_format_bit(&caps->v2.supported_readback_formats, fmt);
           }
@@ -1489,7 +1419,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
           if (vrend_format_can_multisample(fmt)) {
              log_texture_feature = true;
              multisample_str = "multisample";
-@@ -12801,6 +13395,7 @@
+@@ -12801,6 +13352,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
     if (has_feature(feat_ubo)) {
        glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &max);
        caps->v2.max_uniform_block_size = max;
@@ -1497,7 +1427,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     }
  
     /* Propagate the max of Uniform Components */
-@@ -12852,7 +13447,10 @@
+@@ -12852,7 +13404,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
        caps->v2.capability_bits_v2 |= VIRGL_CAP_V2_MIRROR_CLAMP;
  
  #ifdef ENABLE_VIDEO
@@ -1509,7 +1439,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  #else
     caps->v2.num_video_caps = 0;
  #endif
-@@ -12867,6 +13465,11 @@
+@@ -12867,6 +13422,11 @@ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
     GLenum err;
     bool fill_capset2 = false;
  
@@ -1517,11 +1447,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      fprintf(stderr, "DEBUG vrend_renderer_fill_caps called: set=%u version=%u caps=%p\n", set, version, (void*)caps);
 +      fflush(stderr);
 +   }
-+ 
++
     if (!caps)
        return;
  
-@@ -12874,12 +13477,18 @@
+@@ -12874,12 +13434,18 @@ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
     case VIRTGPU_DRM_CAPSET_VIRGL:
        if (version > VREND_CAPSET_VIRGL_MAX_VERSION)
           return;
@@ -1540,7 +1470,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        memset(caps, 0, sizeof(*caps));
        caps->max_version = VREND_CAPSET_VIRGL2_MAX_VERSION;
        fill_capset2 = true;
-@@ -12904,13 +13513,33 @@
+@@ -12904,13 +13470,33 @@ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
  
     vrend_fill_caps_glsl_version(gl_ver, gles_ver, caps);
     VREND_DEBUG(dbg_features, NULL, "GLSL support level: %d", caps->v1.glsl_level);
@@ -1566,15 +1496,15 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      fprintf(stderr, "DEBUG after vrend_renderer_fill_caps_v2: glsl_level=%d\n", caps->v1.glsl_level);
 +      fflush(stderr);
 +   }
-+ 
++
 +   /* Final caps report */
 +   fprintf(stderr, "[VREND CAPS] FINAL VALUES: glsl_level=%u, max_samples=%u\n", 
 +           caps->v1.glsl_level, caps->v1.max_samples);
-+ 
++
  }
  
  GLint64 vrend_renderer_get_timestamp(void)
-@@ -13109,6 +13738,35 @@
+@@ -13109,6 +13695,35 @@ void vrend_renderer_resource_get_info(struct pipe_resource *pres,
     info->stride = util_format_get_nblocksx(res->base.format, u_minify(res->base.width0, 0)) * elsize;
  }
  
@@ -1582,12 +1512,12 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +{
 +   struct vrend_texture *tex = (struct vrend_texture *)pres;
 +   struct vrend_format_table *tex_conv = &tex_conv_table[tex->base.base.format];
-+ 
++
 +   assert(tex->base.target == GL_TEXTURE_2D);
 +   assert(!util_format_is_depth_or_stencil(tex->base.base.format));
-+ 
++
 +   glBindTexture(GL_TEXTURE_2D, tex->base.gl_id);
-+ 
++
 +   if (tex_conv->flags & VIRGL_TEXTURE_NEED_SWIZZLE) {
 +      for (unsigned i = 0; i < ARRAY_SIZE(tex->cur_swizzle); ++i) {
 +         GLint next_swizzle = to_gl_swizzle(tex_conv->swizzle[i]);
@@ -1597,7 +1527,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +         }
 +      }
 +   }
-+ 
++
 +   if (tex->cur_srgb_decode != GL_DECODE_EXT && util_format_is_srgb(tex->base.base.format)) {
 +      if (has_feature(feat_texture_srgb_decode)) {
 +         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SRGB_DECODE_EXT,
@@ -1606,52 +1536,54 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      }
 +   }
 +}
-+ 
++
  int
  vrend_renderer_resource_d3d11_texture2d(struct pipe_resource *pres, void **d3d_tex2d)
  {
-@@ -13147,6 +13805,7 @@
+@@ -13147,6 +13762,7 @@ void vrend_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
        *max_size = 0;
        break;
     }
-+ 
++
  }
  
  void vrend_renderer_create_sub_ctx(struct vrend_context *ctx, int sub_ctx_id)
-@@ -13789,3 +14448,8 @@
+@@ -13789,3 +14405,8 @@ vrend_renderer_pipe_resource_get_layout(UNUSED struct vrend_context *ctx,
     return EINVAL;
  }
  #endif
-+ 
++
 +bool vrend_renderer_video_available(void)
 +{
 +   return vrend_state.video_available;
 +}
 diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
---- a/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.h	2026-01-11 09:07:30
-@@ -564,6 +564,8 @@
+index adb1213..dc7370a 100644
+--- a/src/vrend/vrend_renderer.h
++++ b/src/vrend/vrend_renderer.h
+@@ -564,6 +564,8 @@ struct vrend_blit_info {
  void vrend_renderer_resource_get_info(struct pipe_resource *pres,
                                        struct vrend_renderer_resource_info *info);
  
 +void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres);
-+ 
++
  void vrend_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
                                  uint32_t *max_size);
  
-@@ -611,6 +613,8 @@
-                                                  {3,3}, {3,2}, {3,1}, {3,0} };
+@@ -612,6 +614,8 @@ static const struct gl_version gl_versions[] = { {4,6}, {4,5}, {4,4}, {4,3}, {4,
  
  extern const struct vrend_if_cbs *vrend_clicbs;
-+ 
-+bool vrend_renderer_video_available(void);
  
++bool vrend_renderer_video_available(void);
++
  int vrend_renderer_export_query(struct pipe_resource *pres,
                                  struct virgl_renderer_export_query *export_query);
+ 
 diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
---- a/src/vrend/vrend_shader.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_shader.c	2026-01-11 09:07:30
-@@ -6301,10 +6301,26 @@
+index 6a26fdf..3eca9d8 100644
+--- a/src/vrend/vrend_shader.c
++++ b/src/vrend/vrend_shader.c
+@@ -6301,10 +6301,26 @@ static void emit_header(const struct dump_ctx *ctx, struct vrend_glsl_strbufs *g
  
        if (ctx->prog_type == TGSI_PROCESSOR_VERTEX && ctx->cfg->use_explicit_locations)
           emit_ext(glsl_strbufs, "ARB_explicit_attrib_location", "require");
@@ -1675,7 +1607,7 @@ diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
 +         }
 +         /* For GLSL >= 150, the extension is core - no need to require it */
 +      }
-+ 
++
 +      /* Uniform buffers are core in GLSL 1.40+; only request the ARB extension when targeting older versions. */
 +      if (ctx->ubo_used_mask && ctx->glsl_ver_required < 140)
           emit_ext(glsl_strbufs, "ARB_uniform_buffer_object", "require");
