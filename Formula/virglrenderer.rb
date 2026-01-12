@@ -31,11 +31,9 @@ class Virglrenderer < Formula
     system "curl", "-L", upstream_url, "-o", "virglrenderer.tar.gz"
     system "tar", "-xzf", "virglrenderer.tar.gz", "--strip-components=1"
 
-    # Apply patches in order
+    # Apply unified macOS patch (includes all fixes from old separate patches)
     patches = [
-      "venus-macos-dylib.patch",           # Fix dylib loading (libvulkan.so -> libvulkan.dylib)
-      "angle-egl-include.patch",            # Add ANGLE EGL extension defines
-      "venus-metal-unified.patch",          # Unified Metal support patch (Venus + virgl)
+      "virglrenderer-macos-unified.patch",  # All macOS Metal support fixes
     ]
 
     patches.each do |patch|
