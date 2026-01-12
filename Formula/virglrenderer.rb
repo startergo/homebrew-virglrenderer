@@ -31,20 +31,18 @@ class Virglrenderer < Formula
     system "curl", "-L", upstream_url, "-o", "virglrenderer.tar.gz"
     system "tar", "-xzf", "virglrenderer.tar.gz", "--strip-components=1"
 
-    # Apply macOS support patch
-    patch_file = "#{__dir__}/../patches/virglrenderer-main-macos.patch"
-    ohai "Applying Venus/macOS support patch..."
-    system "patch", "-p1", "--batch", "--verbose", "-i", patch_file
+    # Apply patches in order
+    patches = [
+      "venus-macos-dylib.patch",           # Fix dylib loading (libvulkan.so -> libvulkan.dylib)
+      "angle-egl-include.patch",            # Add ANGLE EGL extension defines
+      "venus-metal-unified.patch",          # Unified Metal support patch (Venus + virgl)
+    ]
 
-    # Apply Venus dylib loading fix for macOS (libvulkan.so -> libvulkan.dylib)
-    patch_venus_dylib = "#{__dir__}/../patches/venus-macos-dylib.patch"
-    ohai "Applying Venus dylib loading fix for macOS..."
-    system "patch", "-p1", "--batch", "--verbose", "-i", patch_venus_dylib
-
-    # Apply ANGLE EGL extension include fix
-    patch_angle_egl = "#{__dir__}/../patches/angle-egl-include.patch"
-    ohai "Applying ANGLE EGL extension include fix..."
-    system "patch", "-p1", "--batch", "--verbose", "-i", patch_angle_egl
+    patches.each do |patch|
+      patch_file = "#{__dir__}/../patches/#{patch}"
+      ohai "Applying #{patch}..."
+      system "patch", "-p1", "--batch", "--verbose", "-i", patch_file
+    end
 
     # Get ANGLE and libepoxy paths
     angle = Formula["startergo/angle/angle"]

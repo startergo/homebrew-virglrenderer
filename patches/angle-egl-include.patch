@@ -1,19 +1,25 @@
-diff -Naur --exclude=.git virgl-upstream-clean/src/vrend/vrend_winsys_egl.c virglrenderer-main/src/vrend/vrend_winsys_egl.c
---- virgl-upstream-clean/src/vrend/vrend_winsys_egl.c	2026-01-01 08:05:29
-+++ virglrenderer-main/src/vrend/vrend_winsys_egl.c	2026-01-11 18:00:00
-@@ -32,6 +32,15 @@
-
+--- fresh-from-gitlab/src/vrend/vrend_winsys_egl.c	2026-01-11 18:10:14
++++ angle-fix/src/vrend/vrend_winsys_egl.c	2026-01-11 18:42:14
+@@ -32,6 +32,22 @@
+ 
  #define EGL_EGLEXT_PROTOTYPES
  #include <errno.h>
 +
-+/* Include ANGLE's eglext.h for ANGLE-specific EGL extensions.
-+ * epoxy/egl.h prevents including the system eglext.h (sets __eglext_h_),
-+ * so we include ANGLE's eglext.h directly to get EGL_METAL_DEVICE_ANGLE
-+ * and EGL_METAL_TEXTURE_ANGLE definitions.
++/* ANGLE-specific EGL extension attributes for Metal.
++ * These are defined in ANGLE's eglext_angle.h but we can't include it
++ * directly because epoxy/egl.h sets __eglext_h_ which prevents the
++ * system eglext.h from being included. Define them here instead.
 + */
 +#ifdef ENABLE_METAL
-+#include <EGL/eglext.h>
++#ifndef EGL_METAL_DEVICE_ANGLE
++#define EGL_METAL_DEVICE_ANGLE 0x34A6
 +#endif
++
++#ifndef EGL_METAL_TEXTURE_ANGLE
++#define EGL_METAL_TEXTURE_ANGLE 0x34A7
++#endif
++#endif
++
  #include <fcntl.h>
  #ifdef WIN32
  #include <d3d11.h>
