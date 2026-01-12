@@ -56,7 +56,7 @@ class Virglrenderer < Formula
            "-Dcpp_args=-I#{angle_include}",
            "--pkg-config-path=#{combined_pc_path}",
            "-Ddrm-renderers=[]",
-           "-Dvenus=true",
+           "-Dvenus=false",
            "-Dtests=false",
            "-Dvideo=false",
            "-Dtracing=none"
