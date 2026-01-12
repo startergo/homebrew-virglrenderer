@@ -2207,8 +2207,7 @@ diff -Naur virglrenderer-with-dylib/src/virglrenderer.c virglrenderer-with-metal
        state.vrend_initialized = true;
     }
  
--   if (!state.proxy_initialized && (flags & VIRGL_RENDERER_RENDER_SERVER)) {
-+   if (!state.proxy_initialized) {
+   if (!state.proxy_initialized && (flags & VIRGL_RENDERER_RENDER_SERVER)) {
        ret = proxy_renderer_init(&proxy_cbs, flags | VIRGL_RENDERER_NO_VIRGL);
        if (ret) {
           virgl_error("failed to initialize venus renderer");
