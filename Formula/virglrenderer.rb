@@ -33,7 +33,7 @@ class Virglrenderer < Formula
 
     # Apply unified macOS patch (includes all fixes from old separate patches)
     patches = [
-      "virglrenderer-macos-unified.patch",  # All macOS Metal support fixes
+      "virglrenderer-main-macos.patch",  # All macOS Metal support fixes
     ]
 
     patches.each do |patch|
