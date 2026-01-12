@@ -10,7 +10,7 @@ index 79717fc..33f6a7b 100644
 +      fprintf(stderr, "DEBUG virgl_renderer_fill_caps: set=%u version=%u\n", set, version);
 +      fflush(stderr);
 +   }
-+
++   
     switch (set) {
     case VIRTGPU_DRM_CAPSET_VIRGL:
     case VIRTGPU_DRM_CAPSET_VIRGL2:
@@ -24,15 +24,15 @@ index 79717fc..33f6a7b 100644
 +            fprintf(stderr, "  v1.glsl_level=%u at address %p\n", vcaps->v1.glsl_level, (void*)&vcaps->v1.glsl_level);
 +            fprintf(stderr, "  v2.v1.glsl_level=%u at address %p\n", vcaps->v2.v1.glsl_level, (void*)&vcaps->v2.v1.glsl_level);
 +            fprintf(stderr, "  caps base address=%p\n", (void*)caps);
-+
++            
 +            /* Calculate actual offset */
 +            size_t glsl_offset = (uint8_t*)&vcaps->v1.glsl_level - (uint8_t*)caps;
 +            fprintf(stderr, "  glsl_level offset from caps base: %zu bytes\n", glsl_offset);
-+
++            
 +            /* Dump bytes at that offset */
 +            uint8_t *bytes = (uint8_t *)caps;
 +            fprintf(stderr, "  Bytes at glsl_level offset (%zu-%zu): ", glsl_offset, glsl_offset+7);
-+            for (size_t i = glsl_offset; i < glsl_offset + 8 && i < 1024; i++)
++            for (size_t i = glsl_offset; i < glsl_offset + 8 && i < 1024; i++) 
 +               fprintf(stderr, "%02x ", bytes[i]);
 +            fprintf(stderr, "\n");
 +            fflush(stderr);
@@ -44,7 +44,7 @@ index 79717fc..33f6a7b 100644
 @@ -557,6 +583,25 @@ int virgl_renderer_resource_get_info_ext(int res_handle,
     return 0;
  }
-
+ 
 +int virgl_renderer_borrow_texture_for_scanout(int res_handle,
 +                                              struct virgl_renderer_resource_info_ext *info)
 +{
@@ -74,12 +74,12 @@ index 0bcafef..854368e 100644
 @@ -380,6 +380,9 @@ VIRGL_EXPORT int virgl_renderer_resource_get_info(int res_handle,
  VIRGL_EXPORT int virgl_renderer_resource_get_info_ext(int res_handle,
                                                        struct virgl_renderer_resource_info_ext *info);
-
+ 
 +VIRGL_EXPORT int virgl_renderer_borrow_texture_for_scanout(int res_handle,
 +                                                           struct virgl_renderer_resource_info_ext *info);
 +
  VIRGL_EXPORT void virgl_renderer_cleanup(void *cookie);
-
+ 
  /* reset the rendererer - destroy all contexts and resource */
 diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
 index 91e2435..7a03571 100644
@@ -87,7 +87,7 @@ index 91e2435..7a03571 100644
 +++ b/src/vrend/vrend_blitter.h
 @@ -35,6 +35,12 @@
     "%s"                                         \
-
+ 
  #define FS_HEADER_GLES                             \
 +   "#version 300 es\n"                          \
 +   "// Blitter\n"                               \
@@ -100,7 +100,7 @@ index 91e2435..7a03571 100644
     "%s"                                         \
 @@ -52,6 +58,11 @@
     "// Blitter\n"                               \
-
+ 
  #define HEADER_GLES                             \
 +   "#version 300 es\n"                          \
 +   "// Blitter\n"                               \
@@ -111,13 +111,13 @@ index 91e2435..7a03571 100644
     "// Blitter\n"                               \
     "precision mediump float;\n"                 \
 @@ -145,7 +156,7 @@
-    "}\"
-
+    "}\n"
+ 
  #define FS_TEXFETCH_COL_MSAA_GL FS_HEADER_GL FS_TEXFETCH_COL_MSAA_BODY
 -#define FS_TEXFETCH_COL_MSAA_GLES FS_HEADER_GLES FS_TEXFETCH_COL_MSAA_BODY
 +#define FS_TEXFETCH_COL_MSAA_GLES FS_HEADER_GLES_MS FS_TEXFETCH_COL_MSAA_BODY
  #define FS_TEXFETCH_COL_MSAA_ARRAY_GLES FS_HEADER_GLES_MS_ARRAY FS_TEXFETCH_COL_MSAA_BODY
-
+ 
  #define FS_TEXFETCH_DS_BODY                             \
 @@ -178,7 +189,7 @@ struct vrend_context;
  struct vrend_resource;
@@ -125,8 +125,8 @@ index 91e2435..7a03571 100644
  #define FS_TEXFETCH_DS_MSAA_GL HEADER_GL FS_TEXFETCH_DS_MSAA_BODY
 -#define FS_TEXFETCH_DS_MSAA_GLES HEADER_GLES FS_TEXFETCH_DS_MSAA_BODY_GLES
 +#define FS_TEXFETCH_DS_MSAA_GLES HEADER_GLES_MS FS_TEXFETCH_DS_MSAA_BODY_GLES
- #define FS_TEXFETCH_DS_MSAA_ARRAY_GLES FS_HEADER_GLES_MS_ARRAY FS_TEXFETCH_DS_MSAA_BODY_GLES
-
+ #define FS_TEXFETCH_DS_MSAA_ARRAY_GLES HEADER_GLES_MS_ARRAY FS_TEXFETCH_DS_MSAA_BODY_GLES
+ 
  /* implement blitting using OpenGL. */
 diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
 index 7774a25..277cde9 100644
@@ -135,7 +135,7 @@ index 7774a25..277cde9 100644
 @@ -888,6 +888,17 @@ static int vrend_decode_create_object(struct vrend_context *ctx, const uint32_t
        return EINVAL;
     }
-
+ 
 +   /* Surface GL errors with object metadata to pinpoint bad creations. */
 +   if (!vrend_check_no_error(ctx) && ret == 0) {
 +      virgl_error("GL error during CREATE_OBJECT type=%s handle=0x%x len=%u\n",
@@ -149,11 +149,11 @@ index 7774a25..277cde9 100644
 +
     return ret;
  }
-
+ 
 @@ -2095,9 +2106,22 @@ static int vrend_decode_ctx_submit_cmd(struct virgl_context *ctx,
-
+ 
        TRACE_SCOPE_SLOW(vrend_get_comand_name(cmd));
-
+ 
 +      /* If video is disabled at runtime, drop video commands quietly to avoid
 +       * noisy errors from guest probes (e.g., gst-plugin-scan).
 +       */
@@ -181,28 +181,28 @@ index 670b3a4..3ba7238 100644
 @@ -716,48 +716,183 @@ unsigned vrend_renderer_query_multisample_caps(unsigned max_samples, struct virg
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
-
+ 
 +   /* glTexStorage2DMultisample availability check with graceful downgrade:
-+    *
++    * 
 +    * glTexStorage2DMultisample requires:
 +    *   - OpenGL 4.3+ or GL_ARB_texture_storage_multisample (desktop GL)
 +    *   - OpenGL ES 3.1+ (mobile/ANGLE)
-+    *
++    * 
 +    * Fallback alternatives available on older versions:
 +    *   - glTexImage2DMultisample: GL 3.2+ / ES 3.1+ (works on GL 4.1 Core)
 +    *   - glRenderbufferStorageMultisample: GL 3.0+ / ES 3.0+ (works on ANGLE)
-+    *
++    * 
 +    * We'll use glTexStorage2DMultisample if available, otherwise fall back to
 +    * glTexImage2DMultisample for proper MSAA capability testing. */
-+
++   
 +   const char *renderer = (const char *)glGetString(GL_RENDERER);
 +   const char *version_str = (const char *)glGetString(GL_VERSION);
-+
++   
 +   /* Check multisample function availability with multiple fallback options */
 +   bool has_tex_storage_ms = false;
 +   bool has_tex_image_ms = false;
 +   bool has_rbo_storage_ms = false;
-+
++   
 +   if (epoxy_is_desktop_gl()) {
 +      /* Desktop OpenGL path */
 +      if (epoxy_gl_version() >= 43) {
@@ -229,19 +229,19 @@ index 670b3a4..3ba7238 100644
 +         has_rbo_storage_ms = true;
 +      }
 +   }
-+
++   
 +   /* If no multisample functions available at all, disable MSAA */
 +   if (!has_tex_storage_ms && !has_tex_image_ms && !has_rbo_storage_ms) {
 +      fprintf(stderr, "[VREND FORMATS] No multisample functions available "
 +                      "(GL version: %s, renderer: %s, is_desktop: %d). "
-+                      "Disabling MSAA support.\n",
++                      "Disabling MSAA support.\n", 
 +                      version_str ? version_str : "unknown",
 +                      renderer ? renderer : "unknown",
 +                      epoxy_is_desktop_gl());
 +      memset(caps->sample_locations, 0, 8 * sizeof(uint32_t));
 +      return 0;  /* Return 0 to indicate MSAA not supported */
 +   }
-+
++   
 +   /* Log which multisample method we're using */
 +   if (has_tex_storage_ms) {
 +      fprintf(stderr, "[VREND FORMATS] Testing MSAA with glTexStorage2DMultisample\n");
@@ -255,41 +255,41 @@ index 670b3a4..3ba7238 100644
 +   }
 +
 +   fprintf(stderr, "[VREND FORMATS] Starting MSAA capability test with max_samples=%u\n", max_samples);
-+
++   
     glGenFramebuffers( 1, &fbo );
     memset(caps->sample_locations, 0, 8 * sizeof(uint32_t));
-
+ 
     for (int i = 3; i >= 0; i--) {
 -      if (test_num_samples[i] > max_samples)
 +      if (test_num_samples[i] > max_samples) {
-+         fprintf(stderr, "[VREND FORMATS] Skipping %u samples (exceeds max %u)\n",
++         fprintf(stderr, "[VREND FORMATS] Skipping %u samples (exceeds max %u)\n", 
 +                 test_num_samples[i], max_samples);
           continue;
 -      glGenTextures(1, &tex);
 -      glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, tex);
 -      glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, test_num_samples[i], GL_RGBA32F, 64, 64, GL_TRUE);
 +      }
-+
++      
 +      fprintf(stderr, "[VREND FORMATS] Testing %u samples...\n", test_num_samples[i]);
-+
++      
 +      /* Clear any stale errors before testing */
 +      while (glGetError() != GL_NO_ERROR);
-+
++      
 +      if (has_tex_storage_ms || has_tex_image_ms) {
 +         /* Texture-based MSAA testing - use GL_RGBA8 for better compatibility */
 +         glGenTextures(1, &tex);
 +         GLenum err1 = glGetError();
-+
++         
 +         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, tex);
 +         GLenum err2 = glGetError();
-+
++         
 +         if (has_tex_storage_ms) {
 +            glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, test_num_samples[i], GL_RGBA8, 64, 64, GL_TRUE);
 +         } else {
 +            glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, test_num_samples[i], GL_RGBA8, 64, 64, GL_TRUE);
 +         }
 +         GLenum err3 = glGetError();
-+
++         
 +         if (err1 != GL_NO_ERROR || err2 != GL_NO_ERROR || err3 != GL_NO_ERROR) {
 +            fprintf(stderr, "[VREND FORMATS]   glGenTextures err=0x%x, glBindTexture err=0x%x, glTex*Multisample err=0x%x\n",
 +                    err1, err2, err3);
@@ -302,25 +302,25 @@ index 670b3a4..3ba7238 100644
 +         glRenderbufferStorageMultisample(GL_RENDERBUFFER, test_num_samples[i], GL_RGBA8, 64, 64);
 +         tex = rbo;  /* Store RBO handle in tex variable for cleanup */
 +      }
-+
++      
        status = glGetError();
        if (status == GL_NO_ERROR) {
           glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 -         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, tex, 0);
-+
++         
 +         if (has_tex_storage_ms || has_tex_image_ms) {
 +            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, tex, 0);
 +         } else {
 +            /* For renderbuffer fallback */
 +            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, tex);
 +         }
-+
++         
           status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
           if (status == GL_FRAMEBUFFER_COMPLETE) {
 +            fprintf(stderr, "[VREND FORMATS] ✓ %u samples COMPLETE\n", test_num_samples[i]);
              if (max_samples_confirmed < test_num_samples[i])
                 max_samples_confirmed = test_num_samples[i];
-
+ 
 -            for (unsigned k = 0; k < test_num_samples[i]; ++k) {
 -               float msp[2];
 -               uint32_t compressed;
@@ -344,7 +344,7 @@ index 670b3a4..3ba7238 100644
              }
              lowest_working_ms_count_idx = i;
           } else {
-+            fprintf(stderr, "[VREND FORMATS] ✗ %u samples INCOMPLETE (status=0x%x)\n",
++            fprintf(stderr, "[VREND FORMATS] ✗ %u samples INCOMPLETE (status=0x%x)\n", 
 +                    test_num_samples[i], status);
              /* If a framebuffer doesn't support low sample counts,
               * use the sample position from the last working larger count. */
@@ -360,7 +360,7 @@ index 670b3a4..3ba7238 100644
 +      } else {
 +         fprintf(stderr, "[VREND FORMATS] ✗ %u samples GL_ERROR=0x%x\n", test_num_samples[i], status);
 +      }
-+
++      
 +      /* Cleanup - delete texture or renderbuffer */
 +      if (has_tex_storage_ms || has_tex_image_ms) {
 +         glDeleteTextures(1, &tex);
@@ -370,12 +370,12 @@ index 670b3a4..3ba7238 100644
 -      glDeleteTextures(1, &tex);
     }
     glDeleteFramebuffers(1, &fbo);
-+
-+   fprintf(stderr, "[VREND FORMATS] MSAA test complete: returning max_samples_confirmed=%u\n",
++   
++   fprintf(stderr, "[VREND FORMATS] MSAA test complete: returning max_samples_confirmed=%u\n", 
 +           max_samples_confirmed);
     return max_samples_confirmed;
  }
-
+ 
 diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 index 4bf88e0..2ef6bf6 100644
 --- a/src/vrend/vrend_renderer.c
@@ -387,7 +387,7 @@ index 4bf88e0..2ef6bf6 100644
 +#include <string.h>
  #include <errno.h>
  #include "pipe/p_shader_tokens.h"
-
+ 
 @@ -80,6 +81,10 @@
  /*
   * VIRTGPU_DRM_CAPSET_VIRGL has version 0 and 1, but they are both
@@ -416,7 +416,7 @@ index 4bf88e0..2ef6bf6 100644
 +   /* host-side video acceleration availability */
 +   bool video_available;
  };
-
+ 
  struct sysval_uniform_block {
 @@ -1389,12 +1397,65 @@ static bool vrend_compile_shader(struct vrend_sub_context *sub_ctx,
  {
@@ -434,7 +434,7 @@ index 4bf88e0..2ef6bf6 100644
 +   for (int i = 0; i < shader->glsl_strings.num_strings; i++) {
 +      const char *src = shader->glsl_strings.strings[i].buf;
 +      const char *ext_check = strstr(src, "#extension GL_EXT_shader_texture_lod");
-+
++      
 +      if (ext_check) {
 +         /* Found the extension directive - remove it entirely */
 +         if (getenv("VIRGL_DEBUG_SHADERS")) {
@@ -447,7 +447,7 @@ index 4bf88e0..2ef6bf6 100644
 +            /* Remove the entire #extension directive line */
 +            char *dst = modified;
 +            const char *read_pos = src;
-+
++            
 +            while ((ext_check = strstr(read_pos, "#extension GL_EXT_shader_texture_lod")) != NULL) {
 +               /* Find the end of the line */
 +               const char *line_end = strchr(ext_check, '\n');
@@ -462,7 +462,7 @@ index 4bf88e0..2ef6bf6 100644
 +               if (*read_pos == '\n')
 +                  read_pos++; /* Skip the newline too */
 +            }
-+
++            
 +            /* Copy remaining string */
 +            strcpy(dst, read_pos);
 +            shader_parts[i] = modified;
@@ -474,22 +474,22 @@ index 4bf88e0..2ef6bf6 100644
 +         shader_parts[i] = src;
 +      }
 +   }
-
+ 
     shader->id = glCreateShader(conv_shader_type(shader->sel->type));
     glShaderSource(shader->id, shader->glsl_strings.num_strings, shader_parts, NULL);
-+
++   
 +   /* Free temporary modified shader strings */
 +   for (int i = 0; i < shader->glsl_strings.num_strings; i++) {
 +      if (modified_shaders[i])
 +         free(modified_shaders[i]);
 +   }
-+
++   
     glCompileShader(shader->id);
     glGetShaderiv(shader->id, GL_COMPILE_STATUS, &param);
     if (param == GL_FALSE) {
 @@ -2519,30 +2580,32 @@ static GLuint convert_wrap(struct vrend_context *ctx, int wrap)
     case PIPE_TEX_WRAP_CLAMP: if (vrend_state.use_core_profile == false) return GL_CLAMP; else return GL_CLAMP_TO_EDGE;
-
+ 
     case PIPE_TEX_WRAP_CLAMP_TO_EDGE: return GL_CLAMP_TO_EDGE;
 -   case PIPE_TEX_WRAP_CLAMP_TO_BORDER: return GL_CLAMP_TO_BORDER;
 +   case PIPE_TEX_WRAP_CLAMP_TO_BORDER:
@@ -500,7 +500,7 @@ index 4bf88e0..2ef6bf6 100644
 +         return GL_CLAMP_TO_EDGE;
 +      }
 +      return GL_CLAMP_TO_BORDER;
-
+ 
     case PIPE_TEX_WRAP_MIRROR_REPEAT: return GL_MIRRORED_REPEAT;
     case PIPE_TEX_WRAP_MIRROR_CLAMP:
 +      /* Not available on GLES; fall back to mirrored repeat without error. */
@@ -533,7 +533,7 @@ index 4bf88e0..2ef6bf6 100644
        assert(0);
        return -1;
 @@ -3094,6 +3157,11 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
-
+ 
     if (sub_ctx->nr_cbufs == 0) {
        glReadBuffer(GL_NONE);
 +      /* In core profile, must explicitly disable draw buffers when no color attachments */
@@ -547,7 +547,7 @@ index 4bf88e0..2ef6bf6 100644
 @@ -3455,7 +3523,8 @@ void vrend_bind_vertex_elements_state(struct vrend_context *ctx,
        return;
     }
-
+ 
 -   if (has_feature(feat_gles31_vertex_attrib_binding) && v->id == 0) {
 +   if (has_feature(feat_gles31_vertex_attrib_binding)) {
 +      if (v->id == 0) {
@@ -575,7 +575,7 @@ index 4bf88e0..2ef6bf6 100644
 @@ -4871,6 +4951,10 @@ int vrend_clear_texture(struct vrend_context* ctx,
     format = tex_conv_table[fmt].glformat;
     type = tex_conv_table[fmt].gltype;
-
+ 
 +   if (!has_feature(feat_clear_texture)) {
 +      return EINVAL;
 +   }
@@ -585,7 +585,7 @@ index 4bf88e0..2ef6bf6 100644
      * the clear color to match. */
 @@ -7556,11 +7640,7 @@ static bool use_integer(void) {
        return true;
-
+ 
     const char * a = (const char *) glGetString(GL_VENDOR);
 -   if (!a)
 -       return false;
@@ -594,12 +594,12 @@ index 4bf88e0..2ef6bf6 100644
 -   return false;
 +   return a && !(strcmp(a, "ARM") && strcmp(a, "Google Inc. (Apple)"));
  }
-
+ 
  static bool vrend_use_gbm_layout_feature(UNUSED uint32_t flags)
 @@ -7630,6 +7710,35 @@ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
     vrend_clicbs->make_current(gl_context);
     gl_ver = epoxy_gl_version();
-
+ 
 +   /* Surface the full GL strings early for debugging/profile confirmation. */
 +   const GLubyte *gl_ver_str = glGetString(GL_VERSION);
 +   const GLubyte *gl_renderer_str = glGetString(GL_RENDERER);
@@ -635,7 +635,7 @@ index 4bf88e0..2ef6bf6 100644
 @@ -7661,6 +7770,18 @@ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
     init_features(gles ? 0 : gl_ver,
                   gles ? gl_ver : 0);
-
+ 
 +   /* Disable host video decode/encode paths entirely in this build to avoid
 +    * guest CREATE_VIDEO_BUFFER commands on configurations that cannot service
 +    * them (e.g., macOS ANGLE/Metal). This also keeps caps consistent with
@@ -650,10 +650,10 @@ index 4bf88e0..2ef6bf6 100644
 +
     if (!vrend_winsys_has_gl_colorspace())
        clear_feature(feat_srgb_write_control) ;
-
+ 
 @@ -8737,7 +8858,19 @@ static int vrend_resource_alloc_texture(struct vrend_resource *gr,
        }
-
+ 
        if (pr->nr_samples > 1) {
 -         if (format_can_texture_storage) {
 +         /* Metal backend (macOS): Silently downgrade MSAA to non-MSAA when not supported.
@@ -661,7 +661,7 @@ index 4bf88e0..2ef6bf6 100644
 +          * for desktop GL where Metal backend doesn't support multisampled textures. */
 +         const char *renderer_str = (const char *)glGetString(GL_RENDERER);
 +         bool is_metal_backend = (renderer_str && strstr(renderer_str, "Metal"));
-+
++         
 +         if (is_metal_backend && !vrend_state.use_gles && !has_feature(feat_storage_multisample)) {
 +            /* Metal backend: No MSAA support, downgrade to regular texture */
 +            fprintf(stderr, "[VREND] Metal backend: MSAA texture requested (samples=%d, target=0x%x), downgrading to non-MSAA\n",
@@ -678,7 +678,7 @@ index 4bf88e0..2ef6bf6 100644
           }
 -      } else if (gr->target == GL_TEXTURE_CUBE_MAP) {
 +      }
-+
++      
 +      if (pr->nr_samples <= 1 && gr->target == GL_TEXTURE_CUBE_MAP) {
              int i;
              if (format_can_texture_storage)
@@ -706,12 +706,12 @@ index 4bf88e0..2ef6bf6 100644
 +   }
 +
     GLuint fb_id;
-
+ 
     glGenFramebuffers(1, &fb_id);
 @@ -9726,6 +9879,21 @@ static void do_readpixels(struct vrend_resource *res,
     else
        glReadPixels(x, y, width, height, format, type, data);
-
+ 
 +   if (dump_present) {
 +      /* Simple rolling hash (not cryptographic) to detect non-zero content. */
 +      uint64_t hash = 1469598103934665603ull; /* FNV-1a offset */
@@ -729,11 +729,11 @@ index 4bf88e0..2ef6bf6 100644
 +
     glDeleteFramebuffers(1, &fb_id);
  }
-
+ 
 @@ -9975,6 +10143,12 @@ static int vrend_renderer_transfer_send_iov(struct vrend_context *ctx,
     return 0;
  }
-
+ 
 +/* Forward declaration for MSAA staging path below. */
 +static void vrend_renderer_blit_int(struct vrend_context *ctx,
 +                                    struct vrend_resource *src_res,
@@ -745,7 +745,7 @@ index 4bf88e0..2ef6bf6 100644
                                              const struct vrend_transfer_info *info,
 @@ -10105,6 +10279,122 @@ int vrend_transfer_inline_write(struct vrend_context *ctx,
     return vrend_renderer_transfer_write_iov(ctx, res, info->iovec, info->iovec_cnt, info);
-
+ 
  }
 +static int vrend_renderer_copy_transfer3d_msaa(struct vrend_context *ctx,
 +                                               struct vrend_resource *dst_res,
@@ -863,7 +863,7 @@ index 4bf88e0..2ef6bf6 100644
 +   return 0;
 +}
 +
-
+ 
  int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
                                     uint32_t dst_handle,
 @@ -10113,6 +10403,16 @@ int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
@@ -886,7 +886,7 @@ index 4bf88e0..2ef6bf6 100644
 @@ -10159,6 +10459,14 @@ int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
     }
  #endif
-
+ 
 +  if (dst_res->target == GL_TEXTURE_2D_MULTISAMPLE ||
 +      dst_res->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY) {
 +     int ret = vrend_renderer_copy_transfer3d_msaa(ctx, dst_res, src_res, info);
@@ -913,7 +913,7 @@ index 4bf88e0..2ef6bf6 100644
 @@ -10714,9 +11025,32 @@ void vrend_renderer_resource_copy_region(struct vrend_context *ctx,
     if (dst_res->egl_image)
        comp_flags ^= VREND_COPY_COMPAT_FLAG_ONE_IS_EGL_IMAGE;
-
+ 
 -   if (has_feature(feat_copy_image) &&
 -       format_is_copy_compatible(src_res->base.format,dst_res->base.format, comp_flags) &&
 -       src_res->base.nr_samples == dst_res->base.nr_samples) {
@@ -990,12 +990,12 @@ index 4bf88e0..2ef6bf6 100644
 +   static int debug_caps = -1;
 +   if (debug_caps == -1)
 +      debug_caps = getenv("VIRGL_DEBUG_CAPS") != NULL;
-+
++   
 +   if (debug_caps) {
 +      fprintf(stderr, "DEBUG vrend_fill_caps_glsl_version: gl_ver=%d gles_ver=%d caps=%p\n", gl_ver, gles_ver, (void*)caps);
 +      fflush(stderr);
 +   }
-+
++   
 +#ifdef __APPLE__
 +   /* macOS Metal reports GL 4.1 core but Mesa needs explicit GLSL 4.10.
 +    * Force this for any desktop GL context on macOS to avoid fallback to GL 2.1.
@@ -1003,7 +1003,7 @@ index 4bf88e0..2ef6bf6 100644
 +   if (gl_ver >= 30 && gles_ver == 0) {
 +      caps->v1.glsl_level = 410;
 +      if (debug_caps) {
-+         fprintf(stderr, "DEBUG macOS override: set glsl_level=%d (caps->v1.glsl_level now=%d)\n",
++         fprintf(stderr, "DEBUG macOS override: set glsl_level=%d (caps->v1.glsl_level now=%d)\n", 
 +                 410, caps->v1.glsl_level);
 +         fflush(stderr);
 +      }
@@ -1013,7 +1013,7 @@ index 4bf88e0..2ef6bf6 100644
 +
     if (gles_ver > 0) {
        caps->v1.glsl_level = 120;
-
+ 
 @@ -12145,7 +12522,7 @@ static void vrend_fill_caps_glsl_version(int gl_ver, int gles_ver,
           }
        }
@@ -1021,7 +1021,7 @@ index 4bf88e0..2ef6bf6 100644
 -   virgl_info("GLSL feature level %d\n", caps->v1.glsl_level);
 +      virgl_info("GLSL feature level %d\n", caps->v1.glsl_level);
  }
-
+ 
  static void set_format_bit(struct virgl_supported_format_mask *mask, enum virgl_formats fmt)
 @@ -12166,6 +12543,10 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  {
@@ -1031,11 +1031,11 @@ index 4bf88e0..2ef6bf6 100644
 +   const char *gl_renderer_str = (const char *)glGetString(GL_RENDERER);
 +   const bool is_angle = ((gl_version_str && strstr(gl_version_str, "ANGLE")) ||
 +                          (gl_renderer_str && strstr(gl_renderer_str, "ANGLE")));
-
+ 
     /*
      * We can't fully support this feature on GLES,
 @@ -12210,9 +12591,27 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
-
+ 
     if (has_feature(feat_ubo)) {
        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &max);
 +      const char *version_str = (const char *)glGetString(GL_VERSION);
@@ -1045,7 +1045,7 @@ index 4bf88e0..2ef6bf6 100644
 -      caps->v1.max_uniform_blocks = max + 1 - 1;
 +       * also reduce by 1 as we might generate a VirglBlock helper uniform block.
 +       * Mesa needs at least 12 per shader after its own adjustments, so report max+1.
-+       *
++       * 
 +       * Special handling for ANGLE/Metal: ANGLE clamps reported values to ES spec minimums
 +       * (12 for UBOs) even though Metal backend supports 14. Detect ANGLE and report a
 +       * higher value to ensure Mesa gets enough after its adjustments. */
@@ -1055,19 +1055,19 @@ index 4bf88e0..2ef6bf6 100644
 +                         "overriding to 14 for Mesa compatibility\n", max);
 +      } else {
 +         caps->v1.max_uniform_blocks = max + 1;
-+         fprintf(stderr, "[VREND CAPS] feat_ubo=YES, GL_MAX_VERTEX_UNIFORM_BLOCKS=%d, reporting max_uniform_blocks=%d\n",
++         fprintf(stderr, "[VREND CAPS] feat_ubo=YES, GL_MAX_VERTEX_UNIFORM_BLOCKS=%d, reporting max_uniform_blocks=%d\n", 
 +                 max, caps->v1.max_uniform_blocks);
 +      }
 +   } else {
 +      fprintf(stderr, "[VREND CAPS] feat_ubo=NO (gl_ver=%d, gles_ver=%d, epoxy_gl_version=%d, epoxy_is_desktop_gl=%d)\n",
 +              gl_ver, gles_ver, epoxy_gl_version(), epoxy_is_desktop_gl());
     }
-
+ 
     if (has_feature(feat_depth_clamp))
 @@ -12231,8 +12630,13 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
     if (has_feature(feat_seamless_cubemap_per_texture))
        caps->v1.bset.seamless_cube_map_per_texture = 1;
-
+ 
 -   if (has_feature(feat_texture_multisample))
 +   if (has_feature(feat_texture_multisample)) {
        caps->v1.bset.texture_multisample = 1;
@@ -1076,15 +1076,15 @@ index 4bf88e0..2ef6bf6 100644
 +      fprintf(stderr, "[VREND CAPS] feat_texture_multisample NOT enabled (gl_ver=%d, gles_ver=%d)\n",
 +              vrend_state.use_gles ? 0 : gl_ver, vrend_state.use_gles ? gl_ver : 0);
 +   }
-
+ 
     if (has_feature(feat_tessellation))
        caps->v1.bset.has_tessellation_shaders = 1;
 @@ -12349,6 +12753,7 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
-
+ 
     glGetIntegerv(GL_MAX_SAMPLES, &max);
     caps->v1.max_samples = max;
 +   fprintf(stderr, "[VREND] GL_MAX_SAMPLES from glGetIntegerv: %d\n", max);
-
+ 
     /* All of the formats are common. */
     for (i = 0; i < VIRGL_FORMAT_MAX; i++) {
 @@ -12376,6 +12781,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
@@ -1092,7 +1092,7 @@ index 4bf88e0..2ef6bf6 100644
     uint32_t video_memory;
     const char *renderer = (const char *)glGetString(GL_RENDERER);
 +   const bool angle_in_renderer = (renderer && strstr(renderer, "ANGLE"));
-
+ 
     /* Count this up when you add a feature flag that is used to set a CAP in
      * the guest that was set unconditionally before. Then check that flag and
 @@ -12383,9 +12789,133 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
@@ -1218,7 +1218,7 @@ index 4bf88e0..2ef6bf6 100644
 +         strncpy(caps->v2.renderer, "(null)", sizeof(caps->v2.renderer) - 1);
 +      caps->v2.renderer[sizeof(caps->v2.renderer) - 1] = '\0';
 +   }
-
+ 
 -   /* Forward host GL_RENDERER to the guest. */
 -   strncpy(caps->v2.renderer, renderer, sizeof(caps->v2.renderer) - 1);
 +   goto angle_done;
@@ -1228,13 +1228,13 @@ index 4bf88e0..2ef6bf6 100644
 +   caps->v2.renderer[sizeof(caps->v2.renderer) - 1] = '\0';
 +
 +angle_done:
-
+ 
     /* glamor reject llvmpipe, and since the renderer string is
      * composed of "virgl" and this renderer string we have to
 @@ -12507,8 +13037,25 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
           glGetIntegerv(GL_MAX_IMAGE_SAMPLES, (GLint*)&caps->v2.max_image_samples);
     }
-
+ 
 -   if (has_feature(feat_storage_multisample))
 -      caps->v1.max_samples = vrend_renderer_query_multisample_caps(caps->v1.max_samples, &caps->v2);
 +   /* Always call query_multisample_caps - it will handle the case where
@@ -1242,7 +1242,7 @@ index 4bf88e0..2ef6bf6 100644
 +    * and returning the faked max_samples value with graceful downgrade. */
 +   caps->v1.max_samples = vrend_renderer_query_multisample_caps(caps->v1.max_samples, &caps->v2);
 +   fprintf(stderr, "[VREND CAPS] After query_multisample_caps: max_samples=%u\n", caps->v1.max_samples);
-+
++   
 +   /* For macOS Metal backend: Override to max_samples=1 to trigger Mesa's fake_sw_msaa.
 +    * Even though MSAA tests confirm 4 samples work, Mesa's format queries can't verify
 +    * multisample support, causing MaxSamples=0. Reporting 1 triggers fake_sw_msaa workaround.
@@ -1251,12 +1251,12 @@ index 4bf88e0..2ef6bf6 100644
 +   bool is_metal = (version && strstr(version, "Metal"));
 +   bool is_angle = (version && strstr(version, "ANGLE"));
 +   if ((is_metal || is_angle) && caps->v1.max_samples > 1) {
-+      fprintf(stderr, "[VREND CAPS] %s backend: Overriding max_samples %u -> 1 for fake_sw_msaa\n",
++      fprintf(stderr, "[VREND CAPS] %s backend: Overriding max_samples %u -> 1 for fake_sw_msaa\n", 
 +              is_angle ? "ANGLE" : "Metal",
 +              caps->v1.max_samples);
 +      caps->v1.max_samples = 1;
 +   }
-
+ 
     caps->v2.capability_bits |= VIRGL_CAP_TGSI_INVARIANT | VIRGL_CAP_SET_MIN_SAMPLES |
                                 VIRGL_CAP_TGSI_PRECISE | VIRGL_CAP_APP_TWEAK_SUPPORT;
 @@ -12670,6 +13217,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
@@ -1276,11 +1276,11 @@ index 4bf88e0..2ef6bf6 100644
        caps->v2.max_uniform_block_size = max;
 +      fprintf(stderr, "[VREND CAPS] GL_MAX_UNIFORM_BLOCK_SIZE=%d (Mesa needs >=16384 for UBO)\n", max);
     }
-
+ 
     /* Propagate the max of Uniform Components */
 @@ -12852,7 +13404,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
        caps->v2.capability_bits_v2 |= VIRGL_CAP_V2_MIRROR_CLAMP;
-
+ 
  #ifdef ENABLE_VIDEO
 -   vrend_video_fill_caps(caps);
 +   /* Disable video caps entirely to prevent guest CREATE_VIDEO_BUFFER commands
@@ -1293,7 +1293,7 @@ index 4bf88e0..2ef6bf6 100644
 @@ -12867,6 +13422,11 @@ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
     GLenum err;
     bool fill_capset2 = false;
-
+ 
 +   if (getenv("VIRGL_DEBUG_CAPS")) {
 +      fprintf(stderr, "DEBUG vrend_renderer_fill_caps called: set=%u version=%u caps=%p\n", set, version, (void*)caps);
 +      fflush(stderr);
@@ -1301,7 +1301,7 @@ index 4bf88e0..2ef6bf6 100644
 +
     if (!caps)
        return;
-
+ 
 @@ -12874,12 +13434,18 @@ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
     case VIRTGPU_DRM_CAPSET_VIRGL:
        if (version > VREND_CAPSET_VIRGL_MAX_VERSION)
@@ -1322,44 +1322,43 @@ index 4bf88e0..2ef6bf6 100644
        caps->max_version = VREND_CAPSET_VIRGL2_MAX_VERSION;
        fill_capset2 = true;
 @@ -12904,13 +13470,33 @@ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
-
+ 
     vrend_fill_caps_glsl_version(gl_ver, gles_ver, caps);
     VREND_DEBUG(dbg_features, NULL, "GLSL support level: %d", caps->v1.glsl_level);
-+
++   
 +   if (getenv("VIRGL_DEBUG_CAPS")) {
 +      fprintf(stderr, "DEBUG after vrend_fill_caps_glsl_version: glsl_level=%d\n", caps->v1.glsl_level);
 +      fflush(stderr);
 +   }
-
+ 
     vrend_renderer_fill_caps_v1(gl_ver, gles_ver, caps);
-+
++   
 +   if (getenv("VIRGL_DEBUG_CAPS")) {
 +      fprintf(stderr, "DEBUG after vrend_renderer_fill_caps_v1: glsl_level=%d\n", caps->v1.glsl_level);
 +      fflush(stderr);
 +   }
-
+ 
     if (!fill_capset2)
        return;
-
+ 
     vrend_renderer_fill_caps_v2(gl_ver, gles_ver, caps);
-+
++   
 +   if (getenv("VIRGL_DEBUG_CAPS")) {
 +      fprintf(stderr, "DEBUG after vrend_renderer_fill_caps_v2: glsl_level=%d\n", caps->v1.glsl_level);
 +      fflush(stderr);
 +   }
 +
 +   /* Final caps report */
-+   fprintf(stderr, "[VREND CAPS] FINAL VALUES: glsl_level=%u, max_samples=%u\n",
++   fprintf(stderr, "[VREND CAPS] FINAL VALUES: glsl_level=%u, max_samples=%u\n", 
 +           caps->v1.glsl_level, caps->v1.max_samples);
 +
-
  }
-
+ 
  GLint64 vrend_renderer_get_timestamp(void)
 @@ -13109,6 +13695,35 @@ void vrend_renderer_resource_get_info(struct pipe_resource *pres,
     info->stride = util_format_get_nblocksx(res->base.format, u_minify(res->base.width0, 0)) * elsize;
  }
-
+ 
 +void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres)
 +{
 +   struct vrend_texture *tex = (struct vrend_texture *)pres;
@@ -1388,7 +1387,6 @@ index 4bf88e0..2ef6bf6 100644
 +      }
 +   }
 +}
-
 +
  int
  vrend_renderer_resource_d3d11_texture2d(struct pipe_resource *pres, void **d3d_tex2d)
@@ -1399,7 +1397,7 @@ index 4bf88e0..2ef6bf6 100644
     }
 +
  }
-
+ 
  void vrend_renderer_create_sub_ctx(struct vrend_context *ctx, int sub_ctx_id)
 @@ -13789,3 +14405,8 @@ vrend_renderer_pipe_resource_get_layout(UNUSED struct vrend_context *ctx,
     return EINVAL;
@@ -1417,32 +1415,32 @@ index adb1213..dc7370a 100644
 @@ -564,6 +564,8 @@ struct vrend_blit_info {
  void vrend_renderer_resource_get_info(struct pipe_resource *pres,
                                        struct vrend_renderer_resource_info *info);
-
+ 
 +void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres);
 +
  void vrend_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
                                  uint32_t *max_size);
-
+ 
 @@ -612,6 +614,8 @@ static const struct gl_version gl_versions[] = { {4,6}, {4,5}, {4,4}, {4,3}, {4,
-
+ 
  extern const struct vrend_if_cbs *vrend_clicbs;
-
+ 
 +bool vrend_renderer_video_available(void);
 +
  int vrend_renderer_export_query(struct pipe_resource *pres,
                                  struct virgl_renderer_export_query *export_query);
-
+ 
 diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
 index 6a26fdf..3eca9d8 100644
 --- a/src/vrend/vrend_shader.c
 +++ b/src/vrend/vrend_shader.c
 @@ -6301,10 +6301,26 @@ static void emit_header(const struct dump_ctx *ctx, struct vrend_glsl_strbufs *g
-
+ 
        if (ctx->prog_type == TGSI_PROCESSOR_VERTEX && ctx->cfg->use_explicit_locations)
           emit_ext(glsl_strbufs, "ARB_explicit_attrib_location", "require");
 -      if (ctx->prog_type == TGSI_PROCESSOR_FRAGMENT && fs_emit_layout(ctx))
 -         emit_ext(glsl_strbufs, "ARB_fragment_coord_conventions", "require");
-
+ 
 -      if (ctx->ubo_used_mask)
 +      /* Fragment coord conventions:
 +       * - Core in GLSL 1.50+ (layout qualifier support)
@@ -1460,9 +1458,9 @@ index 6a26fdf..3eca9d8 100644
 +         }
 +         /* For GLSL >= 150, the extension is core - no need to require it */
 +      }
-
++
 +      /* Uniform buffers are core in GLSL 1.40+; only request the ARB extension when targeting older versions. */
 +      if (ctx->ubo_used_mask && ctx->glsl_ver_required < 140)
           emit_ext(glsl_strbufs, "ARB_uniform_buffer_object", "require");
-
+ 
        if (ctx->num_cull_dist_prop || ctx->key->num_in_cull || ctx->key->num_out_cull)
