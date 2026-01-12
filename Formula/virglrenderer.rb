@@ -4,13 +4,14 @@ class Virglrenderer < Formula
   license "MIT"
 
   version "1.0.21"
-  url "https://github.com/startergo/homebrew-virglrenderer/archive/refs/tags/v1.0.21.tar.gz"
-  sha256 "7379d27ac40b75218422e4283d6824726dc8bfe3c943c0ea236d6ec74fa00834"
+  version "1.0.22"
+  url "https://github.com/startergo/homebrew-virglrenderer/archive/52a3b50fcdd0fa267cc7ac40017f3a14e18d8814.tar.gz"
+  sha256 "db02259d2d88b638e61d2e97f47e43e5372ce916831e02468a6ee9bd7897ff02"
   head "https://gitlab.freedesktop.org/virgl/virglrenderer.git", branch: "main"
 
   bottle do
-    root_url "https://github.com/startergo/homebrew-virglrenderer/releases/download/v1.0.21"
-    sha256 arm64_sequoia: "2c0af5b89938eafde78faffae7860a447f30e77d4e020e16af38d8d81f39cb38"
+    root_url "https://github.com/startergo/homebrew-virglrenderer/releases/download/v1.0.22"
+    sha256 arm64_sequoia: "b343d478e8bb1a6f8ebd91e2f19bda66907ce9fcae8ccbeb0261edbb91f9e869"
   end
 
   depends_on "startergo/angle/angle"
