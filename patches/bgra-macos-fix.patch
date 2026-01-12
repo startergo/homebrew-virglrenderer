@@ -8,13 +8,13 @@
 +#ifdef __APPLE__
 +/*
 + * macOS with Metal backend has broken GL_BGRA format as a render target.
-+ * Use GL_RGBA format (which works) with the same swizzle as GLES.
++ * Use GL_RGBA format (which works) with texture swizzle to convert back to BGRA.
 + */
 +static struct vrend_format_table macos_bgra_formats[] = {
-+  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
-+  { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 }
++  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, BGR1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, BGRA_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8X8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, BGR1_SWIZZLE, view_class_32 },
++  { VIRGL_FORMAT_B8G8R8A8_SRGB,  GL_SRGB8_ALPHA8, GL_RGBA,     GL_UNSIGNED_BYTE, BGRA_SWIZZLE, view_class_32 }
 +};
 +#endif
 
