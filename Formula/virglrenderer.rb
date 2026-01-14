@@ -33,7 +33,7 @@ class Virglrenderer < Formula
 
     # Apply macOS patches
     patches = [
-      "virglrenderer-nonvenus.patch",
+      "venus-metal-unified.patch",
     ]
 
     patches.each do |patch|
@@ -56,7 +56,7 @@ class Virglrenderer < Formula
            "-Dcpp_args=-I#{angle_include}",
            "--pkg-config-path=#{combined_pc_path}",
            "-Ddrm-renderers=[]",
-           "-Dvenus=false",
+           "-Dvenus=true",
            "-Dtests=false",
            "-Dvideo=false",
            "-Dtracing=none"
