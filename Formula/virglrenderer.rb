@@ -65,7 +65,7 @@ class Virglrenderer < Formula
            "-Dvenus=true",
            "-Dtests=false",
            "-Dvideo=false",
-           "-Dtracing=debug"
+           "-Dtracing=none"
     system "meson", "compile", "-C", "build", "--verbose"
     system "meson", "install", "-C", "build"
 
