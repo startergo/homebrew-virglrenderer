@@ -3804,8 +3804,8 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
     * transfer operations. So we only register support for it in GL.
     */
    add_formats(gl_base_rgba_formats);
-+  /* macOS: Use GL_RGBA format like GLES (GL_BGRA is broken on Metal backend) */
-+#if defined(__APPLE__)
++  /* Use gl_bgra_formats directly for all platforms */
++#if 0
 +   add_formats(macos_bgra_formats);
 +#else
    add_formats(gl_bgra_formats);
