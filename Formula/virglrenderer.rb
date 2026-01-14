@@ -35,6 +35,7 @@ class Virglrenderer < Formula
     # Apply macOS patches
     patches = [
       "virglrenderer-macos-unified.patch",
+      "virglrenderer-msaa-assertion-fix.patch",
     ]
 
     patches.each do |patch|
@@ -51,8 +52,11 @@ class Virglrenderer < Formula
     epoxy_pc_path = "#{libepoxy.lib}/pkgconfig"
     combined_pc_path = "#{angle_pc_path}:#{epoxy_pc_path}"
 
+    # Override std_meson_args buildtype with debug
+    debug_meson_args = std_meson_args.reject { |arg| arg.include?("--buildtype=") } + ["--buildtype=debug"]
+
     system "meson", "setup", "build",
-           *std_meson_args,
+           *debug_meson_args,
            "-Dc_args=-I#{angle_include}",
            "-Dcpp_args=-I#{angle_include}",
            "--pkg-config-path=#{combined_pc_path}",
