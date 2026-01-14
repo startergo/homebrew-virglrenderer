@@ -1,0 +1,13 @@
+--- a/src/virgl_util.c
++++ b/src/virgl_util.c
+@@ -147,9 +147,9 @@
+    { NULL, 0 },
+ };
+
+ #ifndef NDEBUG
+-static enum virgl_log_level_flags virgl_log_level = VIRGL_LOG_LEVEL_WARNING;
++static enum virgl_log_level_flags virgl_log_level = VIRGL_LOG_LEVEL_DEBUG;
+ #else
+-static enum virgl_log_level_flags virgl_log_level = VIRGL_LOG_LEVEL_ERROR;
++static enum virgl_log_level_flags virgl_log_level = VIRGL_LOG_LEVEL_DEBUG;
+ #endif

@@ -34,6 +34,7 @@ class Virglrenderer < Formula
 
     # Apply macOS patches
     patches = [
+      "virglrenderer-default-debug-log.patch",
       "virglrenderer-macos-unified.patch",
       "virglrenderer-msaa-assertion-fix.patch",
     ]
@@ -64,7 +65,7 @@ class Virglrenderer < Formula
            "-Dvenus=true",
            "-Dtests=false",
            "-Dvideo=false",
-           "-Dtracing=none"
+           "-Dtracing=debug"
     system "meson", "compile", "-C", "build", "--verbose"
     system "meson", "install", "-C", "build"
 
