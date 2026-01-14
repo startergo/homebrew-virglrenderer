@@ -3444,7 +3444,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
        return ret;
  
     info_ext->version = VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION;
-@@ -556,6 +599,24 @@
+@@ -556,6 +599,25 @@
  
     return 0;
  }
@@ -3459,11 +3459,12 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
 +      return EINVAL;
 +   if (!info)
 +      return EINVAL;
-+ 
++
 +   if (!res->pipe_resource)
 +      return 0;
-+ 
-+ 
++
++   vrend_renderer_borrow_texture_for_scanout(res->pipe_resource);
++
 +   return virgl_renderer_resource_get_info_ext(res_handle, info);
 +}
  
