@@ -583,6 +583,7 @@ diff --git a/server/render_state.c b/server/render_state.c
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
++                             void **out_res_ptr,
                               uint32_t *out_map_info,
                               struct virgl_resource_vulkan_info *out_vulkan_info)
  {
@@ -590,7 +591,7 @@ diff --git a/server/render_state.c b/server/render_state.c
     return vkr_renderer_create_resource(ctx_id, res_id, blob_id, blob_size, blob_flags,
 -                                       out_fd_type, out_res_fd, out_map_info,
 -                                       out_vulkan_info);
-+                                       out_fd_type, out_res_fd,
++                                       out_fd_type, out_res_fd, out_res_ptr,
 +                                       out_map_info, out_vulkan_info);
  }
  
@@ -602,6 +603,7 @@ diff --git a/server/render_state.h b/server/render_state.h
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
++                             void **out_res_ptr,
                               uint32_t *out_map_info,
                               struct virgl_resource_vulkan_info *out_vulkan_info);
  
@@ -2302,6 +2304,10 @@ diff --git a/src/venus/vkr_context.c b/src/venus/vkr_context.c
     if (!vkr_device_memory_export_blob(mem, blob_size, blob_flags, &blob))
        return false;
 +
++   if (blob.type == VIRGL_RESOURCE_METAL_HEAP) {
++      *out_blob = blob;
++      return vkr_context_import_resource_metal(ctx, res_id, blob_size, blob.type, blob.u.metal_heap);
++   }
  
     /* If memory might get exported, store a dup'ed fd in vkr_resource for:
      * - vkAllocateMemory for dma_buf import
@@ -3150,6 +3156,7 @@ diff --git a/src/venus/vkr_renderer.c b/src/venus/vkr_renderer.c
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
++                             void **out_res_ptr,
                               uint32_t *out_map_info,
                               struct virgl_resource_vulkan_info *out_vulkan_info)
  {
@@ -3162,7 +3169,11 @@ diff --git a/src/venus/vkr_renderer.c b/src/venus/vkr_renderer.c
  
     *out_fd_type = blob.type;
 -   *out_res_fd = blob.u.fd;
-+   *out_res_fd = blob.u.fd;
++   if (blob.type == VIRGL_RESOURCE_METAL_HEAP) {
++      *out_res_ptr = blob.u.metal_heap;
++   } else {
++      *out_res_fd = blob.u.fd;
++   }
     *out_map_info = blob.map_info;
  
 -   if (blob.type == VIRGL_RESOURCE_FD_OPAQUE) {
@@ -3177,6 +3188,7 @@ diff --git a/src/venus/vkr_renderer.h b/src/venus/vkr_renderer.h
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
++                             void **out_res_ptr,
                               uint32_t *out_map_info,
                               struct virgl_resource_vulkan_info *out_vulkan_info);
  
