@@ -34,6 +34,7 @@ class Virglrenderer < Formula
     # Apply macOS patches
     patches = [
       "venus-metal-unified.patch",
+      "venus-egl-angle-include.patch",
     ]
 
     patches.each do |patch|

@@ -1,0 +1,10 @@
+diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
+index 1111111..2222222 100644
+--- a/src/vrend/vrend_winsys_egl.c
++++ b/src/vrend/vrend_winsys_egl.c
+@@ -27,6 +27,7 @@
+ #include "virglrenderer.h"
+ #include "vrend_winsys.h"
+ #include "vrend_winsys_egl.h"
++#include <EGL/eglext_angle.h>
+ #include "virgl_hw.h"
