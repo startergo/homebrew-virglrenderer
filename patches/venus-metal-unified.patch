@@ -579,31 +579,28 @@ diff -Naur a/server/render_state.c b/server/render_state.c
     .retire_fence = render_state_cb_retire_fence,
  };
  
-@@ -221,13 +225,14 @@
+@@ -221,13 +225,13 @@
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
-+                             void **out_res_ptr,
                               uint32_t *out_map_info,
                               struct virgl_resource_vulkan_info *out_vulkan_info)
  {
     SCOPE_LOCK_RENDERER();
     return vkr_renderer_create_resource(ctx_id, res_id, blob_id, blob_size, blob_flags,
--                                       out_fd_type, out_res_fd, out_map_info,
--                                       out_vulkan_info);
-+                                       out_fd_type, out_res_fd, out_res_ptr,
-+                                       out_map_info, out_vulkan_info);
++                                       out_fd_type, out_res_fd,
+                                        out_map_info,
+                                        out_vulkan_info);
  }
  
  bool
 diff -Naur a/server/render_state.h b/server/render_state.h
 --- a/server/render_state.h	2026-01-01 08:05:29
 +++ b/server/render_state.h	2026-01-11 20:06:14
-@@ -40,6 +40,7 @@
+@@ -40,6 +40,6 @@
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
-+                             void **out_res_ptr,
                               uint32_t *out_map_info,
                               struct virgl_resource_vulkan_info *out_vulkan_info);
  
