@@ -1,0 +1,17 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -4910,8 +4910,13 @@ void vrend_clear_surface(struct vrend_context *ctx, uint32_t surf_handle,
+    surf = vrend_object_lookup(sub_ctx->object_hash, surf_handle,
+                               VIRGL_OBJECT_SURFACE);
+    if (!surf) {
+-      vrend_report_context_error(ctx, VIRGL_ERROR_CTX_ILLEGAL_SURFACE,
+-                                 surf_handle);
++      /* Surface 0 is null - silently ignore clears on it.
++       * Mesa 25+ regression: attempts to clear surface 0 during headless init.
++       * Only report error for non-zero surface handles. */
++      if (surf_handle != 0) {
++         vrend_report_context_error(ctx, VIRGL_ERROR_CTX_ILLEGAL_SURFACE,
++                                    surf_handle);
++      }
+       return;
+    }
