@@ -1,0 +1,12 @@
+--- a/src/proxy/proxy_socket.c
++++ b/src/proxy/proxy_socket.c
+@@ -19,7 +19,8 @@ proxy_socket_pair(int out_fds[static 2])
+ {
+    int ret = socketpair(AF_UNIX, SOCK_SEQPACKET, 0, out_fds);
+    if (ret) {
+-      proxy_log("failed to create socket pair");
++      proxy_log("failed to create socket pair: %s", strerror(errno));
++      proxy_log("errno=%d (AF_UNIX=%d, SOCK_SEQPACKET=%d)", errno, AF_UNIX, SOCK_SEQPACKET);
+       return false;
+    }
+
