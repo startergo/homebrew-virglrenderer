@@ -162,8 +162,22 @@ jobs:
           # Wait a moment for GitHub to update the tarball
           sleep 5
 
-          # Download the updated tarball and calculate its sha256
-          TARBALL_URL="https://github.com/startergo/homebrew-virglrenderer/archive/refs/tags/v${VERSION}.tar.gz"
+          # Download the tarball that the formula URL points to and calculate its sha256
+          # Extract the current URL from the formula to determine which tarball to checksum
+          CURRENT_URL=$(grep '^  url "' Formula/virglrenderer.rb | sed -E 's/.*url "([^"]+)".*/\1/')
+          echo "Current formula URL: $CURRENT_URL"
+
+          # If formula uses commit URL, download that commit's tarball
+          if [[ "$CURRENT_URL" =~ archive/([a-f0-9]+)\.tar\.gz ]]; then
+            COMMIT=$(echo "$CURRENT_URL" | sed -E 's/.*archive\/([a-f0-9]+)\.tar\.gz.*/\1/')
+            TARBALL_URL="https://github.com/startergo/homebrew-virglrenderer/archive/${COMMIT}.tar.gz"
+            echo "Formula uses commit URL, downloading commit tarball"
+          else
+            # Formula uses tag URL, download tag tarball
+            TARBALL_URL="https://github.com/startergo/homebrew-virglrenderer/archive/refs/tags/v${VERSION}.tar.gz"
+            echo "Formula uses tag URL, downloading tag tarball"
+          fi
+
           echo "Downloading tarball from: $TARBALL_URL"
           curl -L -o "virglrenderer-${VERSION}.tar.gz" "$TARBALL_URL"
 
