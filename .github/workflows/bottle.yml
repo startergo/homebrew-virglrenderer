@@ -136,6 +136,18 @@ jobs:
           # Extract version from formula URL (not the calculated next version)
           VERSION=$(grep 'url.*archive/refs/tags/v' Formula/virglrenderer.rb 2>/dev/null | sed -E 's/.*v([0-9.]+)\.tar\.gz.*/\1/')
 
+          # Validate version before creating tag
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Cannot create tag - version is empty!"
+            echo "This could indicate a problem with the formula URL parsing."
+            exit 1
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Cannot create tag - invalid version format: $VERSION"
+            exit 1
+          fi
+          echo "Validated version: $VERSION"
+
           # Force update the existing tag to point to current HEAD
           # This updates the tarball at refs/tags/v$VERSION to contain latest code
           git tag -f "v$VERSION" HEAD
@@ -381,15 +393,21 @@ jobs:
         run: |
           VERSION="${{ needs.determine-version.outputs.version }}"
 
-          # Validate version before creating release
+          # CRITICAL: Validate version before creating release/tag
+          # This is the final check to prevent creating empty "v" tags
           if [ -z "$VERSION" ]; then
-            echo "ERROR: Version is empty, cannot create release!"
+            echo "ERROR: CRITICAL - Cannot create release - version is empty!"
+            echo "This would create an empty 'v' tag. Aborting to prevent tag pollution."
             exit 1
           fi
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "ERROR: Invalid version format: $VERSION, cannot create release!"
+            echo "ERROR: CRITICAL - Cannot create release - invalid version format: '$VERSION'"
+            echo "Expected format: X.Y.Z (e.g., 1.0.34)"
+            echo "This would create a malformed tag. Aborting to prevent tag pollution."
             exit 1
           fi
+          echo "✓ Version validated: v$VERSION"
+          echo "Proceeding with release creation..."
 
           gh release create "v$VERSION" \
             --title "virglrenderer v$VERSION" \
