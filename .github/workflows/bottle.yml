@@ -133,8 +133,13 @@ jobs:
       - name: Update tag and calculate new sha256
         if: steps.check.outputs.should_run == 'true'
         run: |
-          # Extract version from formula URL (not the calculated next version)
+          # Extract version from formula URL or version line (fallback)
           VERSION=$(grep 'url.*archive/refs/tags/v' Formula/virglrenderer.rb 2>/dev/null | sed -E 's/.*v([0-9.]+)\.tar\.gz.*/\1/')
+          # Fallback: extract from version line if URL uses commit hash
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep '^  version "' Formula/virglrenderer.rb | sed -E 's/.*version "([0-9.]+)".*/\1/')
+            echo "Extracted version from version line (URL uses commit hash)"
+          fi
 
           # Validate version before creating tag
           if [ -z "$VERSION" ]; then
