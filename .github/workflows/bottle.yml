@@ -247,7 +247,7 @@ jobs:
           # This ensures version and URL are in sync for correct bottle filename
           awk -v new_version="$VERSION" -v commit="$COMMIT" '
             BEGIN { inserted = 0 }
-            /^  url "https:\/\/github.com\/startergo\/homebrew-virglrenderer\/archive\/refs\/tags\// {
+            /^  url "https:\/\/github.com\/startergo\/homebrew-virglrenderer\/archive\// {
               if (!inserted) {
                 print "  version \"" new_version "\""
                 inserted = 1
