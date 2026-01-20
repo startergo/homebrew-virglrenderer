@@ -203,8 +203,13 @@ jobs:
 
           # Commit and push formula
           git add Formula/virglrenderer.rb
-          git commit -m "Update $VERSION source tarball sha256 to $NEW_SHA256"
-          git push origin master
+          # Only commit if there are changes (sha256 might already be correct)
+          if git diff --cached --quiet; then
+            echo "No changes to commit (sha256 was already correct)"
+          else
+            git commit -m "Update $VERSION source tarball sha256 to $NEW_SHA256"
+            git push origin master
+          fi
 
   build-and-publish-bottles:
     needs: [determine-version, update-source-tarball]
