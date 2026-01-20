@@ -71,6 +71,16 @@ jobs:
             fi
           fi
 
+          # Validate version is not empty and follows expected format
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Version is empty!"
+            exit 1
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Invalid version format: $VERSION"
+            exit 1
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
 
@@ -312,6 +322,17 @@ jobs:
             fi
           done
 
+      - name: Verify bottle was built successfully
+        run: |
+          # Check if bottle tarball exists
+          if ! ls virglrenderer-*.tar.gz 2>/dev/null | grep -q .; then
+            echo "ERROR: No bottle tarball found! Build may have failed."
+            echo "Cannot proceed with creating release."
+            exit 1
+          fi
+          echo "Bottle tarball(s) found:"
+          ls -la virglrenderer-*.tar.gz
+
       - name: Configure git credentials
         run: |
           git config --global url.https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/.insteadOf https://github.com/
@@ -354,10 +375,21 @@ jobs:
           git push origin master
 
       - name: Create GitHub Release
+        if: success() # Only run if all previous steps in this job succeeded
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.determine-version.outputs.version }}"
+
+          # Validate version before creating release
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Version is empty, cannot create release!"
+            exit 1
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Invalid version format: $VERSION, cannot create release!"
+            exit 1
+          fi
 
           gh release create "v$VERSION" \
             --title "virglrenderer v$VERSION" \
@@ -374,6 +406,7 @@ jobs:
           done
 
       - name: Update formula with tag tarball sha256
+        if: success() # Only run if all previous steps succeeded
         run: |
           VERSION="${{ needs.determine-version.outputs.version }}"
           TARBALL_URL="https://github.com/startergo/homebrew-virglrenderer/archive/refs/tags/v${VERSION}.tar.gz"
