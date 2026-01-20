@@ -5,7 +5,7 @@ class Virglrenderer < Formula
 
   version "1.0.34"
   url "https://github.com/startergo/homebrew-virglrenderer/archive/6c652749f94e91bb16f2499138799c5010071c11.tar.gz"
-  sha256 "920993a7e996c289ef2db4cbd7884bfcdb0d0275469c3e3ddff00d01e4a9d9a1"
+  sha256 "f40e7e4819f0bca3b42bf840113fa21e7d522bcabca111854217de26cf14163f"
   head "https://gitlab.freedesktop.org/virgl/virglrenderer.git", branch: "main"
 
   bottle do
