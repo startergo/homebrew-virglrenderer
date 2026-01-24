@@ -1,0 +1,18 @@
+diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
+index 000000000..000000000 100644
+--- a/src/vrend/vrend_winsys_egl.c
++++ b/src/vrend/vrend_winsys_egl.c
+@@ -627,9 +627,12 @@ virgl_renderer_gl_context virgl_egl_create_context(struct virgl_egl *egl, struct
+       EGL_NONE
+    };
+
+    if (vparams->compat_ctx) {
+       ctx_att[4] = EGL_CONTEXT_OPENGL_PROFILE_MASK;
+       ctx_att[5] = EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT;
++   } else {
++      ctx_att[4] = EGL_CONTEXT_OPENGL_PROFILE_MASK;
++      ctx_att[5] = EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT;
+    }
+
+    egl_ctx = eglCreateContext(egl->egl_display,
+                              egl->egl_conf,

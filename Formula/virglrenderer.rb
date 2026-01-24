@@ -37,7 +37,8 @@ class Virglrenderer < Formula
       "virglrenderer-macos-unified.patch",
       "virglrenderer-msaa-assertion-fix.patch",
       "virglrenderer-ignore-surface0-clear.patch",
-      "virglrenderer-venus-errno-debug.patch"
+      "virglrenderer-venus-errno-debug.patch",
+      "virglrenderer-egl-core-profile.patch"
     ]
 
     patches.each do |patch|
