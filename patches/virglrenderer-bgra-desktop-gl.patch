@@ -2,11 +2,52 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 index 000000000..000000000 100644
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -9861,7 +9861,8 @@ vrend_renderer_transfer_get_iov(struct vrend_renderer *vrend_ctx,
+@@ -4874,7 +4874,8 @@ vrend_clear_texture_internal(struct vrend_context *ctx,
+    /* 32-bit BGRA resources are always reordered to RGBA ordering before
+     * submission to the host driver. Reorder red/blue color bytes in
+     * the clear color to match. */
+-   if (vrend_state.use_gles && vrend_format_is_bgra(fmt)) {
++   if (vrend_format_is_bgra(fmt)) {
++      /* BGRA swizzling needed for both GLES and Desktop GL Core Profile */
+       assert(util_format_get_blocksizebits(fmt) >= 24);
+       VREND_DEBUG(dbg_bgra, ctx, "swizzling clear_texture color for bgra texture\n");
+       uint8_t temp = ((uint8_t*)data)[0];
+@@ -9342,7 +9343,8 @@ vrend_renderer_transfer_get_iov(struct vrend_renderer *vrend_ctx,
+       if (num_iovs > 1 || compressed) {
+          need_temp = true;
+       }
+
+-      if (vrend_state.use_gles && vrend_format_is_bgra(res->base.format))
++      if (vrend_format_is_bgra(res->base.format))
++         /* BGRA swizzling needed for both GLES and Desktop GL Core Profile */
+          need_temp = true;
+
+       if (vrend_state.use_core_profile == true &&
+@@ -9790,7 +9792,8 @@ vrend_renderer_transfer_get_iov(struct vrend_renderer *vrend_ctx,
+    if (num_iovs > 1 || separate_invert)
+       need_temp = 1;
+
+-   if (vrend_state.use_gles && vrend_format_is_bgra(res->base.format))
++   if (vrend_format_is_bgra(res->base.format))
++      /* BGRA swizzling needed for both GLES and Desktop GL Core Profile */
+       need_temp = true;
+
+    if (need_temp) {
+@@ -9861,7 +9864,8 @@ vrend_renderer_transfer_get_iov(struct vrend_renderer *vrend_ctx,
      * byte-ordering is used instead to match external access patterns.  */
 -   if (vrend_state.use_gles && vrend_format_is_bgra(res->base.format)) {
 +   if (vrend_format_is_bgra(res->base.format)) {
-+      /* BGRA swizzling is needed for both GLES and Desktop GL Core Profile */
++      /* BGRA swizzling needed for both GLES and Desktop GL Core Profile */
        VREND_DEBUG(dbg_bgra, ctx, "manually swizzling rgba->bgra on readback since gles+bgra\n");
        vrend_swizzle_data_bgra(send_size, data);
     }
+@@ -10485,7 +10489,8 @@ vrend_renderer_transfer_write_iov(struct vrend_renderer *vrend_ctx,
+       * On the contrary, externally-stored BGR* resources are assumed to remain in BGR* format at
+       * all times.
+       */
+-      if (vrend_state.use_gles && vrend_format_is_bgra(dst_res->base.format))
++      if (vrend_format_is_bgra(dst_res->base.format))
++         /* BGRA swizzling needed for both GLES and Desktop GL Core Profile */
+          vrend_swizzle_data_bgra(total_size, tptr);
+   } else {
+       uint32_t read_chunk_size;
