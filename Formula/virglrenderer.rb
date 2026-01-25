@@ -38,7 +38,8 @@ class Virglrenderer < Formula
       "virglrenderer-msaa-assertion-fix.patch",
       "virglrenderer-ignore-surface0-clear.patch",
       "virglrenderer-venus-errno-debug.patch",
-      "virglrenderer-egl-core-profile.patch"
+      "virglrenderer-egl-core-profile.patch",
+      "virglrenderer-bgra-desktop-gl.patch"
     ]
 
     patches.each do |patch|

@@ -1,0 +1,12 @@
+diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+index 000000000..000000000 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -9861,7 +9861,8 @@ vrend_renderer_transfer_get_iov(struct vrend_renderer *vrend_ctx,
+     * byte-ordering is used instead to match external access patterns.  */
+-   if (vrend_state.use_gles && vrend_format_is_bgra(res->base.format)) {
++   if (vrend_format_is_bgra(res->base.format)) {
++      /* BGRA swizzling is needed for both GLES and Desktop GL Core Profile */
+       VREND_DEBUG(dbg_bgra, ctx, "manually swizzling rgba->bgra on readback since gles+bgra\n");
+       vrend_swizzle_data_bgra(send_size, data);
+    }
