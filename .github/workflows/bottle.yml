@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout tap
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags for git describe
 
       - id: virglrenderer_commit
         run: |
@@ -106,6 +108,8 @@ jobs:
     steps:
       - name: Checkout tap
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags for git log checks
 
       - name: Check if we should run
         id: check
@@ -231,6 +235,8 @@ jobs:
 
       - name: Checkout tap
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags
 
       - name: Show formula state before update
         run: |
