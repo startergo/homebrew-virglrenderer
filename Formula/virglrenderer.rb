@@ -39,7 +39,8 @@ class Virglrenderer < Formula
       "virglrenderer-ignore-surface0-clear.patch",
       "virglrenderer-venus-errno-debug.patch",
       "virglrenderer-egl-core-profile.patch",
-      "virglrenderer-bgra-desktop-gl.patch"
+      "virglrenderer-bgra-desktop-gl.patch",
+      "virglrenderer-core-profile-bgra.patch"
     ]
 
     patches.each do |patch|

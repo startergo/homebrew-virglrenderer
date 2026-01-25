@@ -1,0 +1,11 @@
+--- virgl-upstream/src/vrend/vrend_renderer.c	2026-01-25 18:51:40
++++ virgl-patched/src/vrend/vrend_renderer.c	2026-01-25 18:51:40
+@@ -7700,7 +7700,7 @@
+ 
+    vrend_build_format_list_common();
+ 
+-   if (vrend_state.use_gles) {
++   if (vrend_state.use_gles || vrend_state.use_core_profile) {
+       vrend_build_format_list_gles();
+    } else {
+       vrend_build_format_list_gl();
