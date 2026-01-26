@@ -1,7 +1,6 @@
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -7700,6 +7700,24 @@
-    vrend_build_format_list_common();
+@@ -7815,6 +7815,23 @@
 
     if (vrend_state.use_gles || vrend_state.use_core_profile) {
        vrend_build_format_list_gles();
