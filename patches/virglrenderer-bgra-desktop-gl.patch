@@ -1,5 +1,5 @@
 --- virgl-upstream/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
-+++ virgl-patched/src/vrend/vrend_renderer.c	2026-01-25 18:14:12
++++ virgl-patched/src/vrend/vrend_renderer.c	2026-01-25 19:07:51
 @@ -4874,7 +4874,7 @@
     /* 32-bit BGRA resources are always reordered to RGBA ordering before
      * submission to the host driver. Reorder red/blue color bytes in
@@ -18,6 +18,15 @@
           need_temp = true;
  
        if (vrend_state.use_core_profile == true &&
+@@ -9453,7 +9453,7 @@
+ 
+          /* GLES doesn't allow format conversions, which we need for BGRA resources with RGBA
+           * internal format. So we fallback to performing a CPU swizzle before uploading. */
+-         if (vrend_state.use_gles) {
++         if (vrend_state.use_gles || vrend_state.use_core_profile) {
+             if (vrend_resource_get_internal_format_override(res) != GL_NONE) {
+                glformat = GL_RGB;
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 @@ -9787,7 +9787,7 @@
     if (num_iovs > 1 || separate_invert)
        need_temp = 1;
