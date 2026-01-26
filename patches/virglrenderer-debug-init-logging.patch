@@ -1,0 +1,15 @@
+--- a/src/vrend/vrend_debug.c
++++ b/src/vrend/vrend_debug.c
+@@ -194,10 +194,12 @@ vrend_get_debug_flags(const char *flagstring)
+ void vrend_init_debug_flags(void)
+ {
+    if (!vrend_debug_flags_initalized)  {
+       vrend_debug_flags_initalized = 1;
+       vrend_debug_flags = debug_get_flags_option("VREND_DEBUG",
+                                                  vrend_debug_options, 0);
++      /* Debug: log what flags were actually parsed */
++      virgl_log("[VREND DEBUG] Parsed VREND_DEBUG env as flags: 0x%x\n", vrend_debug_flags);
+       if (vrend_debug_flags)
+          virgl_override_log_level(VIRGL_LOG_LEVEL_DEBUG);
+    }
+ }

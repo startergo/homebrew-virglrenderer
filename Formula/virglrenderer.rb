@@ -33,6 +33,7 @@ class Virglrenderer < Formula
 
     # Apply macOS patches
     patches = [
+      "virglrenderer-debug-init-logging.patch",
       "virglrenderer-default-debug-log.patch",
       "virglrenderer-macos-unified.patch",
       "virglrenderer-msaa-assertion-fix.patch",
