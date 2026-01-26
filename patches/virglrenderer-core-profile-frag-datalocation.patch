@@ -1,0 +1,20 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -1966,7 +1966,7 @@
+          } else {
+             vrend_report_context_error(sub_ctx->parent, VIRGL_ERROR_CTX_ILLEGAL_DUAL_SRC_BLEND, 0);
+          }
+-      } else if (!vrend_state.use_gles && has_feature(feat_dual_src_blend)) {
++      } else if ((!vrend_state.use_gles || vrend_state.use_core_profile) && has_feature(feat_dual_src_blend)) {
+          /* On GLES without dual source blending we emit the layout directly in the shader
+           * so there is no need to define the binding here */
+          for (int i = 0; i < shader->sel->sinfo.num_outputs; ++i) {
+@@ -2109,7 +2109,7 @@
+          } else {
+             vrend_report_context_error(sub_ctx->parent, VIRGL_ERROR_CTX_ILLEGAL_DUAL_SRC_BLEND, 0);
+          }
+-      } else if (!vrend_state.use_gles && has_feature(feat_dual_src_blend)) {
++      } else if ((!vrend_state.use_gles || vrend_state.use_core_profile) && has_feature(feat_dual_src_blend)) {
+          /* On GLES without dual source blending we emit the layout directly in the shader
+           * so there is no need to define the binding here */
+          for (int i = 0; i < fs->sel->sinfo.num_outputs; ++i) {
