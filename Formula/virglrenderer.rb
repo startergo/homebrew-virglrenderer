@@ -40,7 +40,8 @@ class Virglrenderer < Formula
       "virglrenderer-venus-errno-debug.patch",
       "virglrenderer-egl-core-profile.patch",
       "virglrenderer-bgra-desktop-gl.patch",
-      "virglrenderer-core-profile-bgra.patch"
+      "virglrenderer-core-profile-bgra.patch",
+      "virglrenderer-core-profile-compat.patch"
     ]
 
     patches.each do |patch|
