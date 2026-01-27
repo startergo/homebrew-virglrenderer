@@ -8,7 +8,7 @@
        vrend_debug_flags = debug_get_flags_option("VREND_DEBUG",
                                                   vrend_debug_options, 0);
 +      /* Debug: log what flags were actually parsed */
-+      virgl_debug("[VREND DEBUG] Parsed VREND_DEBUG env as flags: 0x%x\n", vrend_debug_flags);
++      virgl_debug("[VREND DEBUG] Parsed VREND_DEBUG env as flags: 0x%llx\n", (unsigned long long)vrend_debug_flags);
        if (vrend_debug_flags)
           virgl_override_log_level(VIRGL_LOG_LEVEL_DEBUG);
     }

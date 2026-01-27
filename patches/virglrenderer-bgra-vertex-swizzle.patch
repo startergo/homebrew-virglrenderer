@@ -10,10 +10,18 @@
  };
  
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
-
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -3519,8 +3519,53 @@
+@@ -887,6 +887,8 @@
+ static void vrend_update_viewport_state(struct vrend_sub_context *sub_ctx);
+ static void vrend_update_scissor_state(struct vrend_sub_context *sub_ctx);
+ static void vrend_destroy_query_object(void *obj_ptr);
++static void vrend_swizzle_data_bgra(uint64_t size, void *data);
++
+ static void vrend_finish_context_switch(struct vrend_context *ctx);
+ static void vrend_patch_blend_state(struct vrend_sub_context *sub_ctx);
+ static void vrend_update_frontface_state(struct vrend_sub_context *ctx);
+@@ -3519,8 +3521,53 @@
        if (v->id == 0) {
        glGenVertexArrays(1, &v->id);
        glBindVertexArray(v->id);
@@ -38,10 +46,10 @@
 +            continue;
 +
 +         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[ve->base.vertex_buffer_index];
-+         if (!vbo->base.buffer || vbo->base.buffer_offset == 0)
++         if (!vbo->base.buffer)
 +            continue;
 +
-+         res = vrend_renderer_ctx_res_lookup(ctx, vbo->base.buffer);
++         res = (struct vrend_resource *)vbo->base.buffer;
 +         if (!res || res->base.target != PIPE_BUFFER)
 +            continue;
 +
@@ -51,12 +59,12 @@
 +
 +         /* Map, swizzle BGRA->RGBA, and unmap the buffer */
 +         glBindBuffer(GL_ARRAY_BUFFER, res->gl_id);
-+         void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width, GL_MAP_WRITE_BIT | GL_MAP_READ_BIT);
++         void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width0, GL_MAP_WRITE_BIT | GL_MAP_READ_BIT);
 +         if (data) {
-+            vrend_swizzle_data_bgra(res->base.width, data);
++            vrend_swizzle_data_bgra(res->base.width0, data);
 +            glUnmapBuffer(GL_ARRAY_BUFFER);
 +            res->bgra_swizzled = true;
-+            fprintf(stderr, "VREND: Swizzled BGRA vertex buffer %u (size=%lu)\n", vbo->base.buffer, res->base.width);
++            virgl_debug("Swizzled BGRA vertex buffer (res_id=%u, size=%u)\n", vbo->res_id, res->base.width0);
 +         }
 +         glBindBuffer(GL_ARRAY_BUFFER, 0);
 +      }
