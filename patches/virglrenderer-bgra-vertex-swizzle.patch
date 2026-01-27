@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 --- a/src/vrend/vrend_renderer.h
 +++ b/src/vrend/vrend_renderer.h
 @@ -121,6 +121,9 @@
@@ -25,6 +26,14 @@
        if (v->id == 0) {
        glGenVertexArrays(1, &v->id);
        glBindVertexArray(v->id);
+=======
+--- virglrenderer-main/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
++++ virglrenderer-mod/src/vrend/vrend_renderer.c	2026-01-27 17:56:58
+@@ -3419,7 +3419,18 @@
+ 
+       if (desc->nr_channels == 4 && desc->swizzle[0] == PIPE_SWIZZLE_Z)
+          v->zyxw_bitmask |= 1 << i;
+>>>>>>> Stashed changes
 +
 +   /* On macOS Core Profile, GL_BGRA vertex format is not available.
 +    * When zyxw_bitmask indicates BGRA data, we need to swizzle the buffer
@@ -68,6 +77,7 @@
 +         }
 +         glBindBuffer(GL_ARRAY_BUFFER, 0);
 +      }
+<<<<<<< Updated upstream
 +   }
 +
 +      for (uint32_t i = 0; i < v->count; i++) {
@@ -75,3 +85,31 @@
           GLint size = (!vrend_state.use_gles && !vrend_state.use_core_profile) && (v->zyxw_bitmask & (1 << i)) ? GL_BGRA : ve->nr_chan;
  
           if (util_format_is_pure_integer(ve->base.src_format)) {
+=======
+    }
++   }
+ 
+    ret_handle = vrend_renderer_object_insert(ctx, v, handle,
+                                              VIRGL_OBJECT_VERTEX_ELEMENTS);
+@@ -9302,6 +9313,20 @@
+       if (!info->synchronized)
+          map_flags |= GL_MAP_UNSYNCHRONIZED_BIT;
+ 
++
++   /* In Core Profile, swizzle BGRA vertex buffer data to RGBA during upload */
++   if (vrend_state.use_core_profile && res->is_bgra_vertex_buffer) {
++      void *swizzle_data;
++      glBindBufferARB(res->target, res->gl_id);
++      swizzle_data = glMapBufferRange(res->target, info->box->x, info->box->width,
++                                     map_flags | GL_MAP_READ_BIT);
++      if (swizzle_data) {
++         vrend_swizzle_data_bgra(info->box->width, swizzle_data);
++         glUnmapBuffer(res->target);
++         virgl_debug("Swizzled BGRA vertex buffer data (size=%u)\n", info->box->width);
++      }
++      glBindBufferARB(res->target, 0);
++   }
+       glBindBufferARB(res->target, res->gl_id);
+       data = glMapBufferRange(res->target, info->box->x, info->box->width, map_flags);
+       if (data == NULL) {
+>>>>>>> Stashed changes
