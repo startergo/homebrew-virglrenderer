@@ -10,6 +10,7 @@
  };
  
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
+
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
 @@ -3458,10 +3458,55 @@
