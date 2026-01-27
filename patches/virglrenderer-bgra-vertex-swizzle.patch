@@ -1,6 +1,6 @@
 --- a/src/vrend/vrend_renderer.h
 +++ b/src/vrend/vrend_renderer.h
-@@ -115,6 +115,9 @@
+@@ -121,6 +121,9 @@
     uint32_t blob_id;
     struct list_head head;
     bool is_imported;
@@ -13,8 +13,8 @@
 
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -3458,10 +3458,55 @@
-    if (has_feature(feat_gles31_vertex_attrib_binding) && v->id == 0) {
+@@ -3519,8 +3519,53 @@
+       if (v->id == 0) {
        glGenVertexArrays(1, &v->id);
        glBindVertexArray(v->id);
 +
@@ -27,14 +27,12 @@
 +    * to avoid having to track during upload. */
 +   if (vrend_state.use_core_profile && v->zyxw_bitmask) {
        for (uint32_t i = 0; i < v->count; i++) {
--         struct vrend_vertex_element *ve = &v->elements[i];
--         GLint size = !vrend_state.use_gles && (v->zyxw_bitmask & (1 << i)) ? GL_BGRA : ve->nr_chan;
 +         if (!(v->zyxw_bitmask & (1 << i)))
 +            continue;
 +
-+         struct vrend_vertex_element *ve = &v->elements[i];
+          struct vrend_vertex_element *ve = &v->elements[i];
 +         struct vrend_resource *res;
- 
++
 +         /* Find the resource bound to this vertex buffer */
 +         if (ve->base.vertex_buffer_index >= ARRAY_SIZE(ctx->sub->vbo))
 +            continue;
@@ -66,17 +64,6 @@
 +
 +      for (uint32_t i = 0; i < v->count; i++) {
 +         struct vrend_vertex_element *ve = &v->elements[i];
-+         GLint size = (!vrend_state.use_gles && !vrend_state.use_core_profile) && (v->zyxw_bitmask & (1 << i)) ? GL_BGRA : ve->nr_chan;
-+
-          if (util_format_is_pure_integer(ve->base.src_format)) {
-             UPDATE_INT_SIGN_MASK(ve->base.src_format, i,
-                                  v->signed_int_bitmask,
-@@ -5148,7 +5193,7 @@
-          glUnmapBuffer(GL_ARRAY_BUFFER);
-          disable_bitmask |= (1 << loc);
-       } else {
--         GLint size = !vrend_state.use_gles && (va->zyxw_bitmask & (1 << i)) ? GL_BGRA : ve->nr_chan;
-+         GLint size = (!vrend_state.use_gles && !vrend_state.use_core_profile) && (va->zyxw_bitmask & (1 << i)) ? GL_BGRA : ve->nr_chan;
+          GLint size = (!vrend_state.use_gles && !vrend_state.use_core_profile) && (v->zyxw_bitmask & (1 << i)) ? GL_BGRA : ve->nr_chan;
  
-          enable_bitmask |= (1 << loc);
           if (util_format_is_pure_integer(ve->base.src_format)) {
