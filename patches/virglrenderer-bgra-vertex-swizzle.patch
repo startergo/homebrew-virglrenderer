@@ -1,61 +1,64 @@
---- a/src/vrend/vrend_renderer.c
-+++ b/src/vrend/vrend_renderer.c
-@@ -890,6 +890,7 @@
+--- a/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
++++ b/src/vrend/vrend_renderer.c	2026-01-27 22:03:27
+@@ -889,6 +889,8 @@
+                                       struct vrend_sampler_view *tview);
  static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
                                                   uint32_t handle);
- static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
-+static void vrend_swizzle_data_bgra(uint64_t size, void *data);
-
- void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx,
- 
-@@ -3419,6 +3419,45 @@
- 
-       if (desc->nr_channels == 4 && desc->swizzle[0] == PIPE_SWIZZLE_Z)
-          v->zyxw_bitmask |= 1 << i;
 +
-+      /* In Core Profile, GL_BGRA vertex format is not supported.
-+       * When zyxw_bitmask indicates BGRA data (swizzle[0] == Z), we need to
-+       * swizzle the buffer data from BGRA to RGBA immediately.
-+       * This must happen when vertex elements are bound, after the buffer
-+       * data has been uploaded, so we need to map and swizzle now. */
-+      if (vrend_state.use_core_profile && (v->zyxw_bitmask & (1 << i))) {
-+         virgl_debug("[BGRA SWIZZLE] Element %u has BGRA swizzle, checking vertex buffer\n", i);
-+         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[elements[i].vertex_buffer_index];
-+         if (vbo && vbo->base.buffer) {
-+            virgl_debug("[BGRA SWIZZLE] VBO found, checking resource\n");
-+            struct vrend_resource *res = (struct vrend_resource *)vbo->base.buffer;
-+            /* Only swizzle PIPE_BUFFER resources that haven't been swizzled yet */
-+            if (res && res->base.target == PIPE_BUFFER && !res->bgra_swizzled) {
-+               virgl_debug("[BGRA SWIZZLE] PIPE_BUFFER found, mapping and swizzling (size=%u)\n", res->base.width0);
-+               /* Map, swizzle BGRA->RGBA, and unmap the buffer */
-+               glBindBuffer(GL_ARRAY_BUFFER, res->gl_id);
-+               void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width0,
-+                                              GL_MAP_WRITE_BIT | GL_MAP_READ_BIT);
-+               if (data) {
-+                  vrend_swizzle_data_bgra(res->base.width0, data);
-+                  glUnmapBuffer(GL_ARRAY_BUFFER);
-+                  res->bgra_swizzled = true;
-+                  virgl_debug("[BGRA SWIZZLE] Successfully swizzled BGRA vertex buffer (size=%u)\n", res->base.width0);
-+               } else {
-+                  virgl_error("[BGRA SWIZZLE] Failed to map vertex buffer for BGRA swizzling\n");
-+               }
-+               glBindBuffer(GL_ARRAY_BUFFER, 0);
-+            } else {
-+               virgl_debug("[BGRA SWIZZLE] Skipped: res=%p target=%u swizzled=%d\n",
-+                          res, res ? res->base.target : 0, res ? res->bgra_swizzled : -1);
-+            }
-+         } else {
-+            virgl_debug("[BGRA SWIZZLE] Skipped: vbo=%p buffer=%p\n", vbo, vbo ? vbo->base.buffer : NULL);
-+         }
-+      } else {
-+         virgl_debug("[BGRA SWIZZLE] Skipped: core_profile=%d zyxw_bitmask=0x%x (1<<i)=0x%x\n",
-+                    vrend_state.use_core_profile, v->zyxw_bitmask, 1 << i);
-+      }
++static void vrend_swizzle_data_bgra(uint64_t size, void *data);
+ static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
+ 
+ void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx);
+@@ -3454,7 +3456,47 @@
+       vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
+       return;
     }
-
-    ret_handle = vrend_renderer_object_insert(ctx, v, handle,
---- a/src/vrend/vrend_renderer.h
-+++ b/src/vrend/vrend_renderer.h
++
++
++   /* In Core Profile, GL_BGRA vertex format is not supported.
++    * We need to swizzle vertex buffer data from BGRA to RGBA when zyxw_bitmask is set. */
++   if (vrend_state.use_core_profile && v->zyxw_bitmask) {
++      virgl_debug("[BGRA SWIZZLE] Binding vertex elements with zyxw_bitmask=0x%x, swizzling buffers\n", v->zyxw_bitmask);
++      for (uint32_t i = 0; i < v->count; i++) {
++         if (!(v->zyxw_bitmask & (1 << i)))
++            continue;
++
++         struct vrend_vertex_element *ve = &v->elements[i];
++         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[ve->base.vertex_buffer_index];
++         if (!vbo || !vbo->base.buffer) {
++            virgl_debug("[BGRA SWIZZLE] Element %u: no VBO/buffer\n", i);
++            continue;
++         }
++
++         struct vrend_resource *res = (struct vrend_resource *)vbo->base.buffer;
++         if (!res || res->base.target != PIPE_BUFFER || res->bgra_swizzled) {
++            if (res && res->bgra_swizzled)
++               virgl_debug("[BGRA SWIZZLE] Element %u: already swizzled\n", i);
++            else if (!res)
++               virgl_debug("[BGRA SWIZZLE] Element %u: no resource or not PIPE_BUFFER\n", i);
++            continue;
++         }
+ 
++         virgl_debug("[BGRA SWIZZLE] Element %u: mapping and swizzling (size=%u)\n", i, res->base.width0);
++         glBindBuffer(GL_ARRAY_BUFFER, res->gl_id);
++         void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width0,
++                                        GL_MAP_WRITE_BIT | GL_MAP_READ_BIT);
++         if (data) {
++            vrend_swizzle_data_bgra(res->base.width0, data);
++            glUnmapBuffer(GL_ARRAY_BUFFER);
++            res->bgra_swizzled = true;
++            virgl_debug("[BGRA SWIZZLE] Element %u: successfully swizzled\n", i);
++         } else {
++            virgl_error("[BGRA SWIZZLE] Element %u: failed to map buffer\n", i);
++         }
++         glBindBuffer(GL_ARRAY_BUFFER, 0);
++      }
++   }
+    if (has_feature(feat_gles31_vertex_attrib_binding) && v->id == 0) {
+       glGenVertexArrays(1, &v->id);
+       glBindVertexArray(v->id);
+--- a/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
++++ b/src/vrend/vrend_renderer.h	2026-01-27 22:03:56
 @@ -115,6 +115,9 @@
     uint32_t blob_id;
     struct list_head head;
@@ -64,5 +67,5 @@
 +   /* Track if this vertex buffer has been swizzled from BGRA to RGBA */
 +   bool bgra_swizzled;
  };
-
+ 
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
