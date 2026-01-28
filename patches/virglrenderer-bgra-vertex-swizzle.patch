@@ -19,11 +19,14 @@
 +       * This must happen when vertex elements are bound, after the buffer
 +       * data has been uploaded, so we need to map and swizzle now. */
 +      if (vrend_state.use_core_profile && (v->zyxw_bitmask & (1 << i))) {
++         virgl_debug("[BGRA SWIZZLE] Element %u has BGRA swizzle, checking vertex buffer\n", i);
 +         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[elements[i].vertex_buffer_index];
 +         if (vbo && vbo->base.buffer) {
++            virgl_debug("[BGRA SWIZZLE] VBO found, checking resource\n");
 +            struct vrend_resource *res = (struct vrend_resource *)vbo->base.buffer;
 +            /* Only swizzle PIPE_BUFFER resources that haven't been swizzled yet */
 +            if (res && res->base.target == PIPE_BUFFER && !res->bgra_swizzled) {
++               virgl_debug("[BGRA SWIZZLE] PIPE_BUFFER found, mapping and swizzling (size=%u)\n", res->base.width0);
 +               /* Map, swizzle BGRA->RGBA, and unmap the buffer */
 +               glBindBuffer(GL_ARRAY_BUFFER, res->gl_id);
 +               void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width0,
@@ -32,13 +35,21 @@
 +                  vrend_swizzle_data_bgra(res->base.width0, data);
 +                  glUnmapBuffer(GL_ARRAY_BUFFER);
 +                  res->bgra_swizzled = true;
-+                  virgl_debug("Swizzled BGRA vertex buffer (size=%u)\n", res->base.width0);
++                  virgl_debug("[BGRA SWIZZLE] Successfully swizzled BGRA vertex buffer (size=%u)\n", res->base.width0);
 +               } else {
-+                  virgl_error("Failed to map vertex buffer for BGRA swizzling\n");
++                  virgl_error("[BGRA SWIZZLE] Failed to map vertex buffer for BGRA swizzling\n");
 +               }
 +               glBindBuffer(GL_ARRAY_BUFFER, 0);
++            } else {
++               virgl_debug("[BGRA SWIZZLE] Skipped: res=%p target=%u swizzled=%d\n",
++                          res, res ? res->base.target : 0, res ? res->bgra_swizzled : -1);
 +            }
++         } else {
++            virgl_debug("[BGRA SWIZZLE] Skipped: vbo=%p buffer=%p\n", vbo, vbo ? vbo->base.buffer : NULL);
 +         }
++      } else {
++         virgl_debug("[BGRA SWIZZLE] Skipped: core_profile=%d zyxw_bitmask=0x%x (1<<i)=0x%x\n",
++                    vrend_state.use_core_profile, v->zyxw_bitmask, 1 << i);
 +      }
     }
 
