@@ -1,18 +1,18 @@
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -891,6 +891,8 @@
+@@ -889,6 +889,8 @@
                                        struct vrend_sampler_view *tview);
  static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
                                                   uint32_t handle);
 +
 +static void vrend_swizzle_data_bgra(uint64_t size, void *data);
  static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
-
+ 
  void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx);
-@@ -3514,7 +3516,47 @@
-      vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
-      return;
-   }
+@@ -3454,7 +3456,47 @@
+       vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
+       return;
+    }
 +
 +
 +   /* In Core Profile, GL_BGRA vertex format is not supported.
@@ -38,7 +38,7 @@
 +               virgl_debug("[BGRA SWIZZLE] Element %u: no resource or not PIPE_BUFFER\n", i);
 +            continue;
 +         }
-+
+ 
 +         virgl_debug("[BGRA SWIZZLE] Element %u: mapping and swizzling (size=%u)\n", i, res->base.width0);
 +         glBindBuffer(GL_ARRAY_BUFFER, res->gl_id);
 +         void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width0,
@@ -54,12 +54,12 @@
 +         glBindBuffer(GL_ARRAY_BUFFER, 0);
 +      }
 +   }
-    if (has_feature(feat_gles31_vertex_attrib_binding)) {
-       if (v->id == 0) {
+    if (has_feature(feat_gles31_vertex_attrib_binding) && v->id == 0) {
        glGenVertexArrays(1, &v->id);
+       glBindVertexArray(v->id);
 --- a/src/vrend/vrend_renderer.h
 +++ b/src/vrend/vrend_renderer.h
-@@ -117,6 +117,9 @@
+@@ -115,6 +115,9 @@
     uint32_t blob_id;
     struct list_head head;
     bool is_imported;
@@ -67,5 +67,5 @@
 +   /* Track if this vertex buffer has been swizzled from BGRA to RGBA */
 +   bool bgra_swizzled;
  };
-
+ 
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
