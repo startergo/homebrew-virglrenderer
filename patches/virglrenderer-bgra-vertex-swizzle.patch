@@ -1,6 +1,6 @@
---- a/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.c	2026-01-27 22:03:27
-@@ -889,6 +889,8 @@
+--- a/src/vrend/vrend_renderer.c	
++++ b/src/vrend/vrend_renderer.c	
+@@ -898,6 +898,8 @@
                                        struct vrend_sampler_view *tview);
  static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
                                                   uint32_t handle);
@@ -9,7 +9,7 @@
  static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
  
  void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx);
-@@ -3454,7 +3456,47 @@
+@@ -3514,7 +3516,47 @@
        vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
        return;
     }
@@ -54,12 +54,12 @@
 +         glBindBuffer(GL_ARRAY_BUFFER, 0);
 +      }
 +   }
-    if (has_feature(feat_gles31_vertex_attrib_binding) && v->id == 0) {
+    if (has_feature(feat_gles31_vertex_attrib_binding)) {
+       if (v->id == 0) {
        glGenVertexArrays(1, &v->id);
-       glBindVertexArray(v->id);
---- a/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.h	2026-01-27 22:03:56
-@@ -115,6 +115,9 @@
+--- a/src/vrend/vrend_renderer.h	
++++ b/src/vrend/vrend_renderer.h	
+@@ -121,6 +121,9 @@
     uint32_t blob_id;
     struct list_head head;
     bool is_imported;
