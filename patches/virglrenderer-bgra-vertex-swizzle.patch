@@ -1,6 +1,6 @@
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -898,6 +898,8 @@
+@@ -891,6 +891,8 @@
                                        struct vrend_sampler_view *tview);
  static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
                                                   uint32_t handle);
@@ -10,9 +10,9 @@
 
  void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx);
 @@ -3514,7 +3516,47 @@
-       vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
-       return;
-    }
+      vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
+      return;
+   }
 +
 +
 +   /* In Core Profile, GL_BGRA vertex format is not supported.
@@ -59,7 +59,7 @@
        glGenVertexArrays(1, &v->id);
 --- a/src/vrend/vrend_renderer.h
 +++ b/src/vrend/vrend_renderer.h
-@@ -121,6 +121,9 @@
+@@ -117,6 +117,9 @@
     uint32_t blob_id;
     struct list_head head;
     bool is_imported;
