@@ -1,115 +1,53 @@
-<<<<<<< Updated upstream
 --- a/src/vrend/vrend_renderer.h
 +++ b/src/vrend/vrend_renderer.h
-@@ -121,6 +121,9 @@
+@@ -115,6 +115,9 @@
     uint32_t blob_id;
     struct list_head head;
     bool is_imported;
 +
-+   /* Track if vertex buffer data has been swizzled from BGRA to RGBA */
-+   bool bgra_swizzled;
++   /* Track if this buffer contains BGRA vertex data that needs swizzling */
++   bool is_bgra_vertex_buffer;
  };
  
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -887,6 +887,8 @@
- static void vrend_update_viewport_state(struct vrend_sub_context *sub_ctx);
- static void vrend_update_scissor_state(struct vrend_sub_context *sub_ctx);
- static void vrend_destroy_query_object(void *obj_ptr);
-+static void vrend_swizzle_data_bgra(uint64_t size, void *data);
-+
- static void vrend_finish_context_switch(struct vrend_context *ctx);
- static void vrend_patch_blend_state(struct vrend_sub_context *sub_ctx);
- static void vrend_update_frontface_state(struct vrend_sub_context *ctx);
-@@ -3519,8 +3521,53 @@
-       if (v->id == 0) {
-       glGenVertexArrays(1, &v->id);
-       glBindVertexArray(v->id);
-=======
---- virglrenderer-main/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
-+++ virglrenderer-mod/src/vrend/vrend_renderer.c	2026-01-27 17:56:58
-@@ -3419,7 +3419,18 @@
+@@ -3419,6 +3419,17 @@
  
        if (desc->nr_channels == 4 && desc->swizzle[0] == PIPE_SWIZZLE_Z)
           v->zyxw_bitmask |= 1 << i;
->>>>>>> Stashed changes
 +
-+   /* On macOS Core Profile, GL_BGRA vertex format is not available.
-+    * When zyxw_bitmask indicates BGRA data, we need to swizzle the buffer
-+    * data from BGRA to RGBA before the GPU reads it.
-+    *
-+    * This is called when vertex elements are bound, which happens after
-+    * vertex buffer data has been uploaded. We swizzle the buffer data here
-+    * to avoid having to track during upload. */
-+   if (vrend_state.use_core_profile && v->zyxw_bitmask) {
-       for (uint32_t i = 0; i < v->count; i++) {
-+         if (!(v->zyxw_bitmask & (1 << i)))
-+            continue;
-+
-          struct vrend_vertex_element *ve = &v->elements[i];
-+         struct vrend_resource *res;
-+
-+         /* Find the resource bound to this vertex buffer */
-+         if (ve->base.vertex_buffer_index >= ARRAY_SIZE(ctx->sub->vbo))
-+            continue;
-+
-+         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[ve->base.vertex_buffer_index];
-+         if (!vbo->base.buffer)
-+            continue;
-+
-+         res = (struct vrend_resource *)vbo->base.buffer;
-+         if (!res || res->base.target != PIPE_BUFFER)
-+            continue;
-+
-+         /* Check if we've already swizzled this buffer */
-+         if (res->bgra_swizzled)
-+            continue;
-+
-+         /* Map, swizzle BGRA->RGBA, and unmap the buffer */
-+         glBindBuffer(GL_ARRAY_BUFFER, res->gl_id);
-+         void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width0, GL_MAP_WRITE_BIT | GL_MAP_READ_BIT);
-+         if (data) {
-+            vrend_swizzle_data_bgra(res->base.width0, data);
-+            glUnmapBuffer(GL_ARRAY_BUFFER);
-+            res->bgra_swizzled = true;
-+            virgl_debug("Swizzled BGRA vertex buffer (res_id=%u, size=%u)\n", vbo->res_id, res->base.width0);
++      /* In Core Profile, mark vertex buffers as BGRA for later swizzling during upload */
++      if (vrend_state.use_core_profile &&
++          desc->nr_channels == 4 && desc->swizzle[0] == PIPE_SWIZZLE_Z) {
++         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[elements[i].vertex_buffer_index];
++         if (vbo->base.buffer) {
++            struct vrend_resource *res = (struct vrend_resource *)vbo->base.buffer;
++            if (res && res->base.target == PIPE_BUFFER)
++               res->is_bgra_vertex_buffer = true;
 +         }
-+         glBindBuffer(GL_ARRAY_BUFFER, 0);
 +      }
-<<<<<<< Updated upstream
-+   }
-+
-+      for (uint32_t i = 0; i < v->count; i++) {
-+         struct vrend_vertex_element *ve = &v->elements[i];
-          GLint size = (!vrend_state.use_gles && !vrend_state.use_core_profile) && (v->zyxw_bitmask & (1 << i)) ? GL_BGRA : ve->nr_chan;
- 
-          if (util_format_is_pure_integer(ve->base.src_format)) {
-=======
     }
-+   }
  
     ret_handle = vrend_renderer_object_insert(ctx, v, handle,
-                                              VIRGL_OBJECT_VERTEX_ELEMENTS);
-@@ -9302,6 +9313,20 @@
-       if (!info->synchronized)
+@@ -9303,6 +9314,20 @@
           map_flags |= GL_MAP_UNSYNCHRONIZED_BIT;
  
-+
-+   /* In Core Profile, swizzle BGRA vertex buffer data to RGBA during upload */
-+   if (vrend_state.use_core_profile && res->is_bgra_vertex_buffer) {
-+      void *swizzle_data;
-+      glBindBufferARB(res->target, res->gl_id);
-+      swizzle_data = glMapBufferRange(res->target, info->box->x, info->box->width,
-+                                     map_flags | GL_MAP_READ_BIT);
-+      if (swizzle_data) {
-+         vrend_swizzle_data_bgra(info->box->width, swizzle_data);
-+         glUnmapBuffer(res->target);
-+         virgl_debug("Swizzled BGRA vertex buffer data (size=%u)\n", info->box->width);
-+      }
-+      glBindBufferARB(res->target, 0);
-+   }
        glBindBufferARB(res->target, res->gl_id);
++
++      /* In Core Profile, swizzle BGRA vertex buffer data to RGBA during upload */
++      if (vrend_state.use_core_profile && res->is_bgra_vertex_buffer) {
++         void *swizzle_data;
++         glBindBufferARB(res->target, res->gl_id);
++         swizzle_data = glMapBufferRange(res->target, info->box->x, info->box->width,
++                                        map_flags | GL_MAP_READ_BIT);
++         if (swizzle_data) {
++            vrend_swizzle_data_bgra(info->box->width, swizzle_data);
++            glUnmapBuffer(res->target);
++            virgl_debug("Swizzled BGRA vertex buffer data (size=%u)\n", info->box->width);
++         }
++         glBindBufferARB(res->target, 0);
++      }
        data = glMapBufferRange(res->target, info->box->x, info->box->width, map_flags);
        if (data == NULL) {
->>>>>>> Stashed changes
+          virgl_error("Map failed for element buffer\n");
