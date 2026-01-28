@@ -1,19 +1,15 @@
---- a/src/vrend/vrend_renderer.h
-+++ b/src/vrend/vrend_renderer.h
-@@ -115,6 +115,9 @@
-    uint32_t blob_id;
-    struct list_head head;
-    bool is_imported;
-+
-+   /* Track if this vertex buffer has been swizzled from BGRA to RGBA */
-+   bool bgra_swizzled;
- };
-
- #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -3419,6 +3419,35 @@
+@@ -890,6 +890,7 @@
+ static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
+                                                  uint32_t handle);
+ static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
++static void vrend_swizzle_data_bgra(uint64_t size, void *data);
 
+ void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx,
+ 
+@@ -3419,6 +3420,34 @@
+ 
        if (desc->nr_channels == 4 && desc->swizzle[0] == PIPE_SWIZZLE_Z)
           v->zyxw_bitmask |= 1 << i;
 +
@@ -36,8 +32,7 @@
 +                  vrend_swizzle_data_bgra(res->base.width0, data);
 +                  glUnmapBuffer(GL_ARRAY_BUFFER);
 +                  res->bgra_swizzled = true;
-+                  virgl_debug("Swizzled BGRA vertex buffer (res_id=%u, size=%u)\n",
-+                             vbo->base.buffer_handle, res->base.width0);
++                  virgl_debug("Swizzled BGRA vertex buffer (size=%u)\n", res->base.width0);
 +               } else {
 +                  virgl_error("Failed to map vertex buffer for BGRA swizzling\n");
 +               }
@@ -48,4 +43,15 @@
     }
 
     ret_handle = vrend_renderer_object_insert(ctx, v, handle,
-                                             VIRGL_OBJECT_VERTEX_ELEMENTS);
+--- a/src/vrend/vrend_renderer.h
++++ b/src/vrend/vrend_renderer.h
+@@ -115,6 +115,9 @@
+    uint32_t blob_id;
+    struct list_head head;
+    bool is_imported;
++
++   /* Track if this vertex buffer has been swizzled from BGRA to RGBA */
++   bool bgra_swizzled;
+ };
+
+ #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
