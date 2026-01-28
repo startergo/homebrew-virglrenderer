@@ -8,7 +8,7 @@
 
  void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx,
  
-@@ -3419,6 +3420,34 @@
+@@ -3419,6 +3419,45 @@
  
        if (desc->nr_channels == 4 && desc->swizzle[0] == PIPE_SWIZZLE_Z)
           v->zyxw_bitmask |= 1 << i;
