@@ -18,7 +18,7 @@
 +   /* In Core Profile, GL_BGRA vertex format is not supported.
 +    * We need to swizzle vertex buffer data from BGRA to RGBA when zyxw_bitmask is set. */
 +   if (vrend_state.use_core_profile && v->zyxw_bitmask) {
-+      virgl_debug("[BGRA SWIZZLE] Binding vertex elements with zyxw_bitmask=0x%x, swizzling buffers\n", v->zyxw_bitmask);
++      VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Binding vertex elements with zyxw_bitmask=0x%x, swizzling buffers\n", v->zyxw_bitmask);
 +      for (uint32_t i = 0; i < v->count; i++) {
 +         if (!(v->zyxw_bitmask & (1 << i)))
 +            continue;
@@ -26,20 +26,20 @@
 +         struct vrend_vertex_element *ve = &v->elements[i];
 +         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[ve->base.vertex_buffer_index];
 +         if (!vbo || !vbo->base.buffer) {
-+            virgl_debug("[BGRA SWIZZLE] Element %u: no VBO/buffer\n", i);
++            VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: no VBO/buffer\n", i);
 +            continue;
 +         }
 +
 +         struct vrend_resource *res = (struct vrend_resource *)vbo->base.buffer;
 +         if (!res || res->base.target != PIPE_BUFFER || res->bgra_swizzled) {
 +            if (res && res->bgra_swizzled)
-+               virgl_debug("[BGRA SWIZZLE] Element %u: already swizzled\n", i);
++               VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: already swizzled\n", i);
 +            else if (!res)
-+               virgl_debug("[BGRA SWIZZLE] Element %u: no resource or not PIPE_BUFFER\n", i);
++               VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: no resource or not PIPE_BUFFER\n", i);
 +            continue;
 +         }
  
-+         virgl_debug("[BGRA SWIZZLE] Element %u: mapping and swizzling (size=%u)\n", i, res->base.width0);
++         VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: mapping and swizzling (size=%u)\n", i, res->base.width0);
 +         glBindBuffer(GL_ARRAY_BUFFER, res->gl_id);
 +         void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width0,
 +                                        GL_MAP_WRITE_BIT | GL_MAP_READ_BIT);
@@ -47,9 +47,9 @@
 +            vrend_swizzle_data_bgra(res->base.width0, data);
 +            glUnmapBuffer(GL_ARRAY_BUFFER);
 +            res->bgra_swizzled = true;
-+            virgl_debug("[BGRA SWIZZLE] Element %u: successfully swizzled\n", i);
++            VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: successfully swizzled\n", i);
 +         } else {
-+            virgl_error("[BGRA SWIZZLE] Element %u: failed to map buffer\n", i);
++            VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: failed to map buffer\n", i);
 +         }
 +         glBindBuffer(GL_ARRAY_BUFFER, 0);
 +      }
