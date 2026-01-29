@@ -64,21 +64,34 @@ index 1dbe026..b6adf39 100644
        if (vrend_state.use_gles && can_emulate_logicop(sub_ctx->blend_state.logicop_func)) {
           key->fs.logicop_enabled = sub_ctx->blend_state.logicop_enable;
 diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
-index 4b47045..9bf8861 100644
+index 4b47045..a85d9c2 100644
 --- a/src/vrend/vrend_shader.c
 +++ b/src/vrend/vrend_shader.c
-@@ -2672,7 +2672,12 @@ static void emit_cbuf_swizzle(const struct dump_ctx *ctx,
+@@ -2672,7 +2672,15 @@ static void emit_cbuf_swizzle(const struct dump_ctx *ctx,
     for (uint32_t i = 0; i < ctx->num_outputs; i++) {
        if (ctx->outputs[i].name == TGSI_SEMANTIC_COLOR) {
           if (ctx->key->fs.swizzle_output_rgb_to_bgr & (1 << cbuf_id)) {
-+            printf("SHADER SWIZZLE: Adding .zyxw swizzle to fsout_c%d (mask=0x%x)\n",
-+                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr);
++            printf("SHADER SWIZZLE: Adding .zyxw swizzle to fsout_c%d (mask=0x%x, num_outputs=%u)\n",
++                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr, ctx->num_outputs);
              emit_buff(glsl_strbufs, "fsout_c%d = fsout_c%d.zyxw;\n", cbuf_id, cbuf_id);
 +         } else {
-+            printf("SHADER SWIZZLE: NOT swizzling fsout_c%d (mask=0x%x)\n",
-+                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr);
++            printf("SHADER SWIZZLE: NOT swizzling fsout_c%d (mask=0x%x, num_outputs=%u)\n",
++                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr, ctx->num_outputs);
           }
           ++cbuf_id;
        }
++      else {
++         printf("SHADER SWIZZLE: Output %u has semantic %d (not COLOR)\n", i, ctx->outputs[i].name);
++      }
     }
++   printf("SHADER SWIZZLE: emit_cbuf_swizzle done, processed %u color outputs\n", cbuf_id);
  }
+@@ -2700,6 +2708,11 @@ static void handle_fragment_proc_exit(const struct dump_ctx *ctx,
+    if (ctx->key->fs.logicop_enabled)
+       emit_fragment_logicop(ctx, glsl_strbufs);
+
++   printf("SHADER SWIZZLE: handle_fragment_proc_exit: swizzle_output_rgb_to_bgr=%d\n",
++          ctx->key->fs.swizzle_output_rgb_to_bgr);
++
+    if (ctx->key->fs.swizzle_output_rgb_to_bgr)
+       emit_cbuf_swizzle(ctx, glsl_strbufs);
