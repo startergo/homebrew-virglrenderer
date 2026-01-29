@@ -5,7 +5,7 @@ index 1dbe026..b6adf39 100644
 @@ -3187,12 +3187,35 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
        if (!surf)
           continue;
- 
+
 -      /* glTextureView() is not applied to eglimage-backed surfaces, because it
 -       * causes unintended format interpretation errors. But a swizzle may still
 -       * be necessary, e.g. for rgb* views on bgr* resources. Ensure this
@@ -26,7 +26,7 @@ index 1dbe026..b6adf39 100644
         */
 -      if (vrend_resource_needs_redblue_swizzle(surf->texture, surf->format))
 +      bool needs_swizzle = vrend_resource_needs_redblue_swizzle(surf->texture, surf->format);
-+
+
 +      /* Case 2: BGRA surface using GL_RGBA external format needs shader swizzle.
 +       * This happens when using gles_bgra_formats[] (Core Profile mode). */
 +      if (!needs_swizzle && vrend_format_is_bgra(surf->format)) {
@@ -41,19 +41,19 @@ index 1dbe026..b6adf39 100644
 +
 +      if (needs_swizzle)
           sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
- 
+
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
 @@ -3209,6 +3232,10 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
        }
     }
- 
+
 +   VREND_DEBUG(dbg_bgra, sub_ctx->parent,
 +               "FB state complete: swizzle_output_rgb_to_bgr=0x%x (nr_cbufs=%u)\n",
 +               sub_ctx->swizzle_output_rgb_to_bgr, sub_ctx->nr_cbufs);
 +
     glDrawBuffers(sub_ctx->nr_cbufs, buffers);
  }
- 
+
 @@ -4162,6 +4189,8 @@ static inline void vrend_sync_shader_io(struct vrend_sub_context *sub_ctx,
     if (type == PIPE_SHADER_FRAGMENT) {
        key->fs.lower_left_origin = !sub_ctx->fbo_origin_upper_left;
@@ -67,7 +67,7 @@ diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
 index 4b47045..a85d9c2 100644
 --- a/src/vrend/vrend_shader.c
 +++ b/src/vrend/vrend_shader.c
-@@ -2672,7 +2672,15 @@ static void emit_cbuf_swizzle(const struct dump_ctx *ctx,
+@@ -2668,7 +2668,15 @@ static void emit_cbuf_swizzle(const struct dump_ctx *ctx,
     for (uint32_t i = 0; i < ctx->num_outputs; i++) {
        if (ctx->outputs[i].name == TGSI_SEMANTIC_COLOR) {
           if (ctx->key->fs.swizzle_output_rgb_to_bgr & (1 << cbuf_id)) {
@@ -83,9 +83,11 @@ index 4b47045..a85d9c2 100644
 +      else {
 +         printf("SHADER SWIZZLE: Output %u has semantic %d (not COLOR)\n", i, ctx->outputs[i].name);
 +      }
-    }
++   }
 +   printf("SHADER SWIZZLE: emit_cbuf_swizzle done, processed %u color outputs\n", cbuf_id);
  }
+
+ static void emit_cbuf_colorspace_convert(const struct dump_ctx *ctx,
 @@ -2700,6 +2708,11 @@ static void handle_fragment_proc_exit(const struct dump_ctx *ctx,
     if (ctx->key->fs.logicop_enabled)
        emit_fragment_logicop(ctx, glsl_strbufs);
@@ -95,3 +97,6 @@ index 4b47045..a85d9c2 100644
 +
     if (ctx->key->fs.swizzle_output_rgb_to_bgr)
        emit_cbuf_swizzle(ctx, glsl_strbufs);
+
+    if (ctx->key->fs.needs_manual_srgb_encode_bitmask)
+       emit_cbuf_colorspace_convert(ctx, glsl_strbufs);
