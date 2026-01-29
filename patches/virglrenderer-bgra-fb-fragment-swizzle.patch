@@ -1,8 +1,8 @@
 diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
-index 1dbe026..b6adf39 100644
+index 4b47045..b6adf39 100644
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -3187,12 +3187,35 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
+@@ -3125,9 +3125,32 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
        if (!surf)
           continue;
 
@@ -26,7 +26,7 @@ index 1dbe026..b6adf39 100644
         */
 -      if (vrend_resource_needs_redblue_swizzle(surf->texture, surf->format))
 +      bool needs_swizzle = vrend_resource_needs_redblue_swizzle(surf->texture, surf->format);
-
++
 +      /* Case 2: BGRA surface using GL_RGBA external format needs shader swizzle.
 +       * This happens when using gles_bgra_formats[] (Core Profile mode). */
 +      if (!needs_swizzle && vrend_format_is_bgra(surf->format)) {
@@ -43,7 +43,7 @@ index 1dbe026..b6adf39 100644
           sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
 
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
-@@ -3209,6 +3232,10 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
+@@ -3147,6 +3170,10 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
        }
     }
 
@@ -54,7 +54,7 @@ index 1dbe026..b6adf39 100644
     glDrawBuffers(sub_ctx->nr_cbufs, buffers);
  }
 
-@@ -4162,6 +4189,8 @@ static inline void vrend_sync_shader_io(struct vrend_sub_context *sub_ctx,
+@@ -4095,6 +4122,8 @@ static inline void vrend_sync_shader_io(struct vrend_sub_context *sub_ctx,
     if (type == PIPE_SHADER_FRAGMENT) {
        key->fs.lower_left_origin = !sub_ctx->fbo_origin_upper_left;
        key->fs.swizzle_output_rgb_to_bgr = sub_ctx->swizzle_output_rgb_to_bgr;
