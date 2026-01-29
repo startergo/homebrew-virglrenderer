@@ -1,11 +1,11 @@
 diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
-index 1dbe026..04c7117 100644
+index 1dbe026..b6adf39 100644
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
 @@ -3187,12 +3187,35 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
        if (!surf)
           continue;
-
+ 
 -      /* glTextureView() is not applied to eglimage-backed surfaces, because it
 -       * causes unintended format interpretation errors. But a swizzle may still
 -       * be necessary, e.g. for rgb* views on bgr* resources. Ensure this
@@ -41,5 +41,42 @@ index 1dbe026..04c7117 100644
 +
 +      if (needs_swizzle)
           sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
-
+ 
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
+@@ -3209,6 +3232,10 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
+       }
+    }
+ 
++   VREND_DEBUG(dbg_bgra, sub_ctx->parent,
++               "FB state complete: swizzle_output_rgb_to_bgr=0x%x (nr_cbufs=%u)\n",
++               sub_ctx->swizzle_output_rgb_to_bgr, sub_ctx->nr_cbufs);
++
+    glDrawBuffers(sub_ctx->nr_cbufs, buffers);
+ }
+ 
+@@ -4162,6 +4189,8 @@ static inline void vrend_sync_shader_io(struct vrend_sub_context *sub_ctx,
+    if (type == PIPE_SHADER_FRAGMENT) {
+       key->fs.lower_left_origin = !sub_ctx->fbo_origin_upper_left;
+       key->fs.swizzle_output_rgb_to_bgr = sub_ctx->swizzle_output_rgb_to_bgr;
++      VREND_DEBUG(dbg_bgra, ctx,
++                  "Shader key: swizzle_output_rgb_to_bgr=0x%x\n", key->fs.swizzle_output_rgb_to_bgr);
+       key->fs.needs_manual_srgb_encode_bitmask = sub_ctx->needs_manual_srgb_encode_bitmask;
+       if (vrend_state.use_gles && can_emulate_logicop(sub_ctx->blend_state.logicop_func)) {
+          key->fs.logicop_enabled = sub_ctx->blend_state.logicop_enable;
+diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
+index 4b47045..9bf8861 100644
+--- a/src/vrend/vrend_shader.c
++++ b/src/vrend/vrend_shader.c
+@@ -2672,7 +2672,12 @@ static void emit_cbuf_swizzle(const struct dump_ctx *ctx,
+    for (uint32_t i = 0; i < ctx->num_outputs; i++) {
+       if (ctx->outputs[i].name == TGSI_SEMANTIC_COLOR) {
+          if (ctx->key->fs.swizzle_output_rgb_to_bgr & (1 << cbuf_id)) {
++            vrend_printf("SHADER SWIZZLE: Adding .zyxw swizzle to fsout_c%d (mask=0x%x)\n",
++                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr);
+             emit_buff(glsl_strbufs, "fsout_c%d = fsout_c%d.zyxw;\n", cbuf_id, cbuf_id);
++         } else {
++            vrend_printf("SHADER SWIZZLE: NOT swizzling fsout_c%d (mask=0x%x)\n",
++                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr);
+          }
+          ++cbuf_id;
+       }
