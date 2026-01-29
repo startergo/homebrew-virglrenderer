@@ -71,11 +71,11 @@ index 4b47045..9bf8861 100644
     for (uint32_t i = 0; i < ctx->num_outputs; i++) {
        if (ctx->outputs[i].name == TGSI_SEMANTIC_COLOR) {
           if (ctx->key->fs.swizzle_output_rgb_to_bgr & (1 << cbuf_id)) {
-+            VREND_DEBUG("SHADER SWIZZLE: Adding .zyxw swizzle to fsout_c%d (mask=0x%x)\n",
++            printf("SHADER SWIZZLE: Adding .zyxw swizzle to fsout_c%d (mask=0x%x)\n",
 +                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr);
              emit_buff(glsl_strbufs, "fsout_c%d = fsout_c%d.zyxw;\n", cbuf_id, cbuf_id);
 +         } else {
-+            VREND_DEBUG("SHADER SWIZZLE: NOT swizzling fsout_c%d (mask=0x%x)\n",
++            printf("SHADER SWIZZLE: NOT swizzling fsout_c%d (mask=0x%x)\n",
 +                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr);
           }
           ++cbuf_id;
