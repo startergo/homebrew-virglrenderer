@@ -1,0 +1,45 @@
+diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+index 1dbe026..04c7117 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -3187,12 +3187,35 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
+       if (!surf)
+          continue;
+
+-      /* glTextureView() is not applied to eglimage-backed surfaces, because it
+-       * causes unintended format interpretation errors. But a swizzle may still
+-       * be necessary, e.g. for rgb* views on bgr* resources. Ensure this
+-       * happens by adding a shader swizzle to the final write of such surfaces.
++      /* Fragment shader output swizzle is needed in the following cases:
++       * 1. Cross-format view (RGBA resource, BGRA view or vice versa)
++       * 2. BGRA surface using GL_RGBA external format (gles_bgra_formats[])
++       *
++       * Case 1: glTextureView() is not applied to eglimage-backed surfaces,
++       * because it causes unintended format interpretation errors. But a swizzle
++       * may still be necessary, e.g. for rgb* views on bgr* resources. Ensure
++       * this happens by adding a shader swizzle to the final write of such surfaces.
++       *
++       * Case 2: In Core Profile mode, BGRA formats use GL_RGBA as external format
++       * (from gles_bgra_formats[]). The GPU stores data as RGBA internally, but the
++       * guest (Mesa) expects BGRA byte order. Fragment shader outputs must be
++       * swizzled from RGBA to BGRA to match the guest's expectation.
+        */
+-      if (vrend_resource_needs_redblue_swizzle(surf->texture, surf->format))
++      bool needs_swizzle = vrend_resource_needs_redblue_swizzle(surf->texture, surf->format);
++
++      /* Case 2: BGRA surface using GL_RGBA external format needs shader swizzle.
++       * This happens when using gles_bgra_formats[] (Core Profile mode). */
++      if (!needs_swizzle && vrend_format_is_bgra(surf->format)) {
++         const struct vrend_format_table *format_entry = &tex_conv_table[surf->format];
++         if (format_entry->glformat == GL_RGBA) {
++            VREND_DEBUG(dbg_bgra, sub_ctx->parent,
++                        "FB attachment %u: BGRA format using GL_RGBA external format, adding shader output swizzle\n",
++                        i);
++            needs_swizzle = true;
++         }
++      }
++
++      if (needs_swizzle)
+          sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
+
+       /* glTextureView() on eglimage-backed bgr* textures for is not supported.
