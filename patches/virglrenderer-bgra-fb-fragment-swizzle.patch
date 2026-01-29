@@ -58,7 +58,7 @@ index 1dbe026..b6adf39 100644
     if (type == PIPE_SHADER_FRAGMENT) {
        key->fs.lower_left_origin = !sub_ctx->fbo_origin_upper_left;
        key->fs.swizzle_output_rgb_to_bgr = sub_ctx->swizzle_output_rgb_to_bgr;
-+      VREND_DEBUG(dbg_bgra, ctx,
++      VREND_DEBUG(dbg_bgra, sub_ctx->parent,
 +                  "Shader key: swizzle_output_rgb_to_bgr=0x%x\n", key->fs.swizzle_output_rgb_to_bgr);
        key->fs.needs_manual_srgb_encode_bitmask = sub_ctx->needs_manual_srgb_encode_bitmask;
        if (vrend_state.use_gles && can_emulate_logicop(sub_ctx->blend_state.logicop_func)) {
@@ -71,12 +71,14 @@ index 4b47045..9bf8861 100644
     for (uint32_t i = 0; i < ctx->num_outputs; i++) {
        if (ctx->outputs[i].name == TGSI_SEMANTIC_COLOR) {
           if (ctx->key->fs.swizzle_output_rgb_to_bgr & (1 << cbuf_id)) {
-+            vrend_printf("SHADER SWIZZLE: Adding .zyxw swizzle to fsout_c%d (mask=0x%x)\n",
++            virgl_debug("SHADER SWIZZLE: Adding .zyxw swizzle to fsout_c%d (mask=0x%x)\n",
 +                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr);
              emit_buff(glsl_strbufs, "fsout_c%d = fsout_c%d.zyxw;\n", cbuf_id, cbuf_id);
 +         } else {
-+            vrend_printf("SHADER SWIZZLE: NOT swizzling fsout_c%d (mask=0x%x)\n",
++            virgl_debug("SHADER SWIZZLE: NOT swizzling fsout_c%d (mask=0x%x)\n",
 +                         cbuf_id, ctx->key->fs.swizzle_output_rgb_to_bgr);
           }
           ++cbuf_id;
        }
+    }
+ }
