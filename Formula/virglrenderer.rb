@@ -44,8 +44,7 @@ class Virglrenderer < Formula
       "virglrenderer-bgra-desktop-gl.patch",
       "virglrenderer-core-profile-bgra.patch",
       "virglrenderer-core-profile-compat.patch",
-      "virglrenderer-bgra-vertex-swizzle.patch",
-      "virglrenderer-bgra-fb-fragment-swizzle.patch",
+      "virglrenderer-bgra-unified.patch",
       "virglrenderer-core-profile-format-override.patch",
       "virglrenderer-core-profile-frag-datalocation.patch"
     ]
