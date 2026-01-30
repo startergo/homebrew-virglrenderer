@@ -4,18 +4,17 @@
                                        GLuint sampler_id,
                                        struct vrend_sampler_view *tview);
  static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
-+
-+static void vrend_swizzle_data_bgra(uint64_t size, void *data);
                                                   uint32_t handle);
++static void vrend_swizzle_data_bgra(uint64_t size, void *data);
  static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
- 
+
 @@ -3190,7 +3192,19 @@
         * be necessary, e.g. for rgb* views on bgr* resources. Ensure this
         * happens by adding a shader swizzle to the final write of such surfaces.
         */
 -      if (vrend_resource_needs_redblue_swizzle(surf->texture, surf->format))
 +      bool needs_swizzle = vrend_resource_needs_redblue_swizzle(surf->texture, surf->format);
-+
+
 +      if (!needs_swizzle && vrend_format_is_bgra(surf->format)) {
 +         const struct vrend_format_table *format_entry = &tex_conv_table[surf->format];
 +         if (format_entry->glformat == GL_RGBA) {
@@ -25,10 +24,10 @@
 +            needs_swizzle = true;
 +         }
 +      }
-+
+
 +      if (needs_swizzle)
           sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
- 
+
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
 @@ -3513,6 +3527,43 @@
     if (v->count > vrend_state.max_vertex_attributes) {
@@ -39,14 +38,14 @@
 +      for (uint32_t i = 0; i < v->count; i++) {
 +         if (!(v->zyxw_bitmask & (1 << i)))
 +            continue;
-+
+
 +         struct vrend_vertex_element *ve = &v->elements[i];
 +         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[ve->base.vertex_buffer_index];
 +         if (!vbo || !vbo->base.buffer) {
 +            VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: no VBO/buffer\n", i);
 +            continue;
 +         }
-+
+
 +         struct vrend_resource *res = (struct vrend_resource *)vbo->base.buffer;
 +         if (!res || res->base.target != PIPE_BUFFER || res->bgra_swizzled) {
 +            if (res && res->bgra_swizzled)
@@ -55,7 +54,7 @@
 +               VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: no resource or not PIPE_BUFFER\n", i);
 +            continue;
 +         }
-+
+
 +         VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: mapping and swizzling (size=%u)\n", i, res->base.width0);
 +         glBindBuffer(GL_ARRAY_BUFFER, res->gl_id);
 +         void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width0,
@@ -72,8 +71,8 @@
 +      }
 +   }
     }
- 
-    if (has_feature(feat_gles31_vertex_attrib_binding)) {
+
+   if (has_feature(feat_gles31_vertex_attrib_binding)) {
 --- a/src/vrend/vrend_renderer.h
 +++ b/src/vrend/vrend_renderer.h
 @@ -121,6 +121,8 @@
@@ -83,17 +82,15 @@
 +
 +   bool bgra_swizzled;
  };
- 
- #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
+
 --- a/src/vrend/vrend_shader.c
 +++ b/src/vrend/vrend_shader.c
 @@ -2713,6 +2713,9 @@
      if (ctx->key->fs.logicop_enabled)
         emit_fragment_logicop(ctx, glsl_strbufs);
- 
+
 +   printf("SHADER SWIZZLE: handle_fragment_proc_exit: swizzle_output_rgb_to_bgr=%d\n",
 +          ctx->key->fs.swizzle_output_rgb_to_bgr);
-+
+
      if (ctx->key->fs.swizzle_output_rgb_to_bgr)
         emit_cbuf_swizzle(ctx, glsl_strbufs);
- 
