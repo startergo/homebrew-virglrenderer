@@ -41,7 +41,7 @@
  
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
         * To work around this for colorspace conversion, views are avoided
-@@ -3205,6 +3221,17 @@
+@@ -3205,6 +3221,19 @@
                       i, util_format_name(surf->format), util_format_name(surf->texture->base.format));
           sub_ctx->needs_manual_srgb_encode_bitmask |= 1 << i;
        }
@@ -59,7 +59,7 @@
 +         sub_ctx->shaders[PIPE_SHADER_FRAGMENT]->current->key.fs.swizzle_output_rgb_to_bgr = 0xff;
 +      }
     }
- 
+  
     glDrawBuffers(sub_ctx->nr_cbufs, buffers);
 @@ -3513,8 +3536,47 @@
     if (v->count > vrend_state.max_vertex_attributes) {
