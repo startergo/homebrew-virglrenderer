@@ -41,7 +41,7 @@
  
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
         * To work around this for colorspace conversion, views are avoided
-@@ -3205,6 +3221,15 @@
+@@ -3205,6 +3221,17 @@
                       i, util_format_name(surf->format), util_format_name(surf->texture->base.format));
           sub_ctx->needs_manual_srgb_encode_bitmask |= 1 << i;
        }
@@ -52,10 +52,14 @@
 +      VREND_DEBUG(dbg_bgra, sub_ctx->parent, "Shader swizzle state changed: 0x%x -> 0x%x, invalidating shaders\n",
 +                  prev_swizzle, sub_ctx->swizzle_output_rgb_to_bgr);
 +      sub_ctx->shader_dirty = true;
-+      if (sub_ctx->shaders[PIPE_SHADER_FRAGMENT] && sub_ctx->shaders[PIPE_SHADER_FRAGMENT]->current)
-+         sub_ctx->shaders[PIPE_SHADER_FRAGMENT]->current = NULL;
++      VREND_DEBUG(dbg_bgra, sub_ctx->parent, "Forcing shader recompile due to swizzle change\n");
++      if (sub_ctx->shaders[PIPE_SHADER_FRAGMENT] && sub_ctx->shaders[PIPE_SHADER_FRAGMENT]->current) {
++         VREND_DEBUG(dbg_bgra, sub_ctx->parent, "Invalidating cached shader (current=%p)\n",
++                     sub_ctx->shaders[PIPE_SHADER_FRAGMENT]->current);
++         sub_ctx->shaders[PIPE_SHADER_FRAGMENT]->current->key.fs.swizzle_output_rgb_to_bgr = 0xff;
++      }
     }
-  
+ 
     glDrawBuffers(sub_ctx->nr_cbufs, buffers);
 @@ -3513,8 +3536,47 @@
     if (v->count > vrend_state.max_vertex_attributes) {
