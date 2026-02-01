@@ -42,7 +42,6 @@ class Virglrenderer < Formula
       "virglrenderer-egl-core-profile.patch",
       "virglrenderer-core-profile-init.patch",
       "virglrenderer-bgra-desktop-gl.patch",
-      "virglrenderer-core-profile-bgra.patch",
       "virglrenderer-texture-swizzle-core.patch",
       "virglrenderer-core-profile-frag-datalocation.patch",
       "virglrenderer-bgra-unified.patch"
