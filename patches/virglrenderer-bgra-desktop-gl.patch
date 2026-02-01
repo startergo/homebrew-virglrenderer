@@ -22,8 +22,7 @@
  
           /* GLES doesn't allow format conversions, which we need for BGRA resources with RGBA
            * internal format. So we fallback to performing a CPU swizzle before uploading. */
--         if (vrend_state.use_gles) {
-+         if (vrend_state.use_gles || vrend_state.use_core_profile) {
+          if (vrend_state.use_gles) {
              if (vrend_resource_get_internal_format_override(res) != GL_NONE) {
                 glformat = GL_RGB;
                 glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);

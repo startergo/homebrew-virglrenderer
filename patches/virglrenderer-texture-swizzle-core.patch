@@ -27,43 +27,42 @@
                    for (unsigned int i = 0; i < 4; ++i) {
                       glTexParameteri(tview->texture->target, GL_TEXTURE_SWIZZLE_R + i, swizzle[i]);
                    }
-@@ -7701,7 +7701,39 @@
+@@ -7701,7 +7701,31 @@
     vrend_build_format_list_common();
 
     if (vrend_state.use_gles) {
        vrend_build_format_list_gles();
 +   } else if (vrend_state.use_core_profile) {
-+      /* Desktop GL Core Profile: need texture swizzle for BGRA formats */
-+      vrend_build_format_list_gles();
-+      /* GL_BGRA not valid in Core Profile - override with GL_RGBA + swizzle */
-+      /* A8R8G8B8_UNORM: Use GL_RGBA with BGRA swizzle instead of GL_BGRA */
-+      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].glformat = GL_RGBA;
-+      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].swizzle[0] = PIPE_SWIZZLE_Z;
-+      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].swizzle[1] = PIPE_SWIZZLE_Y;
-+      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].swizzle[2] = PIPE_SWIZZLE_X;
-+      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].swizzle[3] = PIPE_SWIZZLE_W;
-+      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].flags |= VIRGL_TEXTURE_NEED_SWIZZLE;
-+      /* X8R8G8B8_UNORM: Use GL_RGBA with BGR1 swizzle instead of GL_BGRA */
-+      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].glformat = GL_RGBA;
-+      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].swizzle[0] = PIPE_SWIZZLE_Z;
-+      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].swizzle[1] = PIPE_SWIZZLE_Y;
-+      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].swizzle[2] = PIPE_SWIZZLE_X;
-+      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].swizzle[3] = PIPE_SWIZZLE_1;
-+      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].flags |= VIRGL_TEXTURE_NEED_SWIZZLE;
-+      /* B8G8R8X8_UNORM: Use GL_RGBA with BGR1 swizzle instead of GL_BGRA */
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].glformat = GL_RGBA;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].swizzle[0] = PIPE_SWIZZLE_Z;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].swizzle[1] = PIPE_SWIZZLE_Y;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].swizzle[2] = PIPE_SWIZZLE_X;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].swizzle[3] = PIPE_SWIZZLE_1;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].flags |= VIRGL_TEXTURE_NEED_SWIZZLE;
-+      /* B8G8R8A8_UNORM: Use GL_RGBA with BGRA swizzle instead of GL_BGRA */
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].glformat = GL_RGBA;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].swizzle[0] = PIPE_SWIZZLE_Z;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].swizzle[1] = PIPE_SWIZZLE_Y;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].swizzle[2] = PIPE_SWIZZLE_X;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].swizzle[3] = PIPE_SWIZZLE_W;
-+      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].flags |= VIRGL_TEXTURE_NEED_SWIZZLE;
++      /* Desktop GL Core Profile: use GL format list but add texture swizzle for BGRA formats.
++       * In Core Profile, GL_BGRA is valid as external format but not as internalformat.
++       * We use GL_BGRA to accept BGRA data directly, then swizzle channels to RGBA. */
++      vrend_build_format_list_gl();
++
++      /* Define BGRA texture swizzle: {GL_BLUE, GL_GREEN, GL_RED, GL_ALPHA}
++       * This remaps BGRA data to RGBA when sampling: B->R, G->G, R->B, A->A */
++      static const enum pipe_swizzle bgra_swizzle[] = {PIPE_SWIZZLE_Z, PIPE_SWIZZLE_Y, PIPE_SWIZZLE_X, PIPE_SWIZZLE_W};
++
++      /* A8R8G8B8_UNORM: Add BGRA swizzle */
++      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].swizzle[0] = bgra_swizzle[0];
++      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].swizzle[1] = bgra_swizzle[1];
++      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].swizzle[2] = bgra_swizzle[2];
++      tex_conv_table[VIRGL_FORMAT_A8R8G8B8_UNORM].swizzle[3] = bgra_swizzle[3];
++      /* X8R8G8B8_UNORM: Add BGR1 swizzle */
++      static const enum pipe_swizzle bgr1_swizzle[] = {PIPE_SWIZZLE_Z, PIPE_SWIZZLE_Y, PIPE_SWIZZLE_X, PIPE_SWIZZLE_1};
++      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].swizzle[0] = bgr1_swizzle[0];
++      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].swizzle[1] = bgr1_swizzle[1];
++      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].swizzle[2] = bgr1_swizzle[2];
++      tex_conv_table[VIRGL_FORMAT_X8R8G8B8_UNORM].swizzle[3] = bgr1_swizzle[3];
++      /* B8G8R8X8_UNORM: Already has RGB1_SWIZZLE in GL table, change to BGR1 */
++      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].swizzle[0] = bgr1_swizzle[0];
++      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].swizzle[1] = bgr1_swizzle[1];
++      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].swizzle[2] = bgr1_swizzle[2];
++      tex_conv_table[VIRGL_FORMAT_B8G8R8X8_UNORM].swizzle[3] = bgr1_swizzle[3];
++      /* B8G8R8A8_UNORM: Add BGRA swizzle */
++      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].swizzle[0] = bgra_swizzle[0];
++      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].swizzle[1] = bgra_swizzle[1];
++      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].swizzle[2] = bgra_swizzle[2];
++      tex_conv_table[VIRGL_FORMAT_B8G8R8A8_UNORM].swizzle[3] = bgra_swizzle[3];
     } else {
        vrend_build_format_list_gl();
     }
