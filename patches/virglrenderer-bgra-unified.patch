@@ -1,6 +1,6 @@
---- a/src/vrend/vrend_renderer.c
-+++ b/src/vrend/vrend_renderer.c
-@@ -898,6 +898,8 @@
+--- a/src/vrend/vrend_renderer.c	2026-01-30 06:27:14
++++ b/src/vrend/vrend_renderer.c	2026-02-01 00:23:31
+@@ -889,6 +889,8 @@
                                        struct vrend_sampler_view *tview);
  static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
                                                   uint32_t handle);
@@ -9,46 +9,44 @@
  static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
  
  void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx);
-@@ -3178,6 +3180,8 @@
+@@ -3116,6 +3118,7 @@
+          glDisable(GL_FRAMEBUFFER_SRGB_EXT);
+       }
        sub_ctx->framebuffer_srgb_enabled = use_srgb;
++   uint32_t prev_swizzle = sub_ctx->swizzle_output_rgb_to_bgr;
     }
  
-+
-+   uint32_t prev_swizzle = sub_ctx->swizzle_output_rgb_to_bgr;
     sub_ctx->swizzle_output_rgb_to_bgr = 0;
-    sub_ctx->needs_manual_srgb_encode_bitmask = 0;
-    for (uint32_t i = 0; i < sub_ctx->nr_cbufs; i++) {
-@@ -3190,8 +3194,20 @@
+@@ -3130,7 +3133,22 @@
         * be necessary, e.g. for rgb* views on bgr* resources. Ensure this
         * happens by adding a shader swizzle to the final write of such surfaces.
         */
 -      if (vrend_resource_needs_redblue_swizzle(surf->texture, surf->format))
--         sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
 +      bool needs_swizzle = vrend_resource_needs_redblue_swizzle(surf->texture, surf->format);
 +
-+      if (!needs_swizzle && vrend_format_is_bgra(surf->format)) {
++      /* In Core Profile, BGRA formats need special handling since GL_BGRA is not supported */
++      if (!needs_swizzle && vrend_state.use_core_profile && vrend_format_is_bgra(surf->format)) {
 +         const struct vrend_format_table *format_entry = &tex_conv_table[surf->format];
-+         if (format_entry->glformat == GL_RGBA) {
++         /* format-override.patch converts BGRA to GL_RGBA with texture swizzle.
++          * Only add shader output swizzle for BGRA formats NOT already converted. */
++         if (format_entry->glformat != GL_RGBA) {
 +            VREND_DEBUG(dbg_bgra, sub_ctx->parent,
-+                        "FB attachment %u: BGRA format using GL_RGBA external format, adding shader output swizzle\n",
-+                        i);
++                        "FB attachment %u: BGRA format=%s without texture swizzle, adding shader output swizzle\n",
++                        i, util_format_name(surf->format));
 +            needs_swizzle = true;
 +         }
 +      }
 +
 +      if (needs_swizzle)
-+          sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
+          sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
  
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
-        * To work around this for colorspace conversion, views are avoided
-@@ -3205,6 +3221,19 @@
-                      i, util_format_name(surf->format), util_format_name(surf->texture->base.format));
-          sub_ctx->needs_manual_srgb_encode_bitmask |= 1 << i;
+@@ -3147,6 +3165,19 @@
        }
-+   }
-+
-+   /* Invalidate fragment shaders if swizzle state changed */
-+   if (sub_ctx->swizzle_output_rgb_to_bgr != prev_swizzle) {
+    }
+ 
++   /* Invalidate fragment shaders if swizzle state changed (Core Profile only) */
++   if (vrend_state.use_core_profile && sub_ctx->swizzle_output_rgb_to_bgr != prev_swizzle) {
 +      VREND_DEBUG(dbg_bgra, sub_ctx->parent, "Shader swizzle state changed: 0x%x -> 0x%x, invalidating shaders\n",
 +                  prev_swizzle, sub_ctx->swizzle_output_rgb_to_bgr);
 +      sub_ctx->shader_dirty = true;
@@ -58,14 +56,18 @@
 +                     sub_ctx->shaders[PIPE_SHADER_FRAGMENT]->current);
 +         sub_ctx->shaders[PIPE_SHADER_FRAGMENT]->current->key.fs.swizzle_output_rgb_to_bgr = 0xff;
 +      }
-    }
-  
++   }
++
     glDrawBuffers(sub_ctx->nr_cbufs, buffers);
-@@ -3513,8 +3536,47 @@
+ }
+ 
+@@ -3453,6 +3484,45 @@
     if (v->count > vrend_state.max_vertex_attributes) {
        vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
        return;
++   }
 +
++   /* In Core Profile, CPU-swizzle vertex buffers with BGRA color data */
 +   if (vrend_state.use_core_profile && v->zyxw_bitmask) {
 +      VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Binding vertex elements with zyxw_bitmask=0x%x, swizzling buffers\n", v->zyxw_bitmask);
 +      for (uint32_t i = 0; i < v->count; i++) {
@@ -104,37 +106,20 @@
 +      }
     }
  
-+   }
-+
-    if (has_feature(feat_gles31_vertex_attrib_binding)) {
-       if (v->id == 0) {
-       glGenVertexArrays(1, &v->id);
-@@ -7254,6 +7316,8 @@
-    tex->state = *state;
- }
- 
-+
-+static void vrend_swizzle_data_bgra(uint64_t size, void *data);
- static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples)
- {
-    switch(target) {
-
---- a/src/vrend/vrend_renderer.h
-+++ b/src/vrend/vrend_renderer.h
-@@ -121,6 +121,8 @@
+    if (has_feature(feat_gles31_vertex_attrib_binding) && v->id == 0) {
+--- a/src/vrend/vrend_renderer.h	2026-01-30 06:27:14
++++ b/src/vrend/vrend_renderer.h	2026-02-01 00:23:31
+@@ -117,6 +117,7 @@
     uint32_t blob_id;
     struct list_head head;
     bool is_imported;
-+
 +   bool bgra_swizzled;
  };
  
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
-
---- a/src/vrend/vrend_shader.c
-+++ b/src/vrend/vrend_shader.c
-@@ -2712,8 +2712,10 @@
- 
+--- a/src/vrend/vrend_shader.c	2026-01-30 06:27:14
++++ b/src/vrend/vrend_shader.c	2026-02-01 00:23:31
+@@ -2712,8 +2712,10 @
      if (ctx->key->fs.logicop_enabled)
         emit_fragment_logicop(ctx, glsl_strbufs);
 +   printf("SHADER SWIZZLE: handle_fragment_proc_exit: swizzle_output_rgb_to_bgr=%d\n",

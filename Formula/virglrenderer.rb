@@ -43,9 +43,9 @@ class Virglrenderer < Formula
       "virglrenderer-core-profile-init.patch",
       "virglrenderer-bgra-desktop-gl.patch",
       "virglrenderer-core-profile-bgra.patch",
-      "virglrenderer-core-profile-compat.patch",
       "virglrenderer-core-profile-format-override.patch",
-      "virglrenderer-core-profile-frag-datalocation.patch"
+      "virglrenderer-core-profile-frag-datalocation.patch",
+      "virglrenderer-bgra-unified.patch"
     ]
 
     patches.each do |patch|
