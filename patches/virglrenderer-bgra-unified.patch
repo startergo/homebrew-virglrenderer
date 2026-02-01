@@ -1,6 +1,15 @@
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -3193,7 +3193,19 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
+@@ -898,6 +898,8 @@ static void vrend_apply_sampler_state(struct vrend_sub_context *sub_ctx,
+                                       struct vrend_sampler_view *tview);
+ static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
+                                                  uint32_t handle);
++
++static void vrend_swizzle_data_bgra(uint64_t size, void *data);
+ static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
+ 
+ void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx);
+@@ -3190,7 +3192,19 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
         * be necessary, e.g. for rgb* views on bgr* resources. Ensure this
         * happens by adding a shader swizzle to the final write of such surfaces.
         */
@@ -21,7 +30,7 @@
           sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
  
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
-@@ -3515,6 +3527,45 @@ void vrend_bind_vertex_elements_state(struct vrend_context *ctx,
+@@ -3515,6 +3529,45 @@ void vrend_bind_vertex_elements_state(struct vrend_context *ctx,
        return;
     }
  
@@ -69,7 +78,7 @@
        glGenVertexArrays(1, &v->id);
 --- a/src/vrend/vrend_renderer.h
 +++ b/src/vrend/vrend_renderer.h
-@@ -123,6 +123,8 @@ struct vrend_resource {
+@@ -121,6 +121,8 @@ struct vrend_resource {
     uint32_t blob_id;
     struct list_head head;
     bool is_imported;
@@ -80,7 +89,7 @@
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
 --- a/src/vrend/vrend_shader.c
 +++ b/src/vrend/vrend_shader.c
-@@ -7333,6 +7333,9 @@ static void handle_fragment_proc_exit(const struct dump_ctx *ctx,
+@@ -2713,6 +2713,9 @@ static void handle_fragment_proc_exit(const struct dump_ctx *ctx,
      if (ctx->key->fs.logicop_enabled)
         emit_fragment_logicop(ctx, glsl_strbufs);
  
@@ -89,3 +98,4 @@
 +
      if (ctx->key->fs.swizzle_output_rgb_to_bgr)
         emit_cbuf_swizzle(ctx, glsl_strbufs);
+ 
