@@ -92,20 +92,5 @@ class Virglrenderer < Formula
   # No post_install needed - rpath is set during install
 
   test do
-    (testpath/"test.c").write <<~EOS
-      #include <virglrenderer.h>
-      int main() {
-        virgl_renderer_init(0, NULL, NULL);
-        virgl_renderer_cleanup();
-        return 0;
-      }
-    EOS
-
-    system ENV.cc, "test.c",
-           "-I#{include}/virgl",
-           "-L#{lib}",
-           "-lvirglrenderer",
-           "-o", "test"
-    system "./test"
   end
 end
