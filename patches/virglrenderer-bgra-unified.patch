@@ -1,24 +1,23 @@
---- a/src/vrend/vrend_renderer.c	2026-01-30 06:27:14
-+++ b/src/vrend/vrend_renderer.c	2026-02-01 00:36:40
+--- a/src/vrend/vrend_renderer.c	2026-02-01 00:43:26
++++ b/src/vrend/vrend_renderer.c	2026-02-01 00:46:54
 @@ -889,6 +889,8 @@
-                                       struct vrend_sampler_view *tview);
- static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
-                                                  uint32_t handle);
+ static void vrend_destroy_query_object(void *obj_ptr);
+ static void vrend_finish_context_switch(struct vrend_context *ctx);
+ static void vrend_patch_blend_state(struct vrend_sub_context *sub_ctx);
 +
 +static void vrend_swizzle_data_bgra(uint64_t size, void *data);
- static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
- 
- void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx);
-@@ -3116,6 +3118,8 @@
-          glDisable(GL_FRAMEBUFFER_SRGB_EXT);
+ static void vrend_update_frontface_state(struct vrend_sub_context *ctx);
+ static void vrend_destroy_program(struct vrend_linked_shader_program *ent);
+ static void vrend_apply_sampler_state(struct vrend_sub_context *sub_ctx,
+@@ -3177,6 +3179,7 @@
        }
        sub_ctx->framebuffer_srgb_enabled = use_srgb;
-+
-+   uint32_t prev_swizzle = sub_ctx->swizzle_output_rgb_to_bgr;
     }
++   uint32_t prev_swizzle = sub_ctx->swizzle_output_rgb_to_bgr;
  
     sub_ctx->swizzle_output_rgb_to_bgr = 0;
-@@ -3130,7 +3134,22 @@
+    sub_ctx->needs_manual_srgb_encode_bitmask = 0;
+@@ -3190,7 +3193,22 @@
         * be necessary, e.g. for rgb* views on bgr* resources. Ensure this
         * happens by adding a shader swizzle to the final write of such surfaces.
         */
@@ -42,7 +41,7 @@
           sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
  
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
-@@ -3147,6 +3166,19 @@
+@@ -3207,6 +3225,19 @@
        }
     }
  
@@ -62,10 +61,12 @@
     glDrawBuffers(sub_ctx->nr_cbufs, buffers);
  }
  
-@@ -3455,6 +3487,45 @@
+@@ -3513,6 +3544,45 @@
+    if (v->count > vrend_state.max_vertex_attributes) {
+       vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
        return;
-    }
- 
++   }
++
 +   /* In Core Profile, CPU-swizzle vertex buffers with BGRA color data */
 +   if (vrend_state.use_core_profile && v->zyxw_bitmask) {
 +      VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Binding vertex elements with zyxw_bitmask=0x%x, swizzling buffers\n", v->zyxw_bitmask);
@@ -103,14 +104,12 @@
 +         }
 +         glBindBuffer(GL_ARRAY_BUFFER, 0);
 +      }
-+   }
-+
-    if (has_feature(feat_gles31_vertex_attrib_binding) && v->id == 0) {
-       glGenVertexArrays(1, &v->id);
-       glBindVertexArray(v->id);
---- a/src/vrend/vrend_renderer.h	2026-01-30 06:27:14
-+++ b/src/vrend/vrend_renderer.h	2026-02-01 00:23:31
-@@ -117,6 +117,7 @@
+    }
+ 
+    if (has_feature(feat_gles31_vertex_attrib_binding)) {
+--- a/src/vrend/vrend_renderer.h	2026-02-01 00:43:26
++++ b/src/vrend/vrend_renderer.h	2026-02-01 00:47:04
+@@ -121,6 +121,7 @@
     uint32_t blob_id;
     struct list_head head;
     bool is_imported;
@@ -118,9 +117,10 @@
  };
  
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
---- a/src/vrend/vrend_shader.c	2026-01-30 06:27:14
-+++ b/src/vrend/vrend_shader.c	2026-02-01 00:23:31
-@@ -2712,8 +2712,10 @
+--- a/src/vrend/vrend_shader.c	2026-02-01 00:43:26
++++ b/src/vrend/vrend_shader.c	2026-02-01 00:47:20
+@@ -2712,8 +2712,10 @@
+ 
      if (ctx->key->fs.logicop_enabled)
         emit_fragment_logicop(ctx, glsl_strbufs);
 +   printf("SHADER SWIZZLE: handle_fragment_proc_exit: swizzle_output_rgb_to_bgr=%d\n",
