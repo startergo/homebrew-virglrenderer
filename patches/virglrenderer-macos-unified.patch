@@ -3787,8 +3787,11 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
  
 +#ifdef __APPLE__
 +/*
-+ * macOS with Metal backend has broken GL_BGRA format as a render target.
-+ * Use GL_RGBA format (which works) with the same swizzle as GLES.
++ * macOS Core Profile GL format handling:
++ * - GL_BGRA is valid as external format (byte order specification)
++ * - GL_BGRA is NOT valid as internalformat in Core Profile
++ * - Use internalformat=GL_RGBA8, format=GL_BGRA for correct BGRA handling
++ * - NO swizzle needed - GL correctly reads BGRA data and writes RGBA to BGRA
 + */
 +static struct vrend_format_table macos_bgra_formats[] = {
 +  { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_BGRA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
@@ -3805,8 +3808,13 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
     * transfer operations. So we only register support for it in GL.
     */
    add_formats(gl_base_rgba_formats);
-+  /* Use gl_bgra_formats directly for all platforms */
-+#if 0
++  /* Use GL_BGRA format directly for macOS.
++   * GL_BGRA is valid as external format in Core Profile (only invalid as internalformat).
++   * This correctly handles BGRA data without any swizzling:
++   * - BGRA data arrives → glTexImage2D with GL_BGRA reads correctly
++   * - Shader outputs RGBA → GL converts to BGRA for framebuffer attachment
++   * No texture swizzle or shader swizzle needed. */
++#ifdef __APPLE__
 +   add_formats(macos_bgra_formats);
 +#else
    add_formats(gl_bgra_formats);
