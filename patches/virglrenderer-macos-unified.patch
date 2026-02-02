@@ -3781,10 +3781,14 @@ diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
 diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
 --- a/src/vrend/vrend_formats.c	2026-01-01 08:05:29
 +++ b/src/vrend/vrend_formats.c	2026-01-11 23:47:51
-@@ -357,6 +357,19 @@
+@@ -353,8 +353,25 @@
+ static struct vrend_format_table gl_bgra_formats[] = {
+   { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8, GL_BGRA, GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
+   { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
+   { VIRGL_FORMAT_B8G8R8X8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
    { VIRGL_FORMAT_B8G8R8A8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
  };
- 
+
 +#ifdef __APPLE__
 +/*
 + * macOS Core Profile GL format handling:
@@ -3804,7 +3808,9 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
  static struct vrend_format_table gles_bgra_formats[] = {
    { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
    { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
-@@ -593,7 +606,12 @@
+@@ -592,6 +599,17 @@
+   add_formats(gl_z32_format);
+   /* GL_BGRA formats aren't as well supported in GLES as in GL, specially in
     * transfer operations. So we only register support for it in GL.
     */
    add_formats(gl_base_rgba_formats);
