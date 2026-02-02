@@ -26,14 +26,17 @@
 -      if (vrend_resource_needs_redblue_swizzle(surf->texture, surf->format))
 +      bool needs_swizzle = vrend_resource_needs_redblue_swizzle(surf->texture, surf->format);
 +
-+      /* In Core Profile, BGRA formats need shader output swizzle.
-+       * Apple's OpenGL framework is frozen (2018), texture swizzle may be buggy.
-+       * Use shader swizzle for reliable BGRA->RGBA conversion. */
++      /* In Core Profile, BGRA formats need special handling. Texture swizzle works
++       * for formats with GL_RGBA internalformat. For GL_BGRA formats, we need
++       * shader output swizzle to convert BGRA->RGBA. */
 +      if (!needs_swizzle && vrend_state.use_core_profile && vrend_format_is_bgra(surf->format)) {
-+         VREND_DEBUG(dbg_bgra, sub_ctx->parent,
-+                     "FB attachment %u: BGRA format=%s, adding shader output swizzle\n",
-+                     i, util_format_name(surf->format));
-+         needs_swizzle = true;
++         const struct vrend_format_table *format_entry = &tex_conv_table[surf->format];
++         if (format_entry->glformat != GL_RGBA) {
++            VREND_DEBUG(dbg_bgra, sub_ctx->parent,
++                        "FB attachment %u: BGRA format=%s without texture swizzle, adding shader output swizzle\n",
++                        i, util_format_name(surf->format));
++            needs_swizzle = true;
++         }
 +      }
 +
 +      if (needs_swizzle)
