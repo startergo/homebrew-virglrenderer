@@ -122,17 +122,3 @@
  
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
 --- a/src/vrend/vrend_shader.c
-+++ b/src/vrend/vrend_shader.c
-@@ -2711,10 +2711,10 @@
- 
- 
-     if (ctx->key->fs.logicop_enabled)
--       emit_fragment_logicop(ctx, glsl_strbufs);
-+          emit_fragment_logicop(ctx, glsl_strbufs);
- 
-     if (ctx->key->fs.swizzle_output_rgb_to_bgr)
--       emit_cbuf_swizzle(ctx, glsl_strbufs);
-+          emit_cbuf_swizzle(ctx, glsl_strbufs);
- 
-     if (ctx->key->fs.needs_manual_srgb_encode_bitmask)
-        emit_cbuf_colorspace_convert(ctx, glsl_strbufs);
