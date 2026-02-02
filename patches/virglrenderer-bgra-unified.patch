@@ -40,7 +40,7 @@
 +      }
 +
 +      if (needs_swizzle)
-          sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
++         sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
  
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
 @@ -3211,6 +3227,20 @@

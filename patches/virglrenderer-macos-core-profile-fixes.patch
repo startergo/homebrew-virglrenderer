@@ -1,0 +1,17 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -7834,6 +7834,14 @@
+       vrend_build_format_list_gl();
+    }
+ 
++   /* Desktop GL Core Profile on macOS: A8_UNORM format support for text rendering.
++    * GL_ALPHA format is not available in Core Profile (removed in GL 3.2+),
++    * must use GL_R8 with texture swizzle. Override view_class to enable. */
++#ifdef __APPLE__
++   if (vrend_state.use_core_profile) {
++      tex_conv_table[VIRGL_FORMAT_A8_UNORM].view_class = view_class_32;
++   }
++#endif
+    vrend_check_texture_storage(tex_conv_table);
+ 
+    if (has_feature(feat_multisample)) {

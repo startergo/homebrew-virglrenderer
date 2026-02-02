@@ -41,10 +41,9 @@ class Virglrenderer < Formula
       "virglrenderer-venus-errno-debug.patch",
       "virglrenderer-egl-core-profile.patch",
       "virglrenderer-core-profile-init.patch",
-      "virglrenderer-core-profile-frag-datalocation.patch"
-      # Note: BGRA swizzling patches removed - GL_BGRA format handles BGRA data correctly
-      # without any swizzling. Removed: virglrenderer-bgra-desktop-gl.patch,
-      # virglrenderer-texture-swizzle-core.patch, virglrenderer-bgra-unified.patch
+      "virglrenderer-texture-swizzle-core.patch",
+      "virglrenderer-core-profile-frag-datalocation.patch",
+      "virglrenderer-macos-core-profile-fixes.patch"
     ]
 
     patches.each do |patch|
