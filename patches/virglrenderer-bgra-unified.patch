@@ -1,16 +1,16 @@
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-+++ b/src/vrend/vrend_renderer.c	2026-02-02 20:47:39
-@@ -890,6 +890,8 @@
- static void vrend_object_bind_dsa_to_sub_context(struct vrend_sub_context *sub_ctx,
-                                                  uint32_t handle);
- static GLenum tgsitargettogltarget(const enum pipe_texture_target target, int nr_samples);
++++ b/src/vrend/vrend_renderer.c	2026-02-02 21:29:01
+@@ -889,6 +889,8 @@
+ static void vrend_destroy_query_object(void *obj_ptr);
+ static void vrend_finish_context_switch(struct vrend_context *ctx);
+ static void vrend_patch_blend_state(struct vrend_sub_context *sub_ctx);
 +
 +static void vrend_swizzle_data_bgra(uint64_t size, void *data);
- 
- void vrend_update_stencil_state(struct vrend_sub_context *sub_ctx);
- 
-@@ -3116,6 +3118,7 @@
+ static void vrend_update_frontface_state(struct vrend_sub_context *ctx);
+ static void vrend_destroy_program(struct vrend_linked_shader_program *ent);
+ static void vrend_apply_sampler_state(struct vrend_sub_context *sub_ctx,
+@@ -3180,6 +3182,7 @@
           glDisable(GL_FRAMEBUFFER_SRGB_EXT);
        }
        sub_ctx->framebuffer_srgb_enabled = use_srgb;
@@ -18,7 +18,7 @@
     }
  
     sub_ctx->swizzle_output_rgb_to_bgr = 0;
-@@ -3130,7 +3133,21 @@
+@@ -3194,7 +3197,22 @@
         * be necessary, e.g. for rgb* views on bgr* resources. Ensure this
         * happens by adding a shader swizzle to the final write of such surfaces.
         */
@@ -42,11 +42,10 @@
           sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
  
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
-@@ -3453,6 +3470,45 @@
-    if (v->count > vrend_state.max_vertex_attributes) {
+@@ -3518,7 +3536,46 @@
        vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
        return;
-+   }
+    }
 +
 +   /* In Core Profile, CPU-swizzle vertex buffers with BGRA color data */
 +   if (vrend_state.use_core_profile && v->zyxw_bitmask) {
@@ -54,7 +53,7 @@
 +      for (uint32_t i = 0; i < v->count; i++) {
 +         if (!(v->zyxw_bitmask & (1 << i)))
 +            continue;
-+
+ 
 +         struct vrend_vertex_element *ve = &v->elements[i];
 +         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[ve->base.vertex_buffer_index];
 +         if (!vbo || !vbo->base.buffer) {
@@ -85,12 +84,14 @@
 +         }
 +         glBindBuffer(GL_ARRAY_BUFFER, 0);
 +      }
-    }
- 
-    if (has_feature(feat_gles31_vertex_attrib_binding) && v->id == 0) {
++   }
++
+    if (has_feature(feat_gles31_vertex_attrib_binding)) {
+       if (v->id == 0) {
+       glGenVertexArrays(1, &v->id);
 --- a/src/vrend/vrend_renderer.h
 +++ b/src/vrend/vrend_renderer.h
-+++ b/src/vrend/vrend_renderer.h	2026-02-02 20:47:46
++++ virgl-final/src/vrend/vrend_renderer.h	2026-02-02 20:47:46
 @@ -115,6 +115,7 @@
     uint32_t blob_id;
     struct list_head head;
