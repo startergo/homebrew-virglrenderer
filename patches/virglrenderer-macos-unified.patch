@@ -4260,9 +4260,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +    * Rewrite extension directives to use the ARB version. */
 +   for (int i = 0; i < shader->glsl_strings.num_strings; i++) {
 +      const char *src = shader->glsl_strings.strings[i].buf;
-+      fprintf(stderr, "VREND DEBUG: Checking shader string %d (length %zu)\n", i, strlen(src));
++      fprintf(stderr, "VREND DEBUG: Checking shader string %d (length %zu): %.200s\n", i, strlen(src), src);
++      fflush(stderr);
 +      const char *ext_check = strstr(src, "GL_EXT_shader_texture_lod");
 +      fprintf(stderr, "VREND DEBUG: ext_check result: %p\n", (void*)ext_check);
++      fflush(stderr);
 +      
 +      if (ext_check) {
 +         /* Found GL_EXT_shader_texture_lod - replace with GL_ARB_shader_texture_lod */
