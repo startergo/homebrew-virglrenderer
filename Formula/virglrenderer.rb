@@ -44,7 +44,8 @@ class Virglrenderer < Formula
       "virglrenderer-texture-swizzle-core.patch",
       "virglrenderer-bgra-unified.patch",
       "virglrenderer-core-profile-frag-datalocation.patch",
-      "virglrenderer-macos-core-profile-fixes.patch"
+      "virglrenderer-macos-core-profile-fixes.patch",
+      "virglrenderer-shader-ext-texture-lod-alias.patch"
     ]
 
     patches.each do |patch|
