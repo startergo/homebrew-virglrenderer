@@ -4264,6 +4264,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      
 +      if (ext_check) {
 +         /* Found GL_EXT_shader_texture_lod - replace with GL_ARB_shader_texture_lod */
++         fprintf(stderr, "VREND: Found GL_EXT_shader_texture_lod, replacing with GL_ARB_shader_texture_lod\n");
 +         size_t src_len = strlen(src);
 +         modified_shaders[i] = malloc(src_len + 16); /* Extra space for ARB vs EXT */
 +         if (modified_shaders[i]) {
