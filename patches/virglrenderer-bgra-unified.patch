@@ -1,6 +1,5 @@
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-+++ b/src/vrend/vrend_renderer.c	2026-02-02 21:29:01
 @@ -889,6 +889,8 @@
  static void vrend_destroy_query_object(void *obj_ptr);
  static void vrend_finish_context_switch(struct vrend_context *ctx);
@@ -10,93 +9,32 @@
  static void vrend_update_frontface_state(struct vrend_sub_context *ctx);
  static void vrend_destroy_program(struct vrend_linked_shader_program *ent);
  static void vrend_apply_sampler_state(struct vrend_sub_context *sub_ctx,
-@@ -3180,6 +3182,7 @@
-          glDisable(GL_FRAMEBUFFER_SRGB_EXT);
-       }
-       sub_ctx->framebuffer_srgb_enabled = use_srgb;
-+   uint32_t prev_swizzle = sub_ctx->swizzle_output_rgb_to_bgr;
-    }
- 
-    sub_ctx->swizzle_output_rgb_to_bgr = 0;
-@@ -3194,7 +3197,22 @@
+@@ -3189,14 +3189,16 @@
+       continue;
+
+       /* glTextureView() is not applied to eglimage-backed surfaces, because it
+        * causes unintended format interpretation errors. But a swizzle may still
         * be necessary, e.g. for rgb* views on bgr* resources. Ensure this
         * happens by adding a shader swizzle to the final write of such surfaces.
         */
 -      if (vrend_resource_needs_redblue_swizzle(surf->texture, surf->format))
 +      bool needs_swizzle = vrend_resource_needs_redblue_swizzle(surf->texture, surf->format);
 +
-+      /* In Core Profile, BGRA formats with NO_SWIZZLE need shader output swizzle.
-+       * Only when format uses GL_RGBA (RGBA data that needs BGRA conversion).
-+       * Formats with RGB1_SWIZZLE/BGR1_SWIZZLE are already handled by texture swizzle. */
-+      if (!needs_swizzle && vrend_state.use_core_profile && vrend_format_is_bgra(surf->format)) {
-+         const struct vrend_format_table *format_entry = &tex_conv_table[surf->format];
-+         if (format_entry->swizzle[0] == 0xff && format_entry->glformat == GL_RGBA) {
-+            VREND_DEBUG(dbg_bgra, sub_ctx->parent,
-+                        "FB attachment %u: BGRA format=%s with NO_SWIZZLE and GL_RGBA, adding shader output swizzle\\n",
-+                        i, util_format_name(surf->format));
-+            needs_swizzle = true;
-+         }
-+      }
-+
 +      if (needs_swizzle)
           sub_ctx->swizzle_output_rgb_to_bgr |= 1 << i;
- 
+
        /* glTextureView() on eglimage-backed bgr* textures for is not supported.
-@@ -3518,7 +3536,46 @@
-       vrend_report_context_error(ctx, VIRGL_ERROR_CTX_TOO_MANY_VERTEX_ATTRIBUTES, handle);
-       return;
-    }
-+
-+   /* In Core Profile, CPU-swizzle vertex buffers with BGRA color data */
-+   if (vrend_state.use_core_profile && v->zyxw_bitmask) {
-+      VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Binding vertex elements with zyxw_bitmask=0x%x, swizzling buffers\\n", v->zyxw_bitmask);
-+      for (uint32_t i = 0; i < v->count; i++) {
-+         if (!(v->zyxw_bitmask & (1 << i)))
-+            continue;
- 
-+         struct vrend_vertex_element *ve = &v->elements[i];
-+         struct vrend_vertex_buffer *vbo = &ctx->sub->vbo[ve->base.vertex_buffer_index];
-+         if (!vbo || !vbo->base.buffer) {
-+            VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: no VBO/buffer\\n", i);
-+            continue;
-+         }
-+
-+         struct vrend_resource *res = (struct vrend_resource *)vbo->base.buffer;
-+         if (!res || res->base.target != PIPE_BUFFER || res->bgra_swizzled) {
-+            if (res && res->bgra_swizzled)
-+               VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: already swizzled\\n", i);
-+            else if (!res)
-+               VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: no resource or not PIPE_BUFFER\\n", i);
-+            continue;
-+         }
-+
-+         VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: mapping and swizzling (size=%u)\\n", i, res->base.width0);
-+         glBindBuffer(GL_ARRAY_BUFFER, res->gl_id);
-+         void *data = glMapBufferRange(GL_ARRAY_BUFFER, 0, res->base.width0,
-+                                        GL_MAP_WRITE_BIT | GL_MAP_READ_BIT);
-+         if (data) {
-+            vrend_swizzle_data_bgra(res->base.width0, data);
-+            glUnmapBuffer(GL_ARRAY_BUFFER);
-+            res->bgra_swizzled = true;
-+            VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: successfully swizzled\\n", i);
-+         } else {
-+            VREND_DEBUG(dbg_bgra, ctx, "[BGRA SWIZZLE] Element %u: failed to map buffer\\n", i);
-+         }
-+         glBindBuffer(GL_ARRAY_BUFFER, 0);
-+      }
-+   }
-+
-    if (has_feature(feat_gles31_vertex_attrib_binding)) {
-       if (v->id == 0) {
-       glGenVertexArrays(1, &v->id);
+        * To work around this for colorspace conversion, views are avoided
+        * manual colorspace conversion is instead injected in the fragment
+        * shader writing to such surfaces and during glClearColor(). */
+       if (util_format_is_srgb(surf->format) &&
 --- a/src/vrend/vrend_renderer.h
 +++ b/src/vrend/vrend_renderer.h
-+++ virgl-final/src/vrend/vrend_renderer.h	2026-02-02 20:47:46
 @@ -115,6 +115,7 @@
     uint32_t blob_id;
     struct list_head head;
     bool is_imported;
 +   bool bgra_swizzled;
  };
- 
+
  #define VIRGL_TEXTURE_NEED_SWIZZLE        (1 << 0)
