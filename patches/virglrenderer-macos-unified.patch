@@ -4297,14 +4297,14 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     shader->id = glCreateShader(conv_shader_type(shader->sel->type));
     glShaderSource(shader->id, shader->glsl_strings.num_strings, shader_parts, NULL);
-+   
-+   /* Free temporary modified shader strings */
+    glCompileShader(shader->id);
++
++   /* Free temporary modified shader strings after compilation */
 +   for (int i = 0; i < shader->glsl_strings.num_strings; i++) {
 +      if (modified_shaders[i])
 +         free(modified_shaders[i]);
 +   }
-+   
-    glCompileShader(shader->id);
++
     glGetShaderiv(shader->id, GL_COMPILE_STATUS, &param);
     if (param == GL_FALSE) {
 @@ -2519,30 +2572,32 @@
