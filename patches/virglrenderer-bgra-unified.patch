@@ -26,12 +26,13 @@
 +      bool needs_swizzle = vrend_resource_needs_redblue_swizzle(surf->texture, surf->format);
 +
 +      /* In Core Profile, BGRA formats with NO_SWIZZLE need shader output swizzle.
++       * Only when format uses GL_RGBA (RGBA data that needs BGRA conversion).
 +       * Formats with RGB1_SWIZZLE/BGR1_SWIZZLE are already handled by texture swizzle. */
 +      if (!needs_swizzle && vrend_state.use_core_profile && vrend_format_is_bgra(surf->format)) {
 +         const struct vrend_format_table *format_entry = &tex_conv_table[surf->format];
-+         if (format_entry->swizzle[0] == 0xff) {
++         if (format_entry->swizzle[0] == 0xff && format_entry->glformat == GL_RGBA) {
 +            VREND_DEBUG(dbg_bgra, sub_ctx->parent,
-+                        "FB attachment %u: BGRA format=%s with NO_SWIZZLE, adding shader output swizzle\\n",
++                        "FB attachment %u: BGRA format=%s with NO_SWIZZLE and GL_RGBA, adding shader output swizzle\\n",
 +                        i, util_format_name(surf->format));
 +            needs_swizzle = true;
 +         }
