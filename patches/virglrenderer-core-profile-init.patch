@@ -1,26 +1,21 @@
-diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
-index 000000000..000000000 100644
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -7745,6 +7745,21 @@ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
+@@ -7649,9 +7649,18 @@
        vrend_state.use_gles = true;
        /* for now, makes the rest of the code use the most GLES 3.x like path */
        vrend_state.use_core_profile = true;
-+
++#if defined(__APPLE__)
 +   } else if (epoxy_is_desktop_gl() && epoxy_gl_version() >= 32) {
-+      /* Properly detect Core Profile using GL_CONTEXT_PROFILE_MASK.
-+       * This is more reliable than checking for GL_ARB_compatibility
-+       * extension, especially on macOS+ANGLE where the context is
-+       * explicitly created as Core Profile. */
-+      GLint profile_mask = 0;
-+      glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &profile_mask);
-+      if (profile_mask & GL_CONTEXT_CORE_PROFILE_BIT) {
-+         virgl_info("gl_version %d - core profile detected via mask\n", gl_ver);
-+         fprintf(stderr, "VREND: Detected OpenGL Core Profile context\n");
-+         vrend_state.use_core_profile = true;
-+      } else {
-+         virgl_info("gl_version %d - compat profile\n", gl_ver);
-+      }
++      /* macOS has no Compatibility Profile for OpenGL 3.2+.
++       * Any Desktop GL 3.2+ context MUST be Core Profile. */
++      virgl_info("gl_version %d - macOS Desktop GL 3.2+ forcing core profile\n", gl_ver);
++      fprintf(stderr, "VREND: macOS Desktop GL 3.2+ - forcing Core Profile\n");
++      vrend_state.use_core_profile = true;
++#else
     } else if (gl_ver > 30 && !epoxy_has_gl_extension("GL_ARB_compatibility")) {
        virgl_info("gl_version %d - core profile enabled\n", gl_ver);
        vrend_state.use_core_profile = true;
++#endif
+    } else {
+       virgl_info("gl_version %d - compat profile\n", gl_ver);
+    }
