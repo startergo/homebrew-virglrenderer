@@ -1,11 +1,26 @@
-diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
-index 000000000..000000000 100644
 --- a/src/vrend/vrend_winsys_egl.c
 +++ b/src/vrend/vrend_winsys_egl.c
-@@ -627,9 +627,12 @@ virgl_renderer_gl_context virgl_egl_create_context(struct virgl_egl *egl, struct
+@@ -707,10 +707,31 @@
        EGL_NONE
     };
 
++#if defined(__APPLE__)
++   /* macOS has no Compatibility Profile for OpenGL 3.2+.
++    * Check if this is a desktop GL context (not GLES/gl=es) by looking
++    * at the client version attribute. GLES uses EGL_CONTEXT_CLIENT_VERSION. */
++   bool is_gles = (ctx_att[1] != EGL_NONE);  /* EGL_CONTEXT_CLIENT_VERSION is set */
++   if (!is_gles) {
++      /* Desktop GL on macOS - always use Core Profile */
++      ctx_att[4] = EGL_CONTEXT_OPENGL_PROFILE_MASK;
++      ctx_att[5] = EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT;
++   } else {
++      /* GLES/gl=es - pass through unchanged */
++      if (vparams->compat_ctx) {
++         ctx_att[4] = EGL_CONTEXT_OPENGL_PROFILE_MASK;
++         ctx_att[5] = EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT;
++      }
++   }
++#else
     if (vparams->compat_ctx) {
        ctx_att[4] = EGL_CONTEXT_OPENGL_PROFILE_MASK;
        ctx_att[5] = EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT;
@@ -13,6 +28,7 @@ index 000000000..000000000 100644
 +      ctx_att[4] = EGL_CONTEXT_OPENGL_PROFILE_MASK;
 +      ctx_att[5] = EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT;
     }
++#endif
 
     egl_ctx = eglCreateContext(egl->egl_display,
                               egl->egl_conf,
