@@ -1,6 +1,7 @@
 diff --git a/config.h.meson b/config.h.meson
---- a/config.h.meson	2026-01-01 08:05:29
-+++ b/config.h.meson	2026-01-11 23:47:51
+index 55497ff..b6f1f4c 100644
+--- a/config.h.meson
++++ b/config.h.meson
 @@ -38,6 +38,7 @@
  #mesondefine ENABLE_VULKAN_DLOAD
  #mesondefine ENABLE_VULKAN_PRELOAD
@@ -10,9 +11,10 @@ diff --git a/config.h.meson b/config.h.meson
  #mesondefine ENABLE_DRM_MSM
  #mesondefine ENABLE_DRM_AMDGPU
 diff --git a/meson.build b/meson.build
---- a/meson.build	2026-01-01 08:05:29
-+++ b/meson.build	2026-01-11 23:47:51
-@@ -84,6 +84,7 @@
+index 07a2341..1cf4ed0 100644
+--- a/meson.build
++++ b/meson.build
+@@ -84,6 +84,7 @@ gbm_dep = not_found
  thread_dep = dependency('threads')
  epoxy_dep = dependency('epoxy', version: '>= 1.5.4')
  m_dep = cc.find_library('m', required : false)
@@ -20,7 +22,7 @@ diff --git a/meson.build b/meson.build
  
  conf_data = configuration_data()
  conf_data.set('VERSION', meson.project_version())
-@@ -203,6 +204,14 @@
+@@ -213,6 +214,14 @@ if cc.has_header('linux/udmabuf.h')
     conf_data.set('HAVE_LINUX_UDMABUF_H', 1)
  endif
  
@@ -35,7 +37,7 @@ diff --git a/meson.build b/meson.build
  foreach b : ['bswap32', 'bswap64', 'clz', 'clzll', 'expect', 'ffs', 'ffsll',
               'popcount', 'popcountll', 'types_compatible_p', 'unreachable']
    if cc.has_function(b)
-@@ -262,7 +271,7 @@
+@@ -272,7 +281,7 @@ else
  endif
  
  if get_option('buildtype') == 'debug'
@@ -44,7 +46,7 @@ diff --git a/meson.build b/meson.build
  endif
  
  platforms = get_option('platforms')
-@@ -334,11 +343,11 @@
+@@ -344,11 +353,11 @@ with_render_server = with_venus
  with_render_server_worker = get_option('render-server-worker')
  render_server_install_dir = get_option('prefix') / get_option('libexecdir')
  if with_venus
@@ -58,7 +60,7 @@ diff --git a/meson.build b/meson.build
     endif
  
     if host_machine.system() in ['freebsd', 'openbsd']
-@@ -349,6 +358,11 @@
+@@ -359,6 +368,11 @@ if with_venus
        epoll_dep = []
     endif
  
@@ -70,7 +72,7 @@ diff --git a/meson.build b/meson.build
     conf_data.set('ENABLE_VENUS', 1)
     conf_data.set('ENABLE_RENDER_SERVER', 1)
     conf_data.set('RENDER_SERVER_EXEC_PATH',
-@@ -400,8 +414,8 @@
+@@ -410,8 +424,8 @@ configure_file(input : 'config.h.meson',
                 output : 'config.h',
                 configuration : conf_data)
  
@@ -81,7 +83,7 @@ diff --git a/meson.build b/meson.build
  
  inc_configuration = include_directories(['.', 'src'])
  
-@@ -434,6 +448,7 @@
+@@ -444,6 +458,7 @@ summary({'c_args': (' ').join(get_option('c_args')),
          'egl': have_egl,
          'glx': have_glx,
          'gbm': gbm_dep.found(),
@@ -90,9 +92,10 @@ diff --git a/meson.build b/meson.build
          'drm-amdgpu': with_drm_amdgpu,
          'drm-asahi': with_drm_asahi,
 diff --git a/server/meson.build b/server/meson.build
---- a/server/meson.build	2026-01-01 08:05:29
-+++ b/server/meson.build	2026-01-11 23:47:51
-@@ -27,6 +27,7 @@
+index e73f8de..4d1216d 100644
+--- a/server/meson.build
++++ b/server/meson.build
+@@ -27,6 +27,7 @@ endif
  virgl_render_server = executable(
     'virgl_render_server',
     virgl_render_server_sources,
@@ -101,9 +104,10 @@ diff --git a/server/meson.build b/server/meson.build
     install : true,
     install_dir : render_server_install_dir,
 diff --git a/server/render_client.c b/server/render_client.c
---- a/server/render_client.c	2026-01-01 08:05:29
-+++ b/server/render_client.c	2026-01-11 23:47:51
-@@ -76,13 +76,15 @@
+index 87bab87..fd88f53 100644
+--- a/server/render_client.c
++++ b/server/render_client.c
+@@ -76,13 +76,15 @@ static void
  init_context_args(struct render_context_args *ctx_args,
                    uint32_t init_flags,
                    const struct render_client_op_create_context_request *req,
@@ -120,7 +124,7 @@ diff --git a/server/render_client.c b/server/render_client.c
     };
  
     static_assert(sizeof(ctx_args->ctx_name) == sizeof(req->ctx_name), "");
-@@ -123,7 +125,8 @@
+@@ -123,7 +125,8 @@ render_client_create_context(struct render_client *client,
     int remote_fd = socket_fds[1];
  
     struct render_context_args ctx_args;
@@ -131,8 +135,9 @@ diff --git a/server/render_client.c b/server/render_client.c
  #ifdef ENABLE_RENDER_SERVER_WORKER_THREAD
     rec->worker = render_worker_create(srv->worker_jail, render_client_worker_thread,
 diff --git a/server/render_common.c b/server/render_common.c
---- a/server/render_common.c	2026-01-01 08:05:29
-+++ b/server/render_common.c	2026-01-11 23:47:51
+index e51bb88..144364e 100644
+--- a/server/render_common.c
++++ b/server/render_common.c
 @@ -4,6 +4,9 @@
   */
  
@@ -153,7 +158,7 @@ diff --git a/server/render_common.c b/server/render_common.c
  }
  
  void
-@@ -21,6 +26,10 @@
+@@ -21,6 +26,10 @@ render_log(const char *fmt, ...)
     va_list va;
  
     va_start(va, fmt);
@@ -165,9 +170,10 @@ diff --git a/server/render_common.c b/server/render_common.c
     va_end(va);
  }
 diff --git a/server/render_context.c b/server/render_context.c
---- a/server/render_context.c	2026-01-01 08:05:29
-+++ b/server/render_context.c	2026-01-11 23:47:51
-@@ -108,16 +108,28 @@
+index b44b5b5..39890c2 100644
+--- a/server/render_context.c
++++ b/server/render_context.c
+@@ -108,16 +108,28 @@ render_context_dispatch_create_resource(struct render_context *ctx,
     struct render_context_op_create_resource_reply reply = {
        .fd_type = VIRGL_RESOURCE_FD_INVALID,
     };
@@ -201,7 +207,7 @@ diff --git a/server/render_context.c b/server/render_context.c
  
     return ok;
  }
-@@ -343,6 +355,7 @@
+@@ -343,6 +355,7 @@ render_context_init(struct render_context *ctx, const struct render_context_args
     render_socket_init(&ctx->socket, args->ctx_fd);
     ctx->shmem_fd = -1;
     ctx->fence_eventfd = -1;
@@ -210,9 +216,10 @@ diff --git a/server/render_context.c b/server/render_context.c
     if (!render_context_init_name(ctx, args->ctx_id, args->ctx_name))
        return false;
 diff --git a/server/render_context.h b/server/render_context.h
---- a/server/render_context.h	2026-01-01 08:05:29
-+++ b/server/render_context.h	2026-01-11 23:47:51
-@@ -25,12 +25,15 @@
+index 24435ab..4345176 100644
+--- a/server/render_context.h
++++ b/server/render_context.h
+@@ -25,12 +25,15 @@ struct render_context {
  
     int timeline_count;
  
@@ -229,9 +236,10 @@ diff --git a/server/render_context.h b/server/render_context.h
     uint32_t init_flags;
  
 diff --git a/server/render_protocol.h b/server/render_protocol.h
---- a/server/render_protocol.h	2026-01-01 08:05:29
-+++ b/server/render_protocol.h	2026-01-11 23:47:51
-@@ -148,9 +148,11 @@
+index 7e38ac0..1705fdf 100644
+--- a/server/render_protocol.h
++++ b/server/render_protocol.h
+@@ -148,9 +148,11 @@ struct render_context_op_create_resource_request {
  struct render_context_op_create_resource_reply {
     enum virgl_resource_fd_type fd_type;
     uint32_t map_info; /* VIRGL_RENDERER_MAP_* */
@@ -245,12 +253,10 @@ diff --git a/server/render_protocol.h b/server/render_protocol.h
  };
  
  /* Import a blob resource to the context
-@@ -217,6 +219,17 @@
-    struct render_context_op_destroy_resource_request destroy_resource;
-    struct render_context_op_submit_cmd_request submit_cmd;
+@@ -219,4 +221,15 @@ union render_context_op_request {
     struct render_context_op_submit_fence_request submit_fence;
-+};
-+
+ };
+ 
 +/**
 + * When we do not have SOCK_SEQPACKET support, we need to manage framing.
 + * This will be sent as the header of each packet when necessary.
@@ -260,13 +266,14 @@ diff --git a/server/render_protocol.h b/server/render_protocol.h
 +      uint32_t length;
 +      uint8_t b[sizeof(uint32_t)];
 +   };
- };
- 
++};
++
  #endif /* RENDER_PROTOCOL_H */
 diff --git a/server/render_server.c b/server/render_server.c
---- a/server/render_server.c	2026-01-01 08:05:29
-+++ b/server/render_server.c	2026-01-11 23:47:51
-@@ -148,7 +148,7 @@
+index 6b129e4..f3a5444 100644
+--- a/server/render_server.c
++++ b/server/render_server.c
+@@ -148,7 +148,7 @@ render_server_parse_options(struct render_server *srv, int argc, char **argv)
        return false;
     }
  
@@ -276,8 +283,9 @@ diff --git a/server/render_server.c b/server/render_server.c
        return false;
     }
 diff --git a/server/render_socket.c b/server/render_socket.c
---- a/server/render_socket.c	2026-01-01 08:05:29
-+++ b/server/render_socket.c	2026-01-11 23:47:51
+index 58edcf4..3201da6 100644
+--- a/server/render_socket.c
++++ b/server/render_socket.c
 @@ -12,6 +12,30 @@
  
  #define RENDER_SOCKET_MAX_FD_COUNT 8
@@ -335,7 +343,7 @@ diff --git a/server/render_socket.c b/server/render_socket.c
     if (ret) {
        render_log("failed to create socket pair");
        return false;
-@@ -50,9 +91,11 @@
+@@ -50,9 +91,11 @@ render_socket_is_seqpacket(int fd)
  void
  render_socket_init(struct render_socket *socket, int fd)
  {
@@ -347,7 +355,7 @@ diff --git a/server/render_socket.c b/server/render_socket.c
     };
  }
  
-@@ -76,15 +119,47 @@
+@@ -76,15 +119,47 @@ get_received_fds(const struct msghdr *msg, int *out_count)
     return (const int *)CMSG_DATA(cmsg);
  }
  
@@ -369,7 +377,7 @@ diff --git a/server/render_socket.c b/server/render_socket.c
 +#ifdef MSG_CMSG_CLOEXEC
 +   flags = MSG_CMSG_CLOEXEC;
 +#endif
- 
++
 +   enum socket_state state = SOCKET_STATE_FIRST_MSG;
 +   struct render_context_socket_header hdr = {0};
 +   ssize_t want = sizeof(hdr);
@@ -392,7 +400,7 @@ diff --git a/server/render_socket.c b/server/render_socket.c
 +      _msg.msg_iov[0].iov_len = msg->msg_iov[0].iov_len;
 +      want = 0;
 +   }
-+
+ 
 +   *out_size = 0;
 +   do {
 +      const ssize_t s = recvmsg(socket->fd, &_msg, flags);
@@ -400,7 +408,7 @@ diff --git a/server/render_socket.c b/server/render_socket.c
           if (errno == EAGAIN || errno == EINTR)
              continue;
  
-@@ -92,20 +167,65 @@
+@@ -92,20 +167,65 @@ render_socket_recvmsg(struct render_socket *socket, struct msghdr *msg, size_t *
           return false;
        }
  
@@ -413,13 +421,13 @@ diff --git a/server/render_socket.c b/server/render_socket.c
 +         /* retain the cmsg from first message */
 +         assert(_msg.msg_controllen == 0);
 +      }
- 
++
 +      if (unlikely(_msg.msg_flags & MSG_CTRUNC ||
 +                   (socket->is_seqpacket &&
 +                     (_msg.msg_flags & MSG_TRUNC) ||
 +                      _msg.msg_iov[0].iov_len != (size_t)s))) {
 +         render_log("failed to receive message: truncated or incomplete");
-+
+ 
           int fd_count;
 -         const int *fds = get_received_fds(msg, &fd_count);
 +         const int *fds = get_received_fds(&_msg, &fd_count);
@@ -471,7 +479,7 @@ diff --git a/server/render_socket.c b/server/render_socket.c
  }
  
  static bool
-@@ -196,8 +316,32 @@
+@@ -196,8 +316,32 @@ render_socket_receive_data(struct render_socket *socket, void *data, size_t size
  static bool
  render_socket_sendmsg(struct render_socket *socket, const struct msghdr *msg)
  {
@@ -505,7 +513,7 @@ diff --git a/server/render_socket.c b/server/render_socket.c
        if (unlikely(s < 0)) {
           if (errno == EAGAIN || errno == EINTR)
              continue;
-@@ -206,9 +350,30 @@
+@@ -206,9 +350,30 @@ render_socket_sendmsg(struct render_socket *socket, const struct msghdr *msg)
           return false;
        }
  
@@ -540,8 +548,9 @@ diff --git a/server/render_socket.c b/server/render_socket.c
  }
  
 diff --git a/server/render_socket.h b/server/render_socket.h
---- a/server/render_socket.h	2026-01-01 08:05:29
-+++ b/server/render_socket.h	2026-01-11 23:47:51
+index ead1f8c..18a427e 100644
+--- a/server/render_socket.h
++++ b/server/render_socket.h
 @@ -10,6 +10,7 @@
  
  struct render_socket {
@@ -551,9 +560,10 @@ diff --git a/server/render_socket.h b/server/render_socket.h
  
  bool
 diff --git a/server/render_state.c b/server/render_state.c
---- a/server/render_state.c	2026-01-01 08:05:29
-+++ b/server/render_state.c	2026-01-11 23:47:51
-@@ -93,6 +93,7 @@
+index 715f85e..b30fe7e 100644
+--- a/server/render_state.c
++++ b/server/render_state.c
+@@ -93,6 +93,7 @@ render_state_lookup_context(uint32_t ctx_id)
     return ctx;
  }
  
@@ -561,7 +571,7 @@ diff --git a/server/render_state.c b/server/render_state.c
  static void
  render_state_cb_debug_logger(UNUSED enum virgl_log_level_flags log_level,
                               const char *message,
-@@ -100,6 +101,7 @@
+@@ -100,6 +101,7 @@ render_state_cb_debug_logger(UNUSED enum virgl_log_level_flags log_level,
  {
     render_log(message);
  }
@@ -569,7 +579,7 @@ diff --git a/server/render_state.c b/server/render_state.c
  
  static void
  render_state_cb_retire_fence(uint32_t ctx_id, uint32_t ring_idx, uint64_t fence_id)
-@@ -112,7 +114,9 @@
+@@ -112,7 +114,9 @@ render_state_cb_retire_fence(uint32_t ctx_id, uint32_t ring_idx, uint64_t fence_
  }
  
  static const struct vkr_renderer_callbacks render_state_cbs = {
@@ -579,7 +589,7 @@ diff --git a/server/render_state.c b/server/render_state.c
     .retire_fence = render_state_cb_retire_fence,
  };
  
-@@ -221,13 +225,14 @@
+@@ -221,13 +225,14 @@ render_state_create_resource(uint32_t ctx_id,
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
@@ -597,9 +607,10 @@ diff --git a/server/render_state.c b/server/render_state.c
  
  bool
 diff --git a/server/render_state.h b/server/render_state.h
---- a/server/render_state.h	2026-01-01 08:05:29
-+++ b/server/render_state.h	2026-01-11 23:47:51
-@@ -40,6 +40,7 @@
+index 98de272..3d6264c 100644
+--- a/server/render_state.h
++++ b/server/render_state.h
+@@ -40,6 +40,7 @@ render_state_create_resource(uint32_t ctx_id,
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
@@ -608,8 +619,9 @@ diff --git a/server/render_state.h b/server/render_state.h
                               struct virgl_resource_vulkan_info *out_vulkan_info);
  
 diff --git a/server/render_worker.c b/server/render_worker.c
---- a/server/render_worker.c	2026-01-01 08:05:29
-+++ b/server/render_worker.c	2026-01-11 23:47:51
+index 24d2c36..4a6c279 100644
+--- a/server/render_worker.c
++++ b/server/render_worker.c
 @@ -3,6 +3,12 @@
   * SPDX-License-Identifier: MIT
   */
@@ -637,14 +649,14 @@ diff --git a/server/render_worker.c b/server/render_worker.c
  #include <unistd.h>
  
  struct minijail;
-@@ -161,9 +168,51 @@
+@@ -161,6 +168,48 @@ fork_minijail(const struct minijail *template)
  
  #ifndef ENABLE_RENDER_SERVER_WORKER_THREAD
  
 +#ifdef __APPLE__
- static int
- create_sigchld_fd(void)
- {
++static int
++create_sigchld_fd(void)
++{
 +   /* On macOS, use kqueue to monitor SIGCHLD */
 +   int kq = kqueue();
 +   if (kq == -1) {
@@ -683,13 +695,10 @@ diff --git a/server/render_worker.c b/server/render_worker.c
 +   return kq;
 +}
 +#else
-+static int
-+create_sigchld_fd(void)
-+{
-    /* restore the ability of waitid() to catch SIGCHLD, in case parent disabled
-     * it (e.g. virgl_test_server) */
-    struct sigaction sa = { 0 };
-@@ -196,6 +245,7 @@
+ static int
+ create_sigchld_fd(void)
+ {
+@@ -196,6 +245,7 @@ create_sigchld_fd(void)
  
     return fd;
  }
@@ -697,13 +706,13 @@ diff --git a/server/render_worker.c b/server/render_worker.c
  
  #endif /* !ENABLE_RENDER_SERVER_WORKER_THREAD */
  
-@@ -321,7 +371,32 @@
+@@ -321,6 +371,31 @@ render_worker_jail_drain_sigchld_fd(struct render_worker_jail *jail)
     if (jail->sigchld_fd < 0)
        return true;
  
 +#ifdef __APPLE__
 +   /* On macOS, drain kqueue events */
-    do {
++   do {
 +      struct kevent events[8];
 +      struct timespec timeout = {0, 0}; /* non-blocking */
 +      int nevents = kevent(jail->sigchld_fd, NULL, 0, events, 8, &timeout);
@@ -726,11 +735,10 @@ diff --git a/server/render_worker.c b/server/render_worker.c
 +   } while (true);
 +#else
 +   /* On Linux, drain signalfd */
-+   do {
+    do {
        struct signalfd_siginfo siginfos[8];
        const ssize_t r = read(jail->sigchld_fd, siginfos, sizeof(siginfos));
-       if (r == sizeof(siginfos))
-@@ -332,6 +407,7 @@
+@@ -332,6 +407,7 @@ render_worker_jail_drain_sigchld_fd(struct render_worker_jail *jail)
        render_log("failed to read signalfd");
        return false;
     } while (true);
@@ -739,9 +747,10 @@ diff --git a/server/render_worker.c b/server/render_worker.c
     return true;
  }
 diff --git a/src/meson.build b/src/meson.build
---- a/src/meson.build	2026-01-01 08:05:29
-+++ b/src/meson.build	2026-01-11 23:47:51
-@@ -60,6 +60,10 @@
+index 35ba7ec..efbc633 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -60,6 +60,10 @@ vrend_winsys_glx_sources = [
     'vrend/vrend_winsys_glx.c',
  ]
  
@@ -752,7 +761,7 @@ diff --git a/src/meson.build b/src/meson.build
  venus_sources = [
     'venus/vkr_acceleration_structure.c',
     'venus/vkr_allocator.c',
-@@ -133,6 +137,16 @@
+@@ -153,6 +157,16 @@ proxy_sources = [
     'proxy/proxy_socket.c',
  ]
  
@@ -769,7 +778,7 @@ diff --git a/src/meson.build b/src/meson.build
  video_sources = [
     'vrend/virgl_video.c',
     'vrend/vrend_video.c',
-@@ -174,10 +188,15 @@
+@@ -194,10 +208,15 @@ if have_glx
     virgl_depends += [glx_dep]
  endif
  
@@ -786,21 +795,22 @@ diff --git a/src/meson.build b/src/meson.build
  endif
  
  if with_drm_renderers
-@@ -199,6 +218,10 @@
- 
- if with_render_server
+@@ -229,6 +248,10 @@ if with_render_server
     virgl_sources += proxy_sources
-+endif
-+
-+if with_render_server_worker == 'thread'
-+   virgl_sources += server_sources
  endif
  
++if with_render_server_worker == 'thread'
++   virgl_sources += server_sources
++endif
++
  if with_video
+   virgl_sources += video_sources
+   virgl_depends += [libva_dep, libvadrm_dep]
 diff --git a/src/proxy/proxy_client.c b/src/proxy/proxy_client.c
---- a/src/proxy/proxy_client.c	2026-01-01 08:05:29
-+++ b/src/proxy/proxy_client.c	2026-01-11 23:47:51
-@@ -55,11 +55,6 @@
+index 97e025f..fcdd5d8 100644
+--- a/src/proxy/proxy_client.c
++++ b/src/proxy/proxy_client.c
+@@ -55,11 +55,6 @@ proxy_client_create_context(struct proxy_client *client,
        return false;
     }
  
@@ -813,9 +823,10 @@ diff --git a/src/proxy/proxy_client.c b/src/proxy/proxy_client.c
     return true;
  }
 diff --git a/src/proxy/proxy_context.c b/src/proxy/proxy_context.c
---- a/src/proxy/proxy_context.c	2026-01-01 08:05:29
-+++ b/src/proxy/proxy_context.c	2026-01-11 23:47:51
-@@ -367,7 +367,16 @@
+index dc23ef5..b145cff 100644
+--- a/src/proxy/proxy_context.c
++++ b/src/proxy/proxy_context.c
+@@ -367,7 +367,16 @@ proxy_context_get_blob(struct virgl_context *base,
        return -1;
     }
  
@@ -834,8 +845,9 @@ diff --git a/src/proxy/proxy_context.c b/src/proxy/proxy_context.c
        return -1;
     }
 diff --git a/src/proxy/proxy_renderer.c b/src/proxy/proxy_renderer.c
---- a/src/proxy/proxy_renderer.c	2026-01-01 08:05:29
-+++ b/src/proxy/proxy_renderer.c	2026-01-11 23:47:51
+index 59c2d20..2c2d04b 100644
+--- a/src/proxy/proxy_renderer.c
++++ b/src/proxy/proxy_renderer.c
 @@ -15,12 +15,14 @@
  int
  proxy_renderer_init(const struct proxy_renderer_cbs *cbs, uint32_t flags)
@@ -853,8 +865,9 @@ diff --git a/src/proxy/proxy_renderer.c b/src/proxy/proxy_renderer.c
        goto fail;
  
 diff --git a/src/proxy/proxy_server.c b/src/proxy/proxy_server.c
---- a/src/proxy/proxy_server.c	2026-01-01 08:05:29
-+++ b/src/proxy/proxy_server.c	2026-01-11 23:47:51
+index c9ea27e..e66a449 100644
+--- a/src/proxy/proxy_server.c
++++ b/src/proxy/proxy_server.c
 @@ -9,7 +9,9 @@
  #include <sys/wait.h>
  #include <unistd.h>
@@ -865,7 +878,7 @@ diff --git a/src/proxy/proxy_server.c b/src/proxy/proxy_server.c
  
  int
  proxy_server_connect(struct proxy_server *srv)
-@@ -33,6 +35,13 @@
+@@ -33,6 +35,13 @@ proxy_server_destroy(struct proxy_server *srv)
     if (srv->client_fd >= 0)
        close(srv->client_fd);
  
@@ -879,7 +892,7 @@ diff --git a/src/proxy/proxy_server.c b/src/proxy/proxy_server.c
     free(srv);
  }
  
-@@ -95,8 +104,54 @@
+@@ -95,8 +104,54 @@ proxy_server_init_fd(struct proxy_server *srv)
     return true;
  }
  
@@ -935,7 +948,7 @@ diff --git a/src/proxy/proxy_server.c b/src/proxy/proxy_server.c
  {
     struct proxy_server *srv = calloc(1, sizeof(*srv));
     if (!srv)
-@@ -104,7 +159,18 @@
+@@ -104,7 +159,18 @@ proxy_server_create(void)
  
     srv->pid = -1;
  
@@ -955,23 +968,24 @@ diff --git a/src/proxy/proxy_server.c b/src/proxy/proxy_server.c
        /* start the render server on demand when the client does not provide a
         * server fd
         */
-@@ -112,13 +178,6 @@
-          free(srv);
-          return NULL;
+@@ -114,13 +180,6 @@ proxy_server_create(void)
        }
--   }
--
+    }
+ 
 -   if (!proxy_socket_is_seqpacket(srv->client_fd)) {
 -      proxy_log("invalid client fd type");
 -      close(srv->client_fd);
 -      free(srv);
 -      return NULL;
-    }
- 
+-   }
+-
     proxy_log("proxy server with pid %d", srv->pid);
+ 
+    return srv;
 diff --git a/src/proxy/proxy_server.h b/src/proxy/proxy_server.h
---- a/src/proxy/proxy_server.h	2026-01-01 08:05:29
-+++ b/src/proxy/proxy_server.h	2026-01-11 23:47:51
+index 1b5ca02..df7dbcc 100644
+--- a/src/proxy/proxy_server.h
++++ b/src/proxy/proxy_server.h
 @@ -10,13 +10,21 @@
  
  #include <sys/types.h>
@@ -996,8 +1010,9 @@ diff --git a/src/proxy/proxy_server.h b/src/proxy/proxy_server.h
  void
  proxy_server_destroy(struct proxy_server *srv);
 diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
---- a/src/proxy/proxy_socket.c	2026-01-01 08:05:29
-+++ b/src/proxy/proxy_socket.c	2026-01-11 23:47:51
+index 51223c6..eb81cbf 100644
+--- a/src/proxy/proxy_socket.c
++++ b/src/proxy/proxy_socket.c
 @@ -4,6 +4,7 @@
   */
  
@@ -1048,7 +1063,7 @@ diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
     if (ret) {
        proxy_log("failed to create socket pair");
        return false;
-@@ -41,10 +71,12 @@
+@@ -41,10 +71,12 @@ proxy_socket_is_seqpacket(int fd)
  void
  proxy_socket_init(struct proxy_socket *socket, int fd)
  {
@@ -1061,7 +1076,7 @@ diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
     };
  }
  
-@@ -96,11 +128,45 @@
+@@ -96,11 +128,45 @@ get_received_fds(const struct msghdr *msg, int *out_count)
     return (const int *)CMSG_DATA(cmsg);
  }
  
@@ -1108,7 +1123,7 @@ diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
        if (unlikely(s < 0)) {
           if (errno == EAGAIN || errno == EINTR)
              continue;
-@@ -109,21 +175,61 @@
+@@ -109,21 +175,61 @@ proxy_socket_recvmsg(struct proxy_socket *socket, struct msghdr *msg)
           return false;
        }
  
@@ -1175,7 +1190,7 @@ diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
  }
  
  static bool
-@@ -192,8 +298,32 @@
+@@ -192,8 +298,32 @@ proxy_socket_receive_reply_with_fds(struct proxy_socket *socket,
  static bool
  proxy_socket_sendmsg(struct proxy_socket *socket, const struct msghdr *msg)
  {
@@ -1209,7 +1224,7 @@ diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
        if (unlikely(s < 0)) {
           if (errno == EAGAIN || errno == EINTR)
              continue;
-@@ -202,9 +332,30 @@
+@@ -202,9 +332,30 @@ proxy_socket_sendmsg(struct proxy_socket *socket, const struct msghdr *msg)
           return false;
        }
  
@@ -1244,8 +1259,9 @@ diff --git a/src/proxy/proxy_socket.c b/src/proxy/proxy_socket.c
  }
  
 diff --git a/src/proxy/proxy_socket.h b/src/proxy/proxy_socket.h
---- a/src/proxy/proxy_socket.h	2026-01-01 08:05:29
-+++ b/src/proxy/proxy_socket.h	2026-01-11 23:47:51
+index 04e2f54..7cf02e9 100644
+--- a/src/proxy/proxy_socket.h
++++ b/src/proxy/proxy_socket.h
 @@ -10,6 +10,7 @@
  
  struct proxy_socket {
@@ -1255,8 +1271,9 @@ diff --git a/src/proxy/proxy_socket.h b/src/proxy/proxy_socket.h
  
  bool
 diff --git a/src/venus/venus-protocol/vn_protocol_renderer.h b/src/venus/venus-protocol/vn_protocol_renderer.h
---- a/src/venus/venus-protocol/vn_protocol_renderer.h	2026-01-01 08:05:29
-+++ b/src/venus/venus-protocol/vn_protocol_renderer.h	2026-01-11 23:47:51
+index 46718c3..4c7342f 100644
+--- a/src/venus/venus-protocol/vn_protocol_renderer.h
++++ b/src/venus/venus-protocol/vn_protocol_renderer.h
 @@ -1,4 +1,4 @@
 -/* This file is generated by venus-protocol git-9fa07f3c. */
 +/* This file is generated by venus-protocol git-ce1b3c7c. */
@@ -1264,9 +1281,10 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer.h b/src/venus/venus-p
  /*
   * Copyright 2020 Google LLC
 diff --git a/src/venus/venus-protocol/vn_protocol_renderer_defines.h b/src/venus/venus-protocol/vn_protocol_renderer_defines.h
---- a/src/venus/venus-protocol/vn_protocol_renderer_defines.h	2026-01-01 08:05:29
-+++ b/src/venus/venus-protocol/vn_protocol_renderer_defines.h	2026-01-11 23:47:51
-@@ -465,7 +465,9 @@
+index 866bba2..d06c4be 100644
+--- a/src/venus/venus-protocol/vn_protocol_renderer_defines.h
++++ b/src/venus/venus-protocol/vn_protocol_renderer_defines.h
+@@ -465,7 +465,9 @@ typedef enum VkCommandTypeEXT {
      VK_COMMAND_TYPE_vkCmdSetAttachmentFeedbackLoopEnableEXT_EXT = 329,
      VK_COMMAND_TYPE_vkCmdSetDepthClampRangeEXT_EXT = 330,
      VK_COMMAND_TYPE_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR_EXT = 331,
@@ -1276,7 +1294,7 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_defines.h b/src/venus
      VK_COMMAND_TYPE_vkCmdDrawMeshTasksIndirectEXT_EXT = 333,
      VK_COMMAND_TYPE_vkCmdDrawMeshTasksIndirectCountEXT_EXT = 334,
  } VkCommandTypeEXT;
-@@ -2869,6 +2871,23 @@
+@@ -2869,6 +2871,23 @@ struct vn_command_vkCmdSetDepthClampRangeEXT {
      const VkDepthClampRangeEXT* pDepthClampRange;
  };
  
@@ -1300,7 +1318,7 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_defines.h b/src/venus
  struct vn_command_vkSetReplyCommandStreamMESA {
      const VkCommandStreamDescriptionMESA* pStream;
  };
-@@ -3285,6 +3304,8 @@
+@@ -3285,6 +3304,8 @@ struct vn_dispatch_context {
      void (*dispatch_vkCmdSetRenderingAttachmentLocations)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetRenderingAttachmentLocations *args);
      void (*dispatch_vkCmdSetRenderingInputAttachmentIndices)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetRenderingInputAttachmentIndices *args);
      void (*dispatch_vkCmdSetDepthClampRangeEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetDepthClampRangeEXT *args);
@@ -1310,8 +1328,9 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_defines.h b/src/venus
      void (*dispatch_vkSeekReplyCommandStreamMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkSeekReplyCommandStreamMESA *args);
      void (*dispatch_vkExecuteCommandStreamsMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkExecuteCommandStreamsMESA *args);
 diff --git a/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h b/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h
---- a/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h	2026-01-01 08:05:29
-+++ b/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h	2026-01-11 23:47:51
+index 5f3f19d..c3f6235 100644
+--- a/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h
++++ b/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h
 @@ -25,6 +25,8 @@
   *   vkGetMemoryFdKHR
   *   vkGetMemoryFdPropertiesKHR
@@ -1321,7 +1340,7 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h b/src
   */
  
  /* struct VkExportMemoryAllocateInfo chain */
-@@ -84,6 +86,69 @@
+@@ -84,6 +86,69 @@ vn_replace_VkExportMemoryAllocateInfo_handle(VkExportMemoryAllocateInfo *val)
      } while (pnext);
  }
  
@@ -1391,7 +1410,7 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h b/src
  /* struct VkMemoryAllocateFlagsInfo chain */
  
  static inline void *
-@@ -337,6 +402,14 @@
+@@ -337,6 +402,14 @@ vn_decode_VkMemoryAllocateInfo_pnext_temp(struct vn_cs_decoder *dec)
              vn_decode_VkExportMemoryAllocateInfo_self_temp(dec, (VkExportMemoryAllocateInfo *)pnext);
          }
          break;
@@ -1406,19 +1425,20 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_device_memory.h b/src
      case VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO:
          pnext = vn_cs_decoder_alloc_temp(dec, sizeof(VkMemoryAllocateFlagsInfo));
          if (pnext) {
-@@ -422,6 +495,9 @@
-             break;
+@@ -423,6 +496,9 @@ vn_replace_VkMemoryAllocateInfo_handle(VkMemoryAllocateInfo *val)
          case VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO:
              vn_replace_VkExportMemoryAllocateInfo_handle_self((VkExportMemoryAllocateInfo *)pnext);
-+            break;
+             break;
 +        case VK_STRUCTURE_TYPE_IMPORT_MEMORY_METAL_HANDLE_INFO_EXT:
 +            vn_replace_VkImportMemoryMetalHandleInfoEXT_handle_self((VkImportMemoryMetalHandleInfoEXT *)pnext);
-             break;
++            break;
          case VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO:
              vn_replace_VkMemoryAllocateFlagsInfo_handle_self((VkMemoryAllocateFlagsInfo *)pnext);
+             break;
 diff --git a/src/venus/venus-protocol/vn_protocol_renderer_info.h b/src/venus/venus-protocol/vn_protocol_renderer_info.h
---- a/src/venus/venus-protocol/vn_protocol_renderer_info.h	2026-01-01 08:05:29
-+++ b/src/venus/venus-protocol/vn_protocol_renderer_info.h	2026-01-11 23:47:51
+index f55dc34..6882b8f 100644
+--- a/src/venus/venus-protocol/vn_protocol_renderer_info.h
++++ b/src/venus/venus-protocol/vn_protocol_renderer_info.h
 @@ -12,7 +12,7 @@
  
  struct vn_info_extension_table {
@@ -1428,7 +1448,7 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_info.h b/src/venus/ve
        struct {
           bool ARM_rasterization_order_attachment_access;
           bool EXT_4444_formats;
-@@ -40,6 +40,7 @@
+@@ -40,6 +40,7 @@ struct vn_info_extension_table {
           bool EXT_extended_dynamic_state3;
           bool EXT_external_memory_acquire_unmodified;
           bool EXT_external_memory_dma_buf;
@@ -1436,7 +1456,7 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_info.h b/src/venus/ve
           bool EXT_filter_cubic;
           bool EXT_fragment_shader_interlock;
           bool EXT_global_priority;
-@@ -212,8 +213,8 @@
+@@ -212,8 +213,8 @@ struct vn_info_extension {
  };
  
  /* sorted by extension names for bsearch */
@@ -1447,7 +1467,7 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_info.h b/src/venus/ve
     { "VK_ARM_rasterization_order_attachment_access", 343, 1 },
     { "VK_EXT_4444_formats", 341, 1 },
     { "VK_EXT_attachment_feedback_loop_dynamic_state", 525, 1 },
-@@ -240,6 +241,7 @@
+@@ -240,6 +241,7 @@ static const struct vn_info_extension _vn_info_extensions[185] = {
     { "VK_EXT_extended_dynamic_state3", 456, 2 },
     { "VK_EXT_external_memory_acquire_unmodified", 454, 1 },
     { "VK_EXT_external_memory_dma_buf", 126, 1 },
@@ -1456,9 +1476,10 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_info.h b/src/venus/ve
     { "VK_EXT_fragment_shader_interlock", 252, 1 },
     { "VK_EXT_global_priority", 175, 2 },
 diff --git a/src/venus/venus-protocol/vn_protocol_renderer_util.h b/src/venus/venus-protocol/vn_protocol_renderer_util.h
---- a/src/venus/venus-protocol/vn_protocol_renderer_util.h	2026-01-01 08:05:29
-+++ b/src/venus/venus-protocol/vn_protocol_renderer_util.h	2026-01-11 23:47:51
-@@ -300,6 +300,8 @@
+index 21e4a06..6728ec4 100644
+--- a/src/venus/venus-protocol/vn_protocol_renderer_util.h
++++ b/src/venus/venus-protocol/vn_protocol_renderer_util.h
+@@ -300,6 +300,8 @@ struct vn_device_proc_table {
     PFN_vkGetImageSubresourceLayout2 GetImageSubresourceLayout2;
     PFN_vkGetMemoryFdKHR GetMemoryFdKHR;
     PFN_vkGetMemoryFdPropertiesKHR GetMemoryFdPropertiesKHR;
@@ -1467,22 +1488,23 @@ diff --git a/src/venus/venus-protocol/vn_protocol_renderer_util.h b/src/venus/ve
     PFN_vkGetPipelineCacheData GetPipelineCacheData;
     PFN_vkGetPrivateData GetPrivateData;
     PFN_vkGetQueryPoolResults GetQueryPoolResults;
-@@ -1042,6 +1044,12 @@
-       NULL;
+@@ -1043,6 +1045,12 @@ vn_util_init_device_proc_table(VkDevice dev,
     proc_table->GetMemoryFdPropertiesKHR =
        ext_table->KHR_external_memory_fd ? VN_GDPA(dev, vkGetMemoryFdPropertiesKHR) :
-+      NULL;
+       NULL;
 +   proc_table->GetMemoryMetalHandleEXT =
 +      ext_table->EXT_external_memory_metal ? VN_GDPA(dev, vkGetMemoryMetalHandleEXT) :
 +      NULL;
 +   proc_table->GetMemoryMetalHandlePropertiesEXT =
 +      ext_table->EXT_external_memory_metal ? VN_GDPA(dev, vkGetMemoryMetalHandlePropertiesEXT) :
-       NULL;
++      NULL;
     proc_table->GetPipelineCacheData = VN_GDPA(dev, vkGetPipelineCacheData);
     proc_table->GetPrivateData =
+       api_version >= VK_API_VERSION_1_3 ? VN_GDPA(dev, vkGetPrivateData) :
 diff --git a/src/venus/venus-protocol/vulkan.h b/src/venus/venus-protocol/vulkan.h
---- a/src/venus/venus-protocol/vulkan.h	2026-01-01 08:05:29
-+++ b/src/venus/venus-protocol/vulkan.h	2026-01-11 23:47:51
+index 9457a52..359f026 100644
+--- a/src/venus/venus-protocol/vulkan.h
++++ b/src/venus/venus-protocol/vulkan.h
 @@ -28,9 +28,9 @@
  #include "vulkan_macos.h"
  #endif
@@ -1508,8 +1530,10 @@ diff --git a/src/venus/venus-protocol/vulkan.h b/src/venus/venus-protocol/vulkan
  #ifdef VK_USE_PLATFORM_OHOS
  #include "vulkan_ohos.h"
 diff --git a/src/venus/venus-protocol/vulkan_beta.h b/src/venus/venus-protocol/vulkan_beta.h
---- a/src/venus/venus-protocol/vulkan_beta.h	1969-12-31 19:00:00
-+++ b/src/venus/venus-protocol/vulkan_beta.h	2026-01-11 23:47:51
+new file mode 100644
+index 0000000..867483d
+--- /dev/null
++++ b/src/venus/venus-protocol/vulkan_beta.h
 @@ -0,0 +1,226 @@
 +#ifndef VULKAN_BETA_H_
 +#define VULKAN_BETA_H_ 1
@@ -1738,8 +1762,10 @@ diff --git a/src/venus/venus-protocol/vulkan_beta.h b/src/venus/venus-protocol/v
 +
 +#endif
 diff --git a/src/venus/venus-protocol/vulkan_metal.h b/src/venus/venus-protocol/vulkan_metal.h
---- a/src/venus/venus-protocol/vulkan_metal.h	1969-12-31 19:00:00
-+++ b/src/venus/venus-protocol/vulkan_metal.h	2026-01-11 23:47:51
+new file mode 100644
+index 0000000..ab8c576
+--- /dev/null
++++ b/src/venus/venus-protocol/vulkan_metal.h
 @@ -0,0 +1,238 @@
 +#ifndef VULKAN_METAL_H_
 +#define VULKAN_METAL_H_ 1
@@ -1980,9 +2006,10 @@ diff --git a/src/venus/venus-protocol/vulkan_metal.h b/src/venus/venus-protocol/
 +
 +#endif
 diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
---- a/src/venus/vkr_allocator.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_allocator.c	2026-01-11 23:47:51
-@@ -52,6 +52,7 @@
+index ed25083..f87e033 100644
+--- a/src/venus/vkr_allocator.c
++++ b/src/venus/vkr_allocator.c
+@@ -52,6 +52,7 @@ struct vkr_inst_proc_table {
     PFN_vkGetPhysicalDeviceProperties2 GetPhysicalDeviceProperties2;
     PFN_vkCreateDevice CreateDevice;
     PFN_vkGetDeviceProcAddr GetDeviceProcAddr;
@@ -1990,7 +2017,7 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
  };
  
  struct vkr_dev_proc_table {
-@@ -109,6 +110,44 @@
+@@ -109,6 +110,44 @@ vkr_allocator_get_dev_idx(struct virgl_resource *res)
     return VKR_ALLOCATOR_MAX_DEVICE_COUNT;
  }
  
@@ -2035,7 +2062,7 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
  static struct vkr_opaque_fd_mem_info *
  vkr_allocator_allocate_memory(struct virgl_resource *res)
  {
-@@ -123,26 +162,37 @@
+@@ -123,26 +162,37 @@ vkr_allocator_allocate_memory(struct virgl_resource *res)
     struct vkr_dev_proc_table *vk = &vkr_allocator.proc_tables[idx];
  
     int fd = -1;
@@ -2085,7 +2112,7 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
        return NULL;
     }
  
-@@ -198,6 +248,7 @@
+@@ -198,6 +248,7 @@ vkr_allocator_inst_proc_table_init(VkInstance inst_handle,
     vk->GetPhysicalDeviceProperties2 = VN_GIPA(vkGetPhysicalDeviceProperties2);
     vk->CreateDevice = VN_GIPA(vkCreateDevice);
     vk->GetDeviceProcAddr = VN_GIPA(vkGetDeviceProcAddr);
@@ -2093,7 +2120,7 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
  #undef VN_GIPA
  }
  
-@@ -218,11 +269,13 @@
+@@ -218,11 +269,13 @@ vkr_allocator_dev_proc_table_init(VkDevice dev_handle,
  int
  vkr_allocator_init(void)
  {
@@ -2109,7 +2136,7 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
  
     bool ret = vkr_library_load(&vkr_allocator.vulkan_library);
     if (!ret) {
-@@ -232,6 +285,12 @@
+@@ -232,6 +285,12 @@ vkr_allocator_init(void)
     /* Get vkGetInstanceProcAddr from libvulkan */
     PFN_vkGetInstanceProcAddr get_proc_addr = vkr_allocator.vulkan_library.GetInstanceProcAddr;
  
@@ -2122,7 +2149,7 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
     VkApplicationInfo app_info = {
        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
        .apiVersion = VK_API_VERSION_1_1,
-@@ -240,13 +299,16 @@
+@@ -240,13 +299,16 @@ vkr_allocator_init(void)
     VkInstanceCreateInfo inst_info = {
        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
        .pApplicationInfo = &app_info,
@@ -2140,7 +2167,7 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
  
     vkr_allocator_inst_proc_table_init(vkr_allocator.instance, get_proc_addr, vk);
  
-@@ -270,6 +332,11 @@
+@@ -270,6 +332,11 @@ vkr_allocator_init(void)
  
        memcpy(vkr_allocator.device_uuids[i], id_props.deviceUUID, VK_UUID_SIZE);
  
@@ -2152,7 +2179,7 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
        float priority = 1.0;
        VkDeviceQueueCreateInfo queue_info = {
           .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-@@ -284,8 +351,8 @@
+@@ -284,8 +351,8 @@ vkr_allocator_init(void)
           .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
           .queueCreateInfoCount = 1,
           .pQueueCreateInfos = &queue_info,
@@ -2163,7 +2190,7 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
        };
  
        res = vk->CreateDevice(physical_dev_handle, &dev_info, NULL,
-@@ -312,6 +379,7 @@
+@@ -312,6 +379,7 @@ fail:
     }
     vk->DestroyInstance(vkr_allocator.instance, NULL);
  
@@ -2172,12 +2199,14 @@ diff --git a/src/venus/vkr_allocator.c b/src/venus/vkr_allocator.c
  
     vkr_library_unload(&vkr_allocator.vulkan_library);
 diff --git a/src/venus/vkr_buffer.c b/src/venus/vkr_buffer.c
---- a/src/venus/vkr_buffer.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_buffer.c	2026-01-11 23:47:51
-@@ -9,9 +9,36 @@
+index 9e466f8..aca760e 100644
+--- a/src/venus/vkr_buffer.c
++++ b/src/venus/vkr_buffer.c
+@@ -8,10 +8,37 @@
+ #include "vkr_buffer_gen.h"
  #include "vkr_physical_device.h"
  
- static void
++static void
 +vkr_buffer_fix_create_info(struct vkr_device *dev,
 +                           VkBufferCreateInfo *pCreateInfo)
 +{
@@ -2197,7 +2226,7 @@ diff --git a/src/venus/vkr_buffer.c b/src/venus/vkr_buffer.c
 +   }
 +}
 +
-+static void
+ static void
  vkr_dispatch_vkCreateBuffer(struct vn_dispatch_context *dispatch,
                              struct vn_command_vkCreateBuffer *args)
  {
@@ -2211,21 +2240,22 @@ diff --git a/src/venus/vkr_buffer.c b/src/venus/vkr_buffer.c
     /* XXX If VkExternalMemoryBufferCreateInfo is chained by the app, all is
      * good.  If it is not chained, we might still bind an external memory to
      * the buffer, because vkr_dispatch_vkAllocateMemory makes any HOST_VISIBLE
-@@ -138,6 +165,11 @@
- {
+@@ -139,6 +166,11 @@ vkr_dispatch_vkGetDeviceBufferMemoryRequirements(
     struct vkr_device *dev = vkr_device_from_handle(args->device);
     struct vn_device_proc_table *vk = &dev->proc_table;
-+
+ 
 +   /* if host does not natively support dmabuf we need to patch create info */
 +   if (dev->physical_device->is_dma_buf_emulated) {
 +      vkr_buffer_fix_create_info(dev, (VkBufferCreateInfo *)args->pInfo->pCreateInfo);
 +   }
- 
++
     vn_replace_vkGetDeviceBufferMemoryRequirements_args_handle(args);
     vk->GetDeviceBufferMemoryRequirements(args->device, args->pInfo,
+                                          args->pMemoryRequirements);
 diff --git a/src/venus/vkr_common.h b/src/venus/vkr_common.h
---- a/src/venus/vkr_common.h	2026-01-01 08:05:29
-+++ b/src/venus/vkr_common.h	2026-01-11 23:47:51
+index e24a16f..0953e84 100644
+--- a/src/venus/vkr_common.h
++++ b/src/venus/vkr_common.h
 @@ -79,6 +79,11 @@
     if (name != _stack_##name)                                                            \
     free(name)
@@ -2239,8 +2269,9 @@ diff --git a/src/venus/vkr_common.h b/src/venus/vkr_common.h
  struct vkr_context;
  struct vkr_ring;
 diff --git a/src/venus/vkr_context.c b/src/venus/vkr_context.c
---- a/src/venus/vkr_context.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_context.c	2026-01-11 23:47:51
+index 4bf526a..5f460b0 100644
+--- a/src/venus/vkr_context.c
++++ b/src/venus/vkr_context.c
 @@ -34,6 +34,13 @@
  #include "vkr_ring.h"
  #include "vkr_transport.h"
@@ -2255,7 +2286,7 @@ diff --git a/src/venus/vkr_context.c b/src/venus/vkr_context.c
  void
  vkr_context_add_instance(struct vkr_context *ctx,
                           struct vkr_instance *instance,
-@@ -189,6 +196,8 @@
+@@ -189,6 +196,8 @@ vkr_context_free_resource(struct hash_entry *entry)
     struct vkr_resource *res = entry->data;
     if (res->fd_type == VIRGL_RESOURCE_FD_SHM)
        munmap(res->u.data, res->size);
@@ -2264,10 +2295,11 @@ diff --git a/src/venus/vkr_context.c b/src/venus/vkr_context.c
     else if (res->u.fd >= 0)
        close(res->u.fd);
     free(res);
-@@ -307,6 +316,34 @@
+@@ -306,6 +315,34 @@ vkr_context_create_resource_from_shm(struct vkr_context *ctx,
+    return true;
  }
  
- static bool
++static bool
 +vkr_context_import_resource_metal(struct vkr_context *ctx,
 +                                  uint32_t res_id,
 +                                  uint64_t blob_size,
@@ -2295,26 +2327,26 @@ diff --git a/src/venus/vkr_context.c b/src/venus/vkr_context.c
 +   return true;
 +}
 +
-+static bool
+ static bool
  vkr_context_create_resource_from_device_memory(struct vkr_context *ctx,
                                                 uint32_t res_id,
-                                                uint64_t blob_id,
-@@ -323,6 +360,11 @@
-    struct virgl_context_blob blob;
+@@ -324,6 +361,11 @@ vkr_context_create_resource_from_device_memory(struct vkr_context *ctx,
     if (!vkr_device_memory_export_blob(mem, blob_size, blob_flags, &blob))
        return false;
-+
+ 
 +   if (blob.type == VIRGL_RESOURCE_METAL_HEAP) {
 +      *out_blob = blob;
 +      return vkr_context_import_resource_metal(ctx, res_id, blob_size, blob.type, blob.u.metal_heap);
 +   }
- 
++
     /* If memory might get exported, store a dup'ed fd in vkr_resource for:
      * - vkAllocateMemory for dma_buf import
+     * - vkGetMemoryFdPropertiesKHR for dma_buf fd properties query
 diff --git a/src/venus/vkr_context.h b/src/venus/vkr_context.h
---- a/src/venus/vkr_context.h	2026-01-01 08:05:29
-+++ b/src/venus/vkr_context.h	2026-01-11 23:47:51
-@@ -29,6 +29,8 @@
+index 12541a7..6f9bd83 100644
+--- a/src/venus/vkr_context.h
++++ b/src/venus/vkr_context.h
+@@ -29,6 +29,8 @@ struct vkr_resource {
        int fd;
        /* valid when fd_type is shm */
        uint8_t *data;
@@ -2324,9 +2356,10 @@ diff --git a/src/venus/vkr_context.h b/src/venus/vkr_context.h
  
     size_t size;
 diff --git a/src/venus/vkr_device.c b/src/venus/vkr_device.c
---- a/src/venus/vkr_device.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_device.c	2026-01-11 23:47:51
-@@ -130,29 +130,49 @@
+index 9144180..cd0c786 100644
+--- a/src/venus/vkr_device.c
++++ b/src/venus/vkr_device.c
+@@ -130,30 +130,50 @@ vkr_dispatch_vkCreateDevice(struct vn_dispatch_context *dispatch,
     /* append extensions for our own use */
     const char **exts = NULL;
     uint32_t ext_count = args->pCreateInfo->enabledExtensionCount;
@@ -2341,6 +2374,17 @@ diff --git a/src/venus/vkr_device.c b/src/venus/vkr_device.c
 -      }
 -      for (uint32_t i = 0; i < args->pCreateInfo->enabledExtensionCount; i++)
 -         exts[i] = args->pCreateInfo->ppEnabledExtensionNames[i];
+-
+-      ext_count = args->pCreateInfo->enabledExtensionCount;
+-      if (physical_dev->KHR_external_memory_fd)
+-         exts[ext_count++] = "VK_KHR_external_memory_fd";
+-      if (physical_dev->EXT_external_memory_dma_buf)
+-         exts[ext_count++] = "VK_EXT_external_memory_dma_buf";
+-      if (physical_dev->KHR_external_fence_fd)
+-         exts[ext_count++] = "VK_KHR_external_fence_fd";
+-
+-      ((VkDeviceCreateInfo *)args->pCreateInfo)->ppEnabledExtensionNames = exts;
+-      ((VkDeviceCreateInfo *)args->pCreateInfo)->enabledExtensionCount = ext_count;
 +   uint32_t add_count = 0;
 +   add_count += physical_dev->KHR_external_memory_fd;
 +   add_count += physical_dev->EXT_external_memory_dma_buf;
@@ -2352,17 +2396,7 @@ diff --git a/src/venus/vkr_device.c b/src/venus/vkr_device.c
 +      args->ret = VK_ERROR_OUT_OF_HOST_MEMORY;
 +      return;
 +   }
- 
--      ext_count = args->pCreateInfo->enabledExtensionCount;
--      if (physical_dev->KHR_external_memory_fd)
--         exts[ext_count++] = "VK_KHR_external_memory_fd";
--      if (physical_dev->EXT_external_memory_dma_buf)
--         exts[ext_count++] = "VK_EXT_external_memory_dma_buf";
--      if (physical_dev->KHR_external_fence_fd)
--         exts[ext_count++] = "VK_KHR_external_fence_fd";
--
--      ((VkDeviceCreateInfo *)args->pCreateInfo)->ppEnabledExtensionNames = exts;
--      ((VkDeviceCreateInfo *)args->pCreateInfo)->enabledExtensionCount = ext_count;
++
 +   /* skip any emulated extensions */
 +   ext_count = 0;
 +   for (uint32_t i = 0; i < args->pCreateInfo->enabledExtensionCount; i++) {
@@ -2380,7 +2414,7 @@ diff --git a/src/venus/vkr_device.c b/src/venus/vkr_device.c
 +         continue;
 +      exts[ext_count++] = args->pCreateInfo->ppEnabledExtensionNames[i];
     }
-+
+ 
 +   if (physical_dev->KHR_external_memory_fd)
 +      exts[ext_count++] = VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
 +   if (physical_dev->EXT_external_memory_dma_buf)
@@ -2394,13 +2428,15 @@ diff --git a/src/venus/vkr_device.c b/src/venus/vkr_device.c
 +
 +   ((VkDeviceCreateInfo *)args->pCreateInfo)->ppEnabledExtensionNames = exts;
 +   ((VkDeviceCreateInfo *)args->pCreateInfo)->enabledExtensionCount = ext_count;
- 
++
     struct vkr_device *dev =
        vkr_context_alloc_object(ctx, sizeof(*dev), VK_OBJECT_TYPE_DEVICE, args->pDevice);
+    if (!dev) {
 diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
---- a/src/venus/vkr_device_memory.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_device_memory.c	2026-01-11 23:47:51
-@@ -47,6 +47,31 @@
+index ffe621b..504b655 100644
+--- a/src/venus/vkr_device_memory.c
++++ b/src/venus/vkr_device_memory.c
+@@ -47,6 +47,31 @@ vkr_get_fd_info_from_resource_info(struct vkr_context *ctx,
     return true;
  }
  
@@ -2432,7 +2468,7 @@ diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
  #if defined(HAVE_LINUX_UDMABUF_H) && defined(HAVE_MEMFD_CREATE)
  #include <fcntl.h>
  #include <linux/udmabuf.h>
-@@ -245,17 +270,22 @@
+@@ -245,17 +270,22 @@ vkr_dispatch_vkAllocateMemory(struct vn_dispatch_context *dispatch,
  
     /* translate VkImportMemoryResourceInfoMESA into VkImportMemoryFdInfoKHR in place */
     VkImportMemoryFdInfoKHR local_import_info = { .fd = -1 };
@@ -2459,7 +2495,7 @@ diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
     }
  
     VkExportMemoryAllocateInfo *export_info =
-@@ -355,14 +385,33 @@
+@@ -355,14 +385,33 @@ vkr_dispatch_vkAllocateMemory(struct vn_dispatch_context *dispatch,
  
           alloc_info->pNext = &local_import_info;
           valid_fd_types = 1 << VIRGL_RESOURCE_FD_DMABUF;
@@ -2493,7 +2529,7 @@ diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
     }
  
     struct vkr_device_memory *mem = vkr_device_memory_create_and_add(ctx, args);
-@@ -438,26 +487,41 @@
+@@ -438,25 +487,40 @@ vkr_dispatch_vkGetMemoryResourcePropertiesMESA(
        return;
     }
  
@@ -2543,14 +2579,13 @@ diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
 -      vk->GetMemoryFdPropertiesKHR(args->device, handle_type, res->u.fd, &mem_fd_props);
 -   if (args->ret != VK_SUCCESS)
 -      return;
+-
+-   args->pMemoryResourceProperties->memoryTypeBits = mem_fd_props.memoryTypeBits;
 +   args->pMemoryResourceProperties->memoryTypeBits = memoryTypeBits;
  
--   args->pMemoryResourceProperties->memoryTypeBits = mem_fd_props.memoryTypeBits;
--
     VkMemoryResourceAllocationSizePropertiesMESA *alloc_size_props =
        vkr_find_struct(args->pMemoryResourceProperties->pNext,
-                       VK_STRUCTURE_TYPE_MEMORY_RESOURCE_ALLOCATION_SIZE_PROPERTIES_MESA);
-@@ -527,6 +591,7 @@
+@@ -527,6 +591,7 @@ vkr_device_memory_export_blob(struct vkr_device_memory *mem,
  
     const bool can_export_dma_buf = mem->valid_fd_types & (1 << VIRGL_RESOURCE_FD_DMABUF);
     const bool can_export_opaque = mem->valid_fd_types & (1 << VIRGL_RESOURCE_FD_OPAQUE);
@@ -2558,7 +2593,7 @@ diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
     enum virgl_resource_fd_type fd_type;
     VkExternalMemoryHandleTypeFlagBits handle_type;
     struct virgl_resource_vulkan_info vulkan_info;
-@@ -541,10 +606,16 @@
+@@ -541,10 +606,16 @@ vkr_device_memory_export_blob(struct vkr_device_memory *mem,
        /* prefer dmabuf for easier mapping? */
        fd_type = VIRGL_RESOURCE_FD_DMABUF;
        handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
@@ -2578,7 +2613,7 @@ diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
  
        STATIC_ASSERT(sizeof(vulkan_info.device_uuid) == VK_UUID_SIZE);
        STATIC_ASSERT(sizeof(vulkan_info.driver_uuid) == VK_UUID_SIZE);
-@@ -562,6 +633,7 @@
+@@ -562,6 +633,7 @@ vkr_device_memory_export_blob(struct vkr_device_memory *mem,
     }
  
     int fd;
@@ -2586,7 +2621,7 @@ diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
     if (mem->udmabuf_fd >= 0) {
        fd = os_dupfd_cloexec(mem->udmabuf_fd);
        if (fd < 0) {
-@@ -577,6 +649,19 @@
+@@ -577,6 +649,19 @@ vkr_device_memory_export_blob(struct vkr_device_memory *mem,
           vkr_log("mem gbm bo export failed (ret %d)", fd);
           return false;
        }
@@ -2606,7 +2641,7 @@ diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
     } else {
        struct vn_device_proc_table *vk = &mem->device->proc_table;
        const VkMemoryGetFdInfoKHR fd_info = {
-@@ -605,10 +690,15 @@
+@@ -605,10 +690,15 @@ vkr_device_memory_export_blob(struct vkr_device_memory *mem,
  
     *out_blob = (struct virgl_context_blob){
        .type = fd_type,
@@ -2614,22 +2649,24 @@ diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
        .map_info = map_info,
        .vulkan_info = vulkan_info,
     };
-+
+ 
 +   if (fd_type == VIRGL_RESOURCE_METAL_HEAP) {
 +      out_blob->u.metal_heap = metal_heap;
 +   } else {
 +      out_blob->u.fd = fd;
 +   }
- 
++
     return true;
  }
 diff --git a/src/venus/vkr_image.c b/src/venus/vkr_image.c
---- a/src/venus/vkr_image.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_image.c	2026-01-11 23:47:51
-@@ -9,9 +9,81 @@
+index 2b627e3..770440a 100644
+--- a/src/venus/vkr_image.c
++++ b/src/venus/vkr_image.c
+@@ -8,10 +8,82 @@
+ #include "vkr_image_gen.h"
  #include "vkr_physical_device.h"
  
- static void
++static void
 +vkr_image_fix_create_info(struct vkr_device *dev,
 +                          VkImageCreateInfo *pCreateInfo)
 +{
@@ -2687,7 +2724,7 @@ diff --git a/src/venus/vkr_image.c b/src/venus/vkr_image.c
 +   return VK_SUCCESS;
 +}
 +
-+static void
+ static void
  vkr_dispatch_vkCreateImage(struct vn_dispatch_context *dispatch,
                             struct vn_command_vkCreateImage *args)
  {
@@ -2708,7 +2745,7 @@ diff --git a/src/venus/vkr_image.c b/src/venus/vkr_image.c
     /* XXX If VkExternalMemoryImageCreateInfo is chained by the app, all is
      * good.  If it is not chained, we might still bind an external memory to
      * the image, because vkr_dispatch_vkAllocateMemory makes any HOST_VISIBLE
-@@ -150,6 +222,11 @@
+@@ -150,6 +222,11 @@ vkr_dispatch_vkGetDeviceImageSubresourceLayout(
     struct vkr_device *dev = vkr_device_from_handle(args->device);
     struct vn_device_proc_table *vk = &dev->proc_table;
  
@@ -2720,7 +2757,7 @@ diff --git a/src/venus/vkr_image.c b/src/venus/vkr_image.c
     vn_replace_vkGetDeviceImageSubresourceLayout_args_handle(args);
     vk->GetDeviceImageSubresourceLayout(args->device, args->pInfo, args->pLayout);
  }
-@@ -163,8 +240,14 @@
+@@ -163,8 +240,14 @@ vkr_dispatch_vkGetImageDrmFormatModifierPropertiesEXT(
     struct vn_device_proc_table *vk = &dev->proc_table;
  
     vn_replace_vkGetImageDrmFormatModifierPropertiesEXT_args_handle(args);
@@ -2737,7 +2774,7 @@ diff --git a/src/venus/vkr_image.c b/src/venus/vkr_image.c
  }
  
  static void
-@@ -219,6 +302,11 @@
+@@ -219,6 +302,11 @@ vkr_dispatch_vkGetDeviceImageMemoryRequirements(
     struct vkr_device *dev = vkr_device_from_handle(args->device);
     struct vn_device_proc_table *vk = &dev->proc_table;
  
@@ -2749,22 +2786,23 @@ diff --git a/src/venus/vkr_image.c b/src/venus/vkr_image.c
     vn_replace_vkGetDeviceImageMemoryRequirements_args_handle(args);
     vk->GetDeviceImageMemoryRequirements(args->device, args->pInfo,
                                          args->pMemoryRequirements);
-@@ -231,6 +319,11 @@
- {
+@@ -232,6 +320,11 @@ vkr_dispatch_vkGetDeviceImageSparseMemoryRequirements(
     struct vkr_device *dev = vkr_device_from_handle(args->device);
     struct vn_device_proc_table *vk = &dev->proc_table;
-+
+ 
 +   /* if host does not natively support dmabuf we need to patch create info */
 +   if (dev->physical_device->is_dma_buf_emulated) {
 +      vkr_image_fix_create_info(dev, (VkImageCreateInfo *)args->pInfo->pCreateInfo);
 +   }
- 
++
     vn_replace_vkGetDeviceImageSparseMemoryRequirements_args_handle(args);
     vk->GetDeviceImageSparseMemoryRequirements(args->device, args->pInfo,
+                                               args->pSparseMemoryRequirementCount,
 diff --git a/src/venus/vkr_instance.c b/src/venus/vkr_instance.c
---- a/src/venus/vkr_instance.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_instance.c	2026-01-11 23:47:51
-@@ -177,6 +177,11 @@
+index a5002a3..6052fea 100644
+--- a/src/venus/vkr_instance.c
++++ b/src/venus/vkr_instance.c
+@@ -177,6 +177,11 @@ vkr_dispatch_vkCreateInstance(struct vn_dispatch_context *dispatch,
        create_info->pNext = &messenger_create_info;
     }
  
@@ -2777,9 +2815,10 @@ diff --git a/src/venus/vkr_instance.c b/src/venus/vkr_instance.c
     create_info->enabledLayerCount = layer_count;
     create_info->ppEnabledLayerNames = layer_names;
 diff --git a/src/venus/vkr_library.c b/src/venus/vkr_library.c
---- a/src/venus/vkr_library.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_library.c	2026-01-11 23:47:51
-@@ -35,15 +35,23 @@
+index 5cd3996..ea5c2c5 100644
+--- a/src/venus/vkr_library.c
++++ b/src/venus/vkr_library.c
+@@ -35,15 +35,23 @@ vkr_library_preload_icd(void)
  
  #if defined(ENABLE_VULKAN_DLOAD)
  
@@ -2805,7 +2844,7 @@ diff --git a/src/venus/vkr_library.c b/src/venus/vkr_library.c
     if (lib->handle == NULL) {
        vkr_log("failed to open libvulkan: %s", dlerror());
        return false;
-@@ -89,3 +97,27 @@
+@@ -89,3 +97,27 @@ vkr_library_unload(struct vulkan_library *lib)
  }
  
  #endif /* ENABLE_VULKAN_DLOAD */
@@ -2834,9 +2873,10 @@ diff --git a/src/venus/vkr_library.c b/src/venus/vkr_library.c
 +   return has_portability_enumeration;
 +}
 diff --git a/src/venus/vkr_library.h b/src/venus/vkr_library.h
---- a/src/venus/vkr_library.h	2026-01-01 08:05:29
-+++ b/src/venus/vkr_library.h	2026-01-11 23:47:51
-@@ -44,4 +44,7 @@
+index 718f891..8d66f5d 100644
+--- a/src/venus/vkr_library.h
++++ b/src/venus/vkr_library.h
+@@ -44,4 +44,7 @@ vkr_library_unload(struct vulkan_library *lib)
  
  #endif /* ENABLE_VULKAN_DLOAD */
  
@@ -2845,9 +2885,10 @@ diff --git a/src/venus/vkr_library.h b/src/venus/vkr_library.h
 +
  #endif /* VKR_LIBRARY_H */
 diff --git a/src/venus/vkr_physical_device.c b/src/venus/vkr_physical_device.c
---- a/src/venus/vkr_physical_device.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_physical_device.c	2026-01-11 23:47:51
-@@ -227,6 +227,16 @@
+index e2c3baa..f4a7dc4 100644
+--- a/src/venus/vkr_physical_device.c
++++ b/src/venus/vkr_physical_device.c
+@@ -227,6 +227,16 @@ vkr_physical_device_init_memory_properties(struct vkr_physical_device *physical_
            VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
     }
  
@@ -2864,7 +2905,7 @@ diff --git a/src/venus/vkr_physical_device.c b/src/venus/vkr_physical_device.c
     /* fallback to gbm allocation with dma-buf import */
     if (!physical_dev->is_dma_buf_fd_export_supported &&
         !physical_dev->is_opaque_fd_export_supported &&
-@@ -269,12 +279,25 @@
+@@ -269,12 +279,25 @@ vkr_physical_device_init_extensions(struct vkr_physical_device *physical_dev)
     for (uint32_t i = 0; i < count; i++) {
        VkExtensionProperties *props = &exts[i];
  
@@ -2893,7 +2934,7 @@ diff --git a/src/venus/vkr_physical_device.c b/src/venus/vkr_physical_device.c
  
        const uint32_t spec_ver = vkr_extension_get_spec_version(props->extensionName);
        if (spec_ver) {
-@@ -284,6 +307,34 @@
+@@ -284,6 +307,34 @@ vkr_physical_device_init_extensions(struct vkr_physical_device *physical_dev)
        }
     }
  
@@ -2928,10 +2969,11 @@ diff --git a/src/venus/vkr_physical_device.c b/src/venus/vkr_physical_device.c
     if (physical_dev->KHR_external_fence_fd) {
        const VkPhysicalDeviceExternalFenceInfo fence_info = {
           .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_FENCE_INFO,
-@@ -344,6 +395,21 @@
+@@ -343,6 +394,21 @@ vkr_physical_device_init_queue_family_properties(struct vkr_physical_device *phy
+    physical_dev->queue_family_properties = props;
  }
  
- static void
++static void
 +vkr_physical_device_emulate_drm_props(VkDrmFormatModifierPropertiesListEXT *drm_props_list)
 +{
 +    drm_props_list->drmFormatModifierCount = 1;
@@ -2946,11 +2988,10 @@ diff --git a/src/venus/vkr_physical_device.c b/src/venus/vkr_physical_device.c
 +    };
 +}
 +
-+static void
+ static void
  vkr_dispatch_vkEnumeratePhysicalDevices(struct vn_dispatch_context *dispatch,
                                          struct vn_command_vkEnumeratePhysicalDevices *args)
- {
-@@ -701,6 +767,15 @@
+@@ -701,6 +767,15 @@ vkr_dispatch_vkGetPhysicalDeviceFormatProperties2(
     vn_replace_vkGetPhysicalDeviceFormatProperties2_args_handle(args);
     vk->GetPhysicalDeviceFormatProperties2(args->physicalDevice, args->format,
                                            args->pFormatProperties);
@@ -2966,7 +3007,7 @@ diff --git a/src/venus/vkr_physical_device.c b/src/venus/vkr_physical_device.c
  }
  
  static void
-@@ -712,9 +787,71 @@
+@@ -712,9 +787,71 @@ vkr_dispatch_vkGetPhysicalDeviceImageFormatProperties2(
        vkr_physical_device_from_handle(args->physicalDevice);
     struct vn_physical_device_proc_table *vk = &physical_dev->proc_table;
  
@@ -3038,7 +3079,7 @@ diff --git a/src/venus/vkr_physical_device.c b/src/venus/vkr_physical_device.c
  }
  
  static void
-@@ -740,9 +877,35 @@
+@@ -740,9 +877,35 @@ vkr_dispatch_vkGetPhysicalDeviceExternalBufferProperties(
        vkr_physical_device_from_handle(args->physicalDevice);
     struct vn_physical_device_proc_table *vk = &physical_dev->proc_table;
  
@@ -3075,9 +3116,10 @@ diff --git a/src/venus/vkr_physical_device.c b/src/venus/vkr_physical_device.c
  
  static void
 diff --git a/src/venus/vkr_physical_device.h b/src/venus/vkr_physical_device.h
---- a/src/venus/vkr_physical_device.h	2026-01-01 08:05:29
-+++ b/src/venus/vkr_physical_device.h	2026-01-11 23:47:51
-@@ -23,14 +23,19 @@
+index b0b6691..1b7d2ac 100644
+--- a/src/venus/vkr_physical_device.h
++++ b/src/venus/vkr_physical_device.h
+@@ -23,14 +23,19 @@ struct vkr_physical_device {
  
     bool KHR_external_memory_fd;
     bool EXT_external_memory_dma_buf;
@@ -3099,9 +3141,10 @@ diff --git a/src/venus/vkr_physical_device.h b/src/venus/vkr_physical_device.h
     int udmabuf_dev_fd;
  
 diff --git a/src/venus/vkr_queue.c b/src/venus/vkr_queue.c
---- a/src/venus/vkr_queue.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_queue.c	2026-01-11 23:47:51
-@@ -481,19 +481,23 @@
+index 61b94be..e098430 100644
+--- a/src/venus/vkr_queue.c
++++ b/src/venus/vkr_queue.c
+@@ -481,19 +481,23 @@ vkr_dispatch_vkResetFenceResourceMESA(struct vn_dispatch_context *dispatch,
  
     vn_replace_vkResetFenceResourceMESA_args_handle(args);
  
@@ -3138,21 +3181,21 @@ diff --git a/src/venus/vkr_queue.c b/src/venus/vkr_queue.c
  
  static void
 diff --git a/src/venus/vkr_renderer.c b/src/venus/vkr_renderer.c
---- a/src/venus/vkr_renderer.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_renderer.c	2026-01-11 23:47:51
-@@ -69,8 +69,10 @@
+index c43a96e..42f08df 100644
+--- a/src/venus/vkr_renderer.c
++++ b/src/venus/vkr_renderer.c
+@@ -69,7 +69,9 @@ vkr_renderer_init(uint32_t flags, const struct vkr_renderer_callbacks *cbs)
        return false;
  
     vkr_debug_init();
 -   virgl_log_set_handler(cbs->debug_logger, NULL, NULL);
- 
++
 +   if (cbs->debug_logger)
 +      virgl_log_set_handler(cbs->debug_logger, NULL, NULL);
-+
+ 
     vkr_state.cbs = cbs;
     list_inithead(&vkr_state.contexts);
- 
-@@ -177,6 +179,7 @@
+@@ -177,6 +179,7 @@ vkr_renderer_create_resource(uint32_t ctx_id,
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
@@ -3160,7 +3203,7 @@ diff --git a/src/venus/vkr_renderer.c b/src/venus/vkr_renderer.c
                               uint32_t *out_map_info,
                               struct virgl_resource_vulkan_info *out_vulkan_info)
  {
-@@ -194,13 +197,17 @@
+@@ -194,13 +197,17 @@ vkr_renderer_create_resource(uint32_t ctx_id,
        return false;
  
     assert(blob.type == VIRGL_RESOURCE_FD_SHM || blob.type == VIRGL_RESOURCE_FD_DMABUF ||
@@ -3182,9 +3225,10 @@ diff --git a/src/venus/vkr_renderer.c b/src/venus/vkr_renderer.c
        *out_vulkan_info = blob.vulkan_info;
     }
 diff --git a/src/venus/vkr_renderer.h b/src/venus/vkr_renderer.h
---- a/src/venus/vkr_renderer.h	2026-01-01 08:05:29
-+++ b/src/venus/vkr_renderer.h	2026-01-11 23:47:51
-@@ -61,6 +61,7 @@
+index be3ae04..1ec376b 100644
+--- a/src/venus/vkr_renderer.h
++++ b/src/venus/vkr_renderer.h
+@@ -61,6 +61,7 @@ vkr_renderer_create_resource(uint32_t ctx_id,
                               uint32_t blob_flags,
                               enum virgl_resource_fd_type *out_fd_type,
                               int *out_res_fd,
@@ -3193,9 +3237,10 @@ diff --git a/src/venus/vkr_renderer.h b/src/venus/vkr_renderer.h
                               struct virgl_resource_vulkan_info *out_vulkan_info);
  
 diff --git a/src/venus/vkr_ring.c b/src/venus/vkr_ring.c
---- a/src/venus/vkr_ring.c	2026-01-01 08:05:29
-+++ b/src/venus/vkr_ring.c	2026-01-11 23:47:51
-@@ -204,7 +204,11 @@
+index 0e46df8..08d8ef4 100644
+--- a/src/venus/vkr_ring.c
++++ b/src/venus/vkr_ring.c
+@@ -204,7 +204,11 @@ vkr_ring_relax(uint32_t *iter)
        .tv_sec = us / 1000000,
        .tv_nsec = (us % 1000000) * 1000,
     };
@@ -3208,9 +3253,10 @@ diff --git a/src/venus/vkr_ring.c b/src/venus/vkr_ring.c
  
  static bool
 diff --git a/src/virgl_context.h b/src/virgl_context.h
---- a/src/virgl_context.h	2026-01-01 08:05:29
-+++ b/src/virgl_context.h	2026-01-11 23:47:51
-@@ -44,6 +44,7 @@
+index 25bc106..df137ec 100644
+--- a/src/virgl_context.h
++++ b/src/virgl_context.h
+@@ -44,6 +44,7 @@ struct virgl_context_blob {
        int fd;
        uint32_t opaque_handle;
        struct pipe_resource *pipe_resource;
@@ -3219,8 +3265,9 @@ diff --git a/src/virgl_context.h b/src/virgl_context.h
  
     uint32_t map_info;
 diff --git a/src/virgl_resource.c b/src/virgl_resource.c
---- a/src/virgl_resource.c	2026-01-01 08:05:29
-+++ b/src/virgl_resource.c	2026-01-11 23:47:51
+index 0ee5468..e7fd3f3 100644
+--- a/src/virgl_resource.c
++++ b/src/virgl_resource.c
 @@ -36,6 +36,13 @@
  #include "virgl_util.h"
  #include "virgl_context.h"
@@ -3235,7 +3282,7 @@ diff --git a/src/virgl_resource.c b/src/virgl_resource.c
  static struct util_hash_table *virgl_resource_table;
  static struct virgl_resource_pipe_callbacks pipe_callbacks;
  
-@@ -46,7 +53,9 @@
+@@ -46,7 +53,9 @@ virgl_resource_destroy_func(void *val)
  
     if (res->pipe_resource)
        pipe_callbacks.unref(res->pipe_resource, pipe_callbacks.data);
@@ -3246,7 +3293,7 @@ diff --git a/src/virgl_resource.c b/src/virgl_resource.c
         (res->fd_type != VIRGL_RESOURCE_OPAQUE_HANDLE))
        close(res->fd);
  
-@@ -206,6 +215,25 @@
+@@ -206,6 +215,25 @@ virgl_resource_create_from_iov(uint32_t res_id,
     return res;
  }
  
@@ -3272,7 +3319,7 @@ diff --git a/src/virgl_resource.c b/src/virgl_resource.c
  void
  virgl_resource_remove(uint32_t res_id)
  {
-@@ -263,6 +291,8 @@
+@@ -263,6 +291,8 @@ virgl_resource_export_fd(struct virgl_resource *res, int *fd)
           return VIRGL_RESOURCE_FD_INVALID;
  
        return ctx->export_opaque_handle(ctx, res, fd);
@@ -3282,9 +3329,10 @@ diff --git a/src/virgl_resource.c b/src/virgl_resource.c
        *fd = os_dupfd_cloexec(res->fd);
        return *fd >= 0 ? res->fd_type : VIRGL_RESOURCE_FD_INVALID;
 diff --git a/src/virgl_resource.h b/src/virgl_resource.h
---- a/src/virgl_resource.h	2026-01-01 08:05:29
-+++ b/src/virgl_resource.h	2026-01-11 23:47:51
-@@ -50,6 +50,12 @@
+index 8eb770e..2e830c6 100644
+--- a/src/virgl_resource.h
++++ b/src/virgl_resource.h
+@@ -50,6 +50,12 @@ enum virgl_resource_fd_type {
      */
     VIRGL_RESOURCE_OPAQUE_HANDLE,
  
@@ -3297,7 +3345,7 @@ diff --git a/src/virgl_resource.h b/src/virgl_resource.h
     VIRGL_RESOURCE_FD_INVALID = -1,
  };
  
-@@ -94,6 +100,9 @@
+@@ -94,6 +100,9 @@ struct virgl_resource {
     uint32_t opaque_handle_context_id;
     uint32_t opaque_handle;
  
@@ -3307,23 +3355,24 @@ diff --git a/src/virgl_resource.h b/src/virgl_resource.h
     const struct iovec *iov;
     int iov_count;
  
-@@ -156,6 +165,12 @@
- virgl_resource_create_from_iov(uint32_t res_id,
+@@ -157,6 +166,12 @@ virgl_resource_create_from_iov(uint32_t res_id,
                                 const struct iovec *iov,
                                 int iov_count);
-+
+ 
 +struct virgl_resource *
 +virgl_resource_create_from_metal_heap(struct virgl_context *ctx,
 +                                      uint32_t res_id,
 +                                      void *metal_heap,
 +                                      const struct virgl_resource_vulkan_info *vulkan_info);
- 
++
  void
  virgl_resource_remove(uint32_t res_id);
+ 
 diff --git a/src/virgl_util.c b/src/virgl_util.c
---- a/src/virgl_util.c	2026-01-01 08:05:29
-+++ b/src/virgl_util.c	2026-01-11 23:47:51
-@@ -257,10 +257,15 @@
+index 8184650..8988bb7 100644
+--- a/src/virgl_util.c
++++ b/src/virgl_util.c
+@@ -257,10 +257,15 @@ void virgl_prefixed_logv(const char *domain,
                           va_list va)
  {
     char *prefixed_fmt = NULL;
@@ -3341,8 +3390,9 @@ diff --git a/src/virgl_util.c b/src/virgl_util.c
  
     virgl_logv(log_level, prefixed_fmt, va);
 diff --git a/src/virglrenderer.c b/src/virglrenderer.c
---- a/src/virglrenderer.c	2026-01-01 08:05:29
-+++ b/src/virglrenderer.c	2026-01-12 00:02:51
+index 79717fc..05ab90d 100644
+--- a/src/virglrenderer.c
++++ b/src/virglrenderer.c
 @@ -46,6 +46,10 @@
  #include "vrend/vrend_renderer.h"
  #include "vrend/vrend_winsys.h"
@@ -3354,7 +3404,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
  #ifndef WIN32
  #include "util/libsync.h"
  #endif
-@@ -178,11 +182,37 @@
+@@ -178,11 +182,37 @@ void virgl_renderer_resource_unref(uint32_t res_handle)
  void virgl_renderer_fill_caps(uint32_t set, uint32_t version,
                                void *caps)
  {
@@ -3393,7 +3443,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
        break;
     case VIRTGPU_DRM_CAPSET_VENUS:
        if (state.proxy_initialized)
-@@ -482,7 +512,8 @@
+@@ -482,7 +512,8 @@ void virgl_renderer_ctx_detach_resource(int ctx_id, int res_handle)
  
  static int virgl_renderer_resource_get_info_common(int res_handle,
                                                     struct virgl_renderer_resource_info *info,
@@ -3403,7 +3453,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
  {
     int ret = 0;
  
-@@ -504,8 +535,19 @@
+@@ -504,8 +535,19 @@ static int virgl_renderer_resource_get_info_common(int res_handle,
                                      (struct vrend_renderer_resource_info *)info);
  
  #ifdef WIN32
@@ -3425,7 +3475,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
  #endif
  
     return ret;
-@@ -517,7 +559,7 @@
+@@ -517,7 +559,7 @@ int virgl_renderer_resource_get_info(int res_handle,
     TRACE_FUNC();
     int ret;
  
@@ -3434,7 +3484,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
         return ret;
  
     if (state.winsys_initialized) {
-@@ -540,7 +582,8 @@
+@@ -540,7 +582,8 @@ int virgl_renderer_resource_get_info_ext(int res_handle,
  
     if ((ret = virgl_renderer_resource_get_info_common(res_handle,
                                                        &info_ext->base,
@@ -3444,7 +3494,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
        return ret;
  
     info_ext->version = VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION;
-@@ -556,6 +599,25 @@
+@@ -556,6 +599,25 @@ int virgl_renderer_resource_get_info_ext(int res_handle,
  
     return 0;
  }
@@ -3470,7 +3520,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
  
  void virgl_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
                                  uint32_t *max_size)
-@@ -911,8 +972,8 @@
+@@ -911,8 +973,8 @@ int virgl_renderer_init(void *cookie, int flags, struct virgl_renderer_callbacks
           renderer_flags |= VREND_USE_EXTERNAL_BLOB;
        if (flags & VIRGL_RENDERER_USE_VIDEO)
           renderer_flags |= VREND_USE_VIDEO;
@@ -3481,7 +3531,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
        if (flags & VIRGL_RENDERER_COMPAT_PROFILE)
           renderer_flags |= VREND_USE_COMPAT_CONTEXT;
        if (flags & VIRGL_RENDERER_USE_GLES)
-@@ -1203,6 +1264,10 @@
+@@ -1203,6 +1265,10 @@ int virgl_renderer_resource_create_blob(const struct virgl_renderer_resource_cre
        res = virgl_resource_create_from_opaque_handle(ctx, args->res_handle, blob.u.opaque_handle);
        if (!res)
           return -ENOMEM;
@@ -3492,7 +3542,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
     } else if (blob.type != VIRGL_RESOURCE_FD_INVALID) {
        res = virgl_resource_create_from_fd(args->res_handle,
                                            blob.type,
-@@ -1267,6 +1332,7 @@
+@@ -1267,6 +1333,7 @@ int virgl_renderer_resource_map(uint32_t res_handle, void **out_map, uint64_t *o
           map_size = res->map_size;
           break;
        case VIRGL_RESOURCE_FD_OPAQUE:
@@ -3500,7 +3550,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
           ret = vkr_allocator_resource_map(res, &map, &map_size);
           break;
        case VIRGL_RESOURCE_OPAQUE_HANDLE:
-@@ -1327,6 +1393,7 @@
+@@ -1327,6 +1394,7 @@ int virgl_renderer_resource_map_fixed(uint32_t res_handle, void *addr)
                                   MAP_FIXED | MAP_SHARED);
           break;
        case VIRGL_RESOURCE_FD_OPAQUE:
@@ -3508,7 +3558,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
        case VIRGL_RESOURCE_FD_INVALID:
           /* Avoid a default case so that -Wswitch will tell us at compile time
            * if a new virgl resource type is added without being handled here.
-@@ -1365,6 +1432,7 @@
+@@ -1365,6 +1433,7 @@ int virgl_renderer_resource_unmap(uint32_t res_handle)
           ret = munmap(res->mapped, res->map_size);
           break;
        case VIRGL_RESOURCE_FD_OPAQUE:
@@ -3516,7 +3566,7 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
           ret = vkr_allocator_resource_unmap(res);
           break;
        case VIRGL_RESOURCE_FD_INVALID:
-@@ -1415,6 +1483,7 @@
+@@ -1415,6 +1484,7 @@ virgl_renderer_resource_export_blob(uint32_t res_id, uint32_t *fd_type, int *fd)
        *fd_type = VIRGL_RENDERER_BLOB_FD_TYPE_SHM;
        break;
     case VIRGL_RESOURCE_OPAQUE_HANDLE:
@@ -3524,12 +3574,10 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
     case VIRGL_RESOURCE_FD_INVALID:
        /* Avoid a default case so that -Wswitch will tell us at compile time if a
         * new virgl resource type is added without being handled here.
-@@ -1480,6 +1549,60 @@
-    res->map_size = args->size;
- 
+@@ -1482,6 +1552,60 @@ virgl_renderer_resource_import_blob(const struct virgl_renderer_resource_import_
     return 0;
-+}
-+
+ }
+ 
 +enum virgl_renderer_native_handle_type
 +virgl_renderer_create_handle_for_scanout(uint32_t res_id,
 +                                         uint32_t width,
@@ -3582,13 +3630,16 @@ diff --git a/src/virglrenderer.c b/src/virglrenderer.c
 +      virgl_metal_release_texture(handle);
 +   }
 +#endif
- }
- 
++}
++
  int
+ virgl_renderer_export_fence(uint64_t client_fence_id, int *fd)
+ {
 diff --git a/src/virglrenderer.h b/src/virglrenderer.h
---- a/src/virglrenderer.h	2026-01-01 08:05:29
-+++ b/src/virglrenderer.h	2026-01-11 23:47:51
-@@ -163,7 +163,9 @@
+index 0bcafef..d52db74 100644
+--- a/src/virglrenderer.h
++++ b/src/virglrenderer.h
+@@ -163,7 +163,9 @@ struct virgl_renderer_callbacks {
  #endif /* VIRGL_RENDERER_UNSTABLE_APIS */
  
  
@@ -3599,13 +3650,13 @@ diff --git a/src/virglrenderer.h b/src/virglrenderer.h
  #define VIRGL_RENDERER_COMPAT_PROFILE (1 << 13)
  
  /* Blob allocations must be done by guest from dedicated heap (Host visible memory). */
-@@ -363,15 +365,36 @@
+@@ -363,7 +365,23 @@ struct virgl_renderer_resource_info {
     int fd;
  };
  
 -#define VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION 0
 +#define VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION 1
- 
++
 +/**
 + * Describes a handle type used in the native graphics API
 + */
@@ -3621,10 +3672,10 @@ diff --git a/src/virglrenderer.h b/src/virglrenderer.h
 + * The actual type is determined by `virgl_renderer_native_handle_type`
 + */
 +typedef void *virgl_renderer_native_handle;
-+
+ 
  struct virgl_renderer_resource_info_ext {
     int version;
-    struct virgl_renderer_resource_info base;
+@@ -371,7 +389,12 @@ struct virgl_renderer_resource_info_ext {
     bool has_dmabuf_export;
     int planes;
     uint64_t modifiers;
@@ -3638,7 +3689,7 @@ diff --git a/src/virglrenderer.h b/src/virglrenderer.h
  };
  
  VIRGL_EXPORT int virgl_renderer_resource_get_info(int res_handle,
-@@ -380,6 +403,9 @@
+@@ -380,6 +403,9 @@ VIRGL_EXPORT int virgl_renderer_resource_get_info(int res_handle,
  VIRGL_EXPORT int virgl_renderer_resource_get_info_ext(int res_handle,
                                                        struct virgl_renderer_resource_info_ext *info);
  
@@ -3648,11 +3699,10 @@ diff --git a/src/virglrenderer.h b/src/virglrenderer.h
  VIRGL_EXPORT void virgl_renderer_cleanup(void *cookie);
  
  /* reset the rendererer - destroy all contexts and resource */
-@@ -509,6 +535,38 @@
-                            int ndw,
+@@ -510,6 +536,38 @@ virgl_renderer_submit_cmd2(void *buffer,
                             uint64_t *in_fence_ids,
                             uint32_t num_in_fences);
-+
+ 
 +/**
 + * Blob resources are untyped but we may wish to create a native texture handle
 + * for scanout. Not all blobs support exporting to a file-descriptor so this
@@ -3684,12 +3734,14 @@ diff --git a/src/virglrenderer.h b/src/virglrenderer.h
 +VIRGL_EXPORT void
 +virgl_renderer_release_handle_for_scanout(enum virgl_renderer_native_handle_type type,
 +                                          virgl_renderer_native_handle handle);
- 
++
  /* vtest semi-private APIs: */
  VIRGL_EXPORT int virgl_renderer_attach_fence(int ctx_id, int fence_fd);
+ VIRGL_EXPORT int virgl_renderer_get_fence_fd(uint64_t fence_id);
 diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
---- a/src/vrend/vrend_blitter.h	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_blitter.h	2026-01-11 23:47:51
+index 91e2435..7a03571 100644
+--- a/src/vrend/vrend_blitter.h
++++ b/src/vrend/vrend_blitter.h
 @@ -35,6 +35,12 @@
     "%s"                                         \
  
@@ -3724,7 +3776,7 @@ diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
  #define FS_TEXFETCH_COL_MSAA_ARRAY_GLES FS_HEADER_GLES_MS_ARRAY FS_TEXFETCH_COL_MSAA_BODY
  
  #define FS_TEXFETCH_DS_BODY                             \
-@@ -178,7 +189,7 @@
+@@ -178,7 +189,7 @@ struct vrend_context;
  struct vrend_resource;
  struct vrend_blit_info;
  #define FS_TEXFETCH_DS_MSAA_GL HEADER_GL FS_TEXFETCH_DS_MSAA_BODY
@@ -3734,9 +3786,10 @@ diff --git a/src/vrend/vrend_blitter.h b/src/vrend/vrend_blitter.h
  
  /* implement blitting using OpenGL. */
 diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
---- a/src/vrend/vrend_decode.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_decode.c	2026-01-11 23:47:51
-@@ -888,6 +888,17 @@
+index 7774a25..277cde9 100644
+--- a/src/vrend/vrend_decode.c
++++ b/src/vrend/vrend_decode.c
+@@ -888,6 +888,17 @@ static int vrend_decode_create_object(struct vrend_context *ctx, const uint32_t
        return EINVAL;
     }
  
@@ -3754,7 +3807,7 @@ diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
     return ret;
  }
  
-@@ -2095,9 +2106,22 @@
+@@ -2095,9 +2106,22 @@ static int vrend_decode_ctx_submit_cmd(struct virgl_context *ctx,
  
        TRACE_SCOPE_SLOW(vrend_get_comand_name(cmd));
  
@@ -3779,9 +3832,10 @@ diff --git a/src/vrend/vrend_decode.c b/src/vrend/vrend_decode.c
           virgl_error("context %d failed to dispatch %s: %d\n",
                 gdctx->base.ctx_id, vrend_get_comand_name(cmd), ret);
 diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
---- a/src/vrend/vrend_formats.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_formats.c	2026-01-11 23:47:51
-@@ -357,6 +357,19 @@
+index 670b3a4..90df028 100644
+--- a/src/vrend/vrend_formats.c
++++ b/src/vrend/vrend_formats.c
+@@ -357,6 +357,19 @@ static struct vrend_format_table gl_bgra_formats[] = {
    { VIRGL_FORMAT_B8G8R8A8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
  };
  
@@ -3801,7 +3855,7 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
  static struct vrend_format_table gles_bgra_formats[] = {
    { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, RGB1_SWIZZLE, view_class_32 },
    { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8,        GL_RGBA,     GL_UNSIGNED_BYTE, NO_SWIZZLE, view_class_32 },
-@@ -593,7 +606,12 @@
+@@ -593,7 +606,12 @@ void vrend_build_format_list_gl(void)
     * transfer operations. So we only register support for it in GL.
     */
    add_formats(gl_base_rgba_formats);
@@ -3814,7 +3868,7 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
    add_formats(gl_bit10_formats);
  }
  
-@@ -716,48 +734,183 @@
+@@ -716,48 +734,183 @@ unsigned vrend_renderer_query_multisample_caps(unsigned max_samples, struct virg
     assert(glGetError() == GL_NO_ERROR &&
            "Stale error state detected, please check for failures in initialization");
  
@@ -3995,15 +4049,15 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
           glBindFramebuffer(GL_FRAMEBUFFER, 0);
 +      } else {
 +         virgl_debug("[VREND FORMATS] ✗ %u samples GL_ERROR=0x%x\n", test_num_samples[i], status);
-       }
--      glDeleteTextures(1, &tex);
++      }
 +      
 +      /* Cleanup - delete texture or renderbuffer */
 +      if (has_tex_storage_ms || has_tex_image_ms) {
 +         glDeleteTextures(1, &tex);
 +      } else {
 +         glDeleteRenderbuffers(1, &tex);
-+      }
+       }
+-      glDeleteTextures(1, &tex);
     }
     glDeleteFramebuffers(1, &fbo);
 +   
@@ -4013,8 +4067,10 @@ diff --git a/src/vrend/vrend_formats.c b/src/vrend/vrend_formats.c
  }
  
 diff --git a/src/vrend/vrend_metal.h b/src/vrend/vrend_metal.h
---- a/src/vrend/vrend_metal.h	1969-12-31 19:00:00
-+++ b/src/vrend/vrend_metal.h	2026-01-11 23:47:51
+new file mode 100644
+index 0000000..154eae5
+--- /dev/null
++++ b/src/vrend/vrend_metal.h
 @@ -0,0 +1,34 @@
 +/*
 + * Copyright 2025 Turing Software, LLC
@@ -4051,8 +4107,10 @@ diff --git a/src/vrend/vrend_metal.h b/src/vrend/vrend_metal.h
 +
 +#endif
 diff --git a/src/vrend/vrend_metal.m b/src/vrend/vrend_metal.m
---- a/src/vrend/vrend_metal.m	1969-12-31 19:00:00
-+++ b/src/vrend/vrend_metal.m	2026-01-11 23:47:51
+new file mode 100644
+index 0000000..547d088
+--- /dev/null
++++ b/src/vrend/vrend_metal.m
 @@ -0,0 +1,149 @@
 +/*
 + * Copyright 2025 Turing Software, LLC
@@ -4204,8 +4262,9 @@ diff --git a/src/vrend/vrend_metal.m b/src/vrend/vrend_metal.m
 +   [mtl_texture release];
 +}
 diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
---- a/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.c	2026-01-11 23:58:50
+index 4bf88e0..c063dbd 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
 @@ -28,6 +28,7 @@
  #include <unistd.h>
  #include <stdatomic.h>
@@ -4214,7 +4273,15 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  #include <errno.h>
  #include "pipe/p_shader_tokens.h"
  
-@@ -323,7 +324,7 @@
+@@ -226,6 +227,7 @@ enum features_id
+    feat_viewport_array,
+    feat_implicit_msaa,
+    feat_anisotropic_filter,
++   feat_draw_elements_base_vertex,
+    feat_seamless_cubemap_per_texture,
+    feat_vs_layer_viewport,
+    feat_vs_viewport_index,
+@@ -323,7 +325,7 @@ static const  struct {
     FEAT(texture_mirror_clamp_to_edge, UNAVAIL, UNAVAIL, "GL_ATI_texture_mirror_once", "GL_EXT_texture_mirror_clamp", "GL_ARB_texture_mirror_clamp_to_edge", "GL_EXT_texture_mirror_clamp_to_edge"),
     FEAT(texture_mirror_clamp, UNAVAIL, UNAVAIL, "GL_ATI_texture_mirror_once", "GL_EXT_texture_mirror_clamp"),
     FEAT(texture_mirror_clamp_to_border, UNAVAIL, UNAVAIL, "GL_EXT_texture_mirror_clamp"),
@@ -4223,7 +4290,15 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     FEAT(texture_query_lod, 40, UNAVAIL, "GL_ARB_texture_query_lod", "GL_EXT_texture_query_lod"),
     FEAT(texture_shadow_lod, UNAVAIL, UNAVAIL, "GL_EXT_texture_shadow_lod"),
     FEAT(texture_srgb_decode, UNAVAIL, UNAVAIL,  "GL_EXT_texture_sRGB_decode" ),
-@@ -401,8 +402,11 @@
+@@ -342,6 +344,7 @@ static const  struct {
+    FEAT(seamless_cubemap_per_texture, UNAVAIL, UNAVAIL,  "GL_AMD_seamless_cubemap_per_texture" ),
+    FEAT(vs_layer_viewport, UNAVAIL, UNAVAIL, "GL_AMD_vertex_shader_layer"),
+    FEAT(vs_viewport_index, UNAVAIL, UNAVAIL, "GL_AMD_vertex_shader_viewport_index"),
++   FEAT(draw_elements_base_vertex, 32, 32, "GL_ARB_draw_elements_base_vertex", "GL_EXT_draw_elements_base_vertex", "GL_OES_draw_elements_base_vertex"),
+ };
+ 
+ struct global_renderer_state {
+@@ -401,8 +404,11 @@ struct global_renderer_state {
  #ifdef HAVE_EPOXY_EGL_H
     bool use_egl_fence : 1;
  #endif
@@ -4236,7 +4311,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  };
  
  struct sysval_uniform_block {
-@@ -416,6 +420,11 @@
+@@ -416,6 +422,11 @@ struct sysval_uniform_block {
  
  static struct global_renderer_state vrend_state;
  
@@ -4248,16 +4323,15 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  static inline bool has_feature(enum features_id feature_id)
  {
     int slot = feature_id / 64;
-@@ -1387,14 +1396,52 @@
- static bool vrend_compile_shader(struct vrend_sub_context *sub_ctx,
-                                  struct vrend_shader *shader)
+@@ -1389,13 +1400,51 @@ static bool vrend_compile_shader(struct vrend_sub_context *sub_ctx,
  {
     GLint param;
     const char *shader_parts[SHADER_MAX_STRINGS];
-+   char *modified_shaders[SHADER_MAX_STRINGS] = {NULL};
- 
+-
 -   for (int i = 0; i < shader->glsl_strings.num_strings; i++)
 -      shader_parts[i] = shader->glsl_strings.strings[i].buf;
++   char *modified_shaders[SHADER_MAX_STRINGS] = {NULL};
++
 +   /* Firefox uses GL_EXT_shader_texture_lod (GLES extension), but on OpenGL 4.1 Core Profile
 +    * textureLod is built into the core spec - no extension directive needed.
 +    * Remove the extension directive entirely. */
@@ -4303,7 +4377,8 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +
     glGetShaderiv(shader->id, GL_COMPILE_STATUS, &param);
     if (param == GL_FALSE) {
-@@ -2519,30 +2572,32 @@
+       char infolog[65536];
+@@ -2519,30 +2568,32 @@ static GLuint convert_wrap(struct vrend_context *ctx, int wrap)
     case PIPE_TEX_WRAP_CLAMP: if (vrend_state.use_core_profile == false) return GL_CLAMP; else return GL_CLAMP_TO_EDGE;
  
     case PIPE_TEX_WRAP_CLAMP_TO_EDGE: return GL_CLAMP_TO_EDGE;
@@ -4348,7 +4423,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     default:
        assert(0);
        return -1;
-@@ -3094,6 +3149,11 @@
+@@ -3094,6 +3145,11 @@ static void vrend_hw_emit_framebuffer_state(struct vrend_sub_context *sub_ctx)
  
     if (sub_ctx->nr_cbufs == 0) {
        glReadBuffer(GL_NONE);
@@ -4360,7 +4435,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        if (has_feature(feat_srgb_write_control)) {
           glDisable(GL_FRAMEBUFFER_SRGB_EXT);
           sub_ctx->framebuffer_srgb_enabled = false;
-@@ -3455,7 +3515,8 @@
+@@ -3455,7 +3511,8 @@ void vrend_bind_vertex_elements_state(struct vrend_context *ctx,
        return;
     }
  
@@ -4370,12 +4445,12 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        glGenVertexArrays(1, &v->id);
        glBindVertexArray(v->id);
        for (uint32_t i = 0; i < v->count; i++) {
-@@ -3473,7 +3534,18 @@
+@@ -3473,6 +3530,17 @@ void vrend_bind_vertex_elements_state(struct vrend_context *ctx,
           glVertexAttribBinding(i, ve->base.vertex_buffer_index);
           glVertexBindingDivisor(i, ve->base.instance_divisor);
           glEnableVertexAttribArray(i);
 +         }
-       }
++      }
 +   } else {
 +      for (uint32_t i = 0; i < v->count; i++) {
 +         struct vrend_vertex_element *ve = &v->elements[i];
@@ -4385,11 +4460,10 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +                                 v->signed_int_bitmask,
 +                                 v->unsigned_int_bitmask);
 +         }
-+      }
+       }
     }
  }
- 
-@@ -3716,7 +3788,7 @@
+@@ -3716,7 +3784,7 @@ void vrend_set_single_sampler_view(struct vrend_context *ctx,
                 glTexParameteri(view->texture->target, GL_TEXTURE_BASE_LEVEL, view->u.tex.first_level);
                 tex->cur_base = view->u.tex.first_level;
              }
@@ -4398,7 +4472,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
                 glTexParameteri(view->texture->target, GL_TEXTURE_MAX_LEVEL, view->u.tex.last_level);
                 tex->cur_max = view->u.tex.last_level;
              }
-@@ -4871,6 +4943,10 @@
+@@ -4871,6 +4939,10 @@ int vrend_clear_texture(struct vrend_context* ctx,
     format = tex_conv_table[fmt].glformat;
     type = tex_conv_table[fmt].gltype;
  
@@ -4409,7 +4483,32 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     /* 32-bit BGRA resources are always reordered to RGBA ordering before
      * submission to the host driver. Reorder red/blue color bytes in
      * the clear color to match. */
-@@ -7556,11 +7632,7 @@
+@@ -6138,14 +6210,18 @@ int vrend_draw_vbo(struct vrend_context *ctx,
+             if (info->start_instance > 0)
+                glDrawElementsInstancedBaseVertexBaseInstance(mode, info->count, elsz, (void *)(uintptr_t)sub_ctx->ib.offset,
+                                                              info->instance_count, info->index_bias, info->start_instance);
+-            else
++            else if (has_feature(feat_draw_elements_base_vertex))
+                glDrawElementsInstancedBaseVertex(mode, info->count, elsz, (void *)(uintptr_t)sub_ctx->ib.offset, info->instance_count, info->index_bias);
++            else
++               return EINVAL;
+ 
+-
+-         } else if (info->min_index != 0 || info->max_index != (unsigned)-1)
+-            glDrawRangeElementsBaseVertex(mode, info->min_index, info->max_index, info->count, elsz, (void *)(uintptr_t)sub_ctx->ib.offset, info->index_bias);
+-         else
+-            glDrawElementsBaseVertex(mode, info->count, elsz, (void *)(uintptr_t)sub_ctx->ib.offset, info->index_bias);
++         } else if (has_feature(feat_draw_elements_base_vertex)) {
++            if (info->min_index != 0 || info->max_index != (unsigned)-1)
++               glDrawRangeElementsBaseVertex(mode, info->min_index, info->max_index, info->count, elsz, (void *)(uintptr_t)sub_ctx->ib.offset, info->index_bias);
++            else
++               glDrawElementsBaseVertex(mode, info->count, elsz, (void *)(uintptr_t)sub_ctx->ib.offset, info->index_bias);
++         } else
++            return EINVAL;
+       } else if (info->instance_count > 0) {
+          if (info->start_instance > 0) {
+             glDrawElementsInstancedBaseInstance(mode, info->count, elsz, (void *)(uintptr_t)sub_ctx->ib.offset, info->instance_count, info->start_instance);
+@@ -7556,11 +7632,7 @@ static bool use_integer(void) {
        return true;
  
     const char * a = (const char *) glGetString(GL_VENDOR);
@@ -4422,7 +4521,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  }
  
  static bool vrend_use_gbm_layout_feature(UNUSED uint32_t flags)
-@@ -7630,6 +7702,30 @@
+@@ -7630,6 +7702,30 @@ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
     vrend_clicbs->make_current(gl_context);
     gl_ver = epoxy_gl_version();
  
@@ -4453,7 +4552,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     /* enable error output as early as possible */
     if (vrend_debug(NULL, dbg_khr) && epoxy_has_gl_extension("GL_KHR_debug")) {
        glDebugMessageCallback(vrend_debug_cb, NULL);
-@@ -7661,6 +7757,18 @@
+@@ -7661,6 +7757,18 @@ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
     init_features(gles ? 0 : gl_ver,
                   gles ? gl_ver : 0);
  
@@ -4472,7 +4571,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     if (!vrend_winsys_has_gl_colorspace())
        clear_feature(feat_srgb_write_control) ;
  
-@@ -7764,7 +7872,7 @@
+@@ -7764,7 +7872,7 @@ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
     }
  #endif
  
@@ -4481,7 +4580,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     vrend_state.gbm_layout_feat = vrend_use_gbm_layout_feature(flags);
  
-@@ -8541,7 +8649,7 @@
+@@ -8541,7 +8649,7 @@ static void vrend_resource_d3d_init(UNUSED struct vrend_resource *gr, UNUSED uin
     };
     ID3D11Texture2D* d3d_tex2d = NULL;
  
@@ -4490,7 +4589,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        return;
  
     if ((gr->base.bind & VIRGL_RES_BIND_SCANOUT) == 0)
-@@ -8570,7 +8678,7 @@
+@@ -8570,7 +8678,7 @@ static void vrend_resource_d3d_init(UNUSED struct vrend_resource *gr, UNUSED uin
  
     gr->d3d_tex2d = d3d_tex2d;
  
@@ -4499,10 +4598,11 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     gr->storage_bits |= VREND_STORAGE_EGL_IMAGE;
     return;
  
-@@ -8582,6 +8690,44 @@
+@@ -8581,6 +8689,44 @@ fail:
+ #endif
  }
  
- /*
++/*
 + * When using ANGLE/Metal, this function creates a Metal Texture and
 + * EGL image given certain flags.
 + */
@@ -4540,11 +4640,10 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +#endif
 +}
 +
-+/*
+ /*
   * When GBM allocation is enabled, this function creates a GBM buffer and
   * EGL image given certain flags.
-  */
-@@ -8670,6 +8816,7 @@
+@@ -8670,6 +8816,7 @@ static int vrend_resource_alloc_texture(struct vrend_resource *gr,
  
     if (!image_oes) {
        vrend_resource_d3d_init(gr, format);
@@ -4552,7 +4651,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        vrend_resource_gbm_init(gr, format);
        if (gr->gbm_bo && !has_bit(gr->storage_bits, VREND_STORAGE_EGL_IMAGE))
           return 0;
-@@ -8737,7 +8884,19 @@
+@@ -8737,7 +8884,19 @@ static int vrend_resource_alloc_texture(struct vrend_resource *gr,
        }
  
        if (pr->nr_samples > 1) {
@@ -4573,7 +4672,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
              if (gr->target == GL_TEXTURE_2D_MULTISAMPLE) {
                 glTexStorage2DMultisample(gr->target, pr->nr_samples,
                                           internalformat, pr->width0, pr->height0,
-@@ -8758,7 +8917,9 @@
+@@ -8758,7 +8917,9 @@ static int vrend_resource_alloc_texture(struct vrend_resource *gr,
                                         GL_TRUE);
              }
           }
@@ -4584,7 +4683,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
              int i;
              if (format_can_texture_storage)
                 glTexStorage2D(GL_TEXTURE_CUBE_MAP, pr->last_level + 1, internalformat, pr->width0, pr->height0);
-@@ -8821,7 +8982,9 @@
+@@ -8821,7 +8982,9 @@ static int vrend_resource_alloc_texture(struct vrend_resource *gr,
  
     if (!format_can_texture_storage) {
        glTexParameteri(gr->target, GL_TEXTURE_BASE_LEVEL, 0);
@@ -4595,7 +4694,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     }
  
     glBindTexture(gr->target, 0);
-@@ -8919,7 +9082,7 @@
+@@ -8919,7 +9082,7 @@ void vrend_renderer_resource_destroy(struct vrend_resource *res)
        glDeleteMemoryObjectsEXT(1, &res->memobj);
     }
  
@@ -4604,18 +4703,18 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     if (res->egl_image) {
        virgl_egl_image_destroy(egl, res->egl_image);
        for (unsigned i = 0; i < ARRAY_SIZE(res->aux_plane_egl_image); i++) {
-@@ -8937,6 +9100,10 @@
+@@ -8936,6 +9099,10 @@ void vrend_renderer_resource_destroy(struct vrend_resource *res)
+ #ifdef WIN32
     if (res->d3d_tex2d)
        res->d3d_tex2d->lpVtbl->Release(res->d3d_tex2d);
- #endif
++#endif
 +#ifdef ENABLE_METAL
 +   if (res->metal_texture)
 +      virgl_metal_release_texture(res->metal_texture);
-+#endif
+ #endif
     free(res);
  }
- 
-@@ -9975,6 +10142,12 @@
+@@ -9975,6 +10142,12 @@ static int vrend_renderer_transfer_send_iov(struct vrend_context *ctx,
     return 0;
  }
  
@@ -4628,7 +4727,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  static int vrend_renderer_transfer_internal(struct vrend_context *ctx,
                                              struct vrend_resource *res,
                                              const struct vrend_transfer_info *info,
-@@ -10105,7 +10278,123 @@
+@@ -10105,6 +10278,122 @@ int vrend_transfer_inline_write(struct vrend_context *ctx,
     return vrend_renderer_transfer_write_iov(ctx, res, info->iovec, info->iovec_cnt, info);
  
  }
@@ -4643,7 +4742,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +   if (dst_res->target != GL_TEXTURE_2D_MULTISAMPLE &&
 +       dst_res->target != GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
 +      return EINVAL;
- 
++
 +   const GLenum staging_target = (dst_res->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY) ?
 +                                 GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
 +
@@ -4748,11 +4847,10 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +   return 0;
 +}
 +
-+
+ 
  int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
                                     uint32_t dst_handle,
- 
-@@ -10113,6 +10402,16 @@
+@@ -10113,6 +10402,16 @@ int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
                                     struct vrend_resource *src_res,
                                     const struct vrend_transfer_info *info)
  {
@@ -4769,7 +4867,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     if (!resource_contains_box(dst_res, info->box, info->level)) {
        vrend_report_context_error(ctx, VIRGL_ERROR_CTX_ILLEGAL_CMD_BUFFER, dst_handle);
        return EINVAL;
-@@ -10159,6 +10458,14 @@
+@@ -10159,6 +10458,14 @@ int vrend_renderer_copy_transfer3d(struct vrend_context *ctx,
     }
  #endif
  
@@ -4784,7 +4882,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
    return vrend_renderer_transfer_write_iov(ctx, dst_res, src_res->iov,
                                             src_res->num_iovs, info);
  }
-@@ -10550,7 +10857,10 @@
+@@ -10550,7 +10857,10 @@ static void vrend_resource_copy_fallback(struct vrend_resource *src_res,
     slice_offset = src_box->z * slice_size;
     cube_slice = (src_res->target == GL_TEXTURE_CUBE_MAP) ? src_box->z + src_box->depth : cube_slice;
     i = (src_res->target == GL_TEXTURE_CUBE_MAP) ? src_box->z : 0;
@@ -4796,7 +4894,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        virgl_error("Offset out of bound: %d\n", src_box->z);
        goto cleanup;
     }
-@@ -10714,9 +11024,32 @@
+@@ -10714,9 +11024,32 @@ void vrend_renderer_resource_copy_region(struct vrend_context *ctx,
     if (dst_res->egl_image)
        comp_flags ^= VREND_COPY_COMPAT_FLAG_ONE_IS_EGL_IMAGE;
  
@@ -4832,7 +4930,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        VREND_DEBUG(dbg_copy_resource, ctx, "COPY_REGION: use glCopyImageSubData\n");
        vrend_copy_sub_image(src_res, dst_res, src_level, src_box,
                             dst_level, dstx, dsty, dstz);
-@@ -11296,7 +11629,7 @@
+@@ -11296,7 +11629,7 @@ void vrend_renderer_blit(struct vrend_context *ctx,
      * to resource_copy_region, in this case and if no render states etx need
      * to be applied, forward the call to glCopyImageSubData, otherwise do a
      * normal blit. */
@@ -4841,7 +4939,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
         (!info->render_condition_enable || !ctx->sub->cond_render_gl_mode) &&
         format_is_copy_compatible(info->src.format,info->dst.format, comp_flags) &&
         eglimage_copy_compatible &&
-@@ -11309,7 +11642,26 @@
+@@ -11309,7 +11642,26 @@ void vrend_renderer_blit(struct vrend_context *ctx,
         info->dst.box.y + info->dst.box.height <= dst_height &&
         info->src.box.width == info->dst.box.width &&
         info->src.box.height == info->dst.box.height &&
@@ -4869,7 +4967,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        VREND_DEBUG(dbg_blit, ctx,  "  Use glCopyImageSubData\n");
        vrend_copy_sub_image(src_res, dst_res, info->src.level, &info->src.box,
                             info->dst.level, info->dst.box.x, info->dst.box.y,
-@@ -12100,6 +12452,16 @@
+@@ -12100,6 +12452,16 @@ static int get_glsl_version(void)
  static void vrend_fill_caps_glsl_version(int gl_ver, int gles_ver,
                                           union virgl_caps *caps)
  {
@@ -4886,7 +4984,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     if (gles_ver > 0) {
        caps->v1.glsl_level = 120;
  
-@@ -12166,6 +12528,10 @@
+@@ -12166,6 +12528,10 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  {
     int i;
     GLint max;
@@ -4897,7 +4995,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     /*
      * We can't fully support this feature on GLES,
-@@ -12210,9 +12576,27 @@
+@@ -12210,9 +12576,27 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  
     if (has_feature(feat_ubo)) {
        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &max);
@@ -4927,7 +5025,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     }
  
     if (has_feature(feat_depth_clamp))
-@@ -12231,8 +12615,13 @@
+@@ -12231,8 +12615,13 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
     if (has_feature(feat_seamless_cubemap_per_texture))
        caps->v1.bset.seamless_cube_map_per_texture = 1;
  
@@ -4942,7 +5040,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     if (has_feature(feat_tessellation))
        caps->v1.bset.has_tessellation_shaders = 1;
-@@ -12349,6 +12738,7 @@
+@@ -12349,6 +12738,7 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  
     glGetIntegerv(GL_MAX_SAMPLES, &max);
     caps->v1.max_samples = max;
@@ -4950,7 +5048,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     /* All of the formats are common. */
     for (i = 0; i < VIRGL_FORMAT_MAX; i++) {
-@@ -12376,6 +12766,7 @@
+@@ -12376,6 +12766,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
     GLfloat range[2];
     uint32_t video_memory;
     const char *renderer = (const char *)glGetString(GL_RENDERER);
@@ -4958,7 +5056,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     /* Count this up when you add a feature flag that is used to set a CAP in
      * the guest that was set unconditionally before. Then check that flag and
-@@ -12383,10 +12774,134 @@
+@@ -12383,9 +12774,133 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
      * run on an old virgl host. Use it also to indicate non-cap fixes on the
      * host that help enable features in the guest. */
     caps->v2.host_feature_check_version = 23;
@@ -4986,7 +5084,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +      const char *device_start = metal_start + strlen("ANGLE Metal Renderer:");
 +      while (*device_start == ' ')
 +         device_start++;
- 
++
 +      const char *device_end = device_start;
 +      while (*device_end && *device_end != ',' && *device_end != ')')
 +         device_end++;
@@ -5091,11 +5189,10 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
 +   caps->v2.renderer[sizeof(caps->v2.renderer) - 1] = '\0';
 +
 +angle_done:
-+
+ 
     /* glamor reject llvmpipe, and since the renderer string is
      * composed of "virgl" and this renderer string we have to
-     * hide the "llvmpipe" part */
-@@ -12507,8 +13022,25 @@
+@@ -12507,8 +13022,25 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
           glGetIntegerv(GL_MAX_IMAGE_SAMPLES, (GLint*)&caps->v2.max_image_samples);
     }
  
@@ -5123,7 +5220,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  
     caps->v2.capability_bits |= VIRGL_CAP_TGSI_INVARIANT | VIRGL_CAP_SET_MIN_SAMPLES |
                                 VIRGL_CAP_TGSI_PRECISE | VIRGL_CAP_APP_TWEAK_SUPPORT;
-@@ -12670,6 +13202,10 @@
+@@ -12670,6 +13202,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
              readback_str = "readback";
              set_format_bit(&caps->v2.supported_readback_formats, fmt);
           }
@@ -5134,7 +5231,18 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
           if (vrend_format_can_multisample(fmt)) {
              log_texture_feature = true;
              multisample_str = "multisample";
-@@ -12801,6 +13337,7 @@
+@@ -12782,6 +13318,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
+    // we can pass "1" as size on drm path, but not on vtest.
+    caps->v2.capability_bits_v2 |= VIRGL_CAP_V2_COPY_TRANSFER_BOTH_DIRECTIONS;
+ 
++   /* On Core Profile hosts, advertise this so guest can cap compatibility level */
++   if (vrend_state.use_core_profile)
++      caps->v2.capability_bits_v2 |= VIRGL_CAP_V2_CORE_PROFILE_ONLY;
++
+    if (has_feature(feat_anisotropic_filter)) {
+       float max_aniso;
+       glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_aniso);
+@@ -12801,6 +13341,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
     if (has_feature(feat_ubo)) {
        glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &max);
        caps->v2.max_uniform_block_size = max;
@@ -5142,7 +5250,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
     }
  
     /* Propagate the max of Uniform Components */
-@@ -12911,6 +13448,11 @@
+@@ -12911,6 +13452,11 @@ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
        return;
  
     vrend_renderer_fill_caps_v2(gl_ver, gles_ver, caps);
@@ -5154,7 +5262,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  }
  
  GLint64 vrend_renderer_get_timestamp(void)
-@@ -13109,27 +13651,35 @@
+@@ -13109,27 +13655,35 @@ void vrend_renderer_resource_get_info(struct pipe_resource *pres,
     info->stride = util_format_get_nblocksx(res->base.format, u_minify(res->base.width0, 0)) * elsize;
  }
  
@@ -5202,7 +5310,43 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
  void vrend_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
                                  uint32_t *max_size)
  {
-@@ -13389,9 +13939,6 @@
+@@ -13341,6 +13895,35 @@ struct pipe_resource *vrend_get_blob_pipe(struct vrend_context *ctx, uint64_t bl
+    return NULL;
+ }
+ 
++void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres)
++{
++   struct vrend_texture *tex = (struct vrend_texture *)pres;
++   struct vrend_format_table *tex_conv = &tex_conv_table[tex->base.base.format];
++
++   assert(tex->base.target == GL_TEXTURE_2D);
++   assert(!util_format_is_depth_or_stencil(tex->base.base.format));
++
++   glBindTexture(GL_TEXTURE_2D, tex->base.gl_id);
++
++   if (tex_conv->flags & VIRGL_TEXTURE_NEED_SWIZZLE) {
++      for (unsigned i = 0; i < ARRAY_SIZE(tex->cur_swizzle); ++i) {
++         GLint next_swizzle = to_gl_swizzle(tex_conv->swizzle[i]);
++         if (tex->cur_swizzle[i] != next_swizzle) {
++            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R + i, next_swizzle);
++            tex->cur_swizzle[i] = next_swizzle;
++         }
++      }
++   }
++
++   if (tex->cur_srgb_decode != GL_DECODE_EXT && util_format_is_srgb(tex->base.base.format)) {
++      if (has_feature(feat_texture_srgb_decode)) {
++         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SRGB_DECODE_EXT,
++                         GL_DECODE_EXT);
++         tex->cur_srgb_decode = GL_DECODE_EXT;
++      }
++   }
++}
++
+ int
+ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
+                                       uint32_t res_id,
+@@ -13389,9 +13972,6 @@ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
        };
        struct vrend_resource *gr;
  
@@ -5212,7 +5356,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
        gr = vrend_resource_create(&create_args);
        if (!gr)
           return ENOMEM;
-@@ -13399,6 +13946,10 @@
+@@ -13399,6 +13979,10 @@ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
  #ifdef HAVE_EPOXY_EGL_H
        if (egl) {
  #ifdef ENABLE_GBM
@@ -5223,7 +5367,7 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
           int plane_fds[VIRGL_GBM_MAX_PLANES];
           uint32_t virgl_format;
           uint32_t drm_format;
-@@ -13439,7 +13990,53 @@
+@@ -13439,7 +14023,53 @@ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
              return ret;
           }
  
@@ -5279,8 +5423,9 @@ diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
           virgl_error("%s: no EGL/GBM support \n", __func__);
           return EINVAL;
 diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
---- a/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.h	2026-01-11 23:54:22
+index adb1213..3ca2c9e 100644
+--- a/src/vrend/vrend_renderer.h
++++ b/src/vrend/vrend_renderer.h
 @@ -42,6 +42,9 @@
  #ifdef WIN32
  #include <d3d11.h>
@@ -5291,7 +5436,7 @@ diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
  
  #ifdef ENABLE_TESTS
  /* With this flag set, the transfer will not try to use GBM mappings.
-@@ -77,7 +80,7 @@
+@@ -77,7 +80,7 @@ struct vrend_context;
  #define VREND_STORAGE_HOST_SYSTEM_MEMORY BIT(5)
  #define VREND_STORAGE_GL_IMMUTABLE       BIT(6)
  #define VREND_STORAGE_GL_MEMOBJ          BIT(7)
@@ -5300,7 +5445,7 @@ diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
  
  struct vrend_resource {
     struct pipe_resource base;
-@@ -107,6 +110,9 @@
+@@ -107,6 +110,9 @@ struct vrend_resource {
  #ifdef WIN32
     ID3D11Texture2D *d3d_tex2d;
  #endif
@@ -5310,7 +5455,7 @@ diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
  
     uint64_t size;
     GLbitfield buffer_storage_flags;
-@@ -194,7 +200,7 @@
+@@ -194,7 +200,7 @@ struct vrend_if_cbs {
  #define VREND_USE_EXTERNAL_BLOB (1 << 1)
  #define VREND_USE_ASYNC_FENCE_CB (1 << 2)
  #define VREND_USE_VIDEO          (1 << 3)
@@ -5319,7 +5464,16 @@ diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
  #define VREND_USE_COMPAT_CONTEXT (1 << 5)
  #define VREND_USE_GLES (1 << 6)
  #define VREND_USE_GBM_LAYOUT (1 << 7)
-@@ -612,6 +618,8 @@
+@@ -564,6 +570,8 @@ struct vrend_blit_info {
+ void vrend_renderer_resource_get_info(struct pipe_resource *pres,
+                                       struct vrend_renderer_resource_info *info);
+ 
++void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres);
++
+ void vrend_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
+                                 uint32_t *max_size);
+ 
+@@ -612,6 +620,8 @@ static const struct gl_version gl_versions[] = { {4,6}, {4,5}, {4,4}, {4,3}, {4,
  
  extern const struct vrend_if_cbs *vrend_clicbs;
  
@@ -5328,7 +5482,7 @@ diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
  int vrend_renderer_export_query(struct pipe_resource *pres,
                                  struct virgl_renderer_export_query *export_query);
  
-@@ -640,11 +648,16 @@
+@@ -640,11 +650,16 @@ void vrend_context_emit_string_marker(struct vrend_context *ctx, GLsizei length,
  
  struct vrend_video_context *vrend_context_get_video_ctx(struct vrend_context *ctx);
  
@@ -5340,17 +5494,18 @@ diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
  int
  vrend_renderer_pipe_resource_get_layout(struct vrend_context *ctx,
                                          uint32_t out_res_id, uint32_t res_id);
-+
+ 
 +#ifdef ENABLE_METAL
 +MTLTexture_id
 +vrend_renderer_resource_metal_texture(struct pipe_resource *pres);
 +#endif
- 
++
  #endif
 diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
---- a/src/vrend/vrend_shader.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_shader.c	2026-01-11 23:47:51
-@@ -6301,10 +6301,12 @@
+index 6a26fdf..1a4e30a 100644
+--- a/src/vrend/vrend_shader.c
++++ b/src/vrend/vrend_shader.c
+@@ -6301,10 +6301,12 @@ static void emit_header(const struct dump_ctx *ctx, struct vrend_glsl_strbufs *g
  
        if (ctx->prog_type == TGSI_PROCESSOR_VERTEX && ctx->cfg->use_explicit_locations)
           emit_ext(glsl_strbufs, "ARB_explicit_attrib_location", "require");
@@ -5365,19 +5520,29 @@ diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
           emit_ext(glsl_strbufs, "ARB_uniform_buffer_object", "require");
  
        if (ctx->num_cull_dist_prop || ctx->key->num_in_cull || ctx->key->num_out_cull)
-@@ -8178,6 +8180,9 @@
-    bret = tgsi_iterate_shader(tokens, &ctx.iter);
+@@ -6389,7 +6391,7 @@ static const char *get_interp_string(const struct vrend_shader_cfg *cfg, enum tg
+       else
+          return "";
+    case TGSI_INTERPOLATE_PERSPECTIVE:
+-      return "smooth ";
++      return "";
+    case TGSI_INTERPOLATE_CONSTANT:
+       return "flat ";
+    case TGSI_INTERPOLATE_COLOR:
+@@ -8179,6 +8181,9 @@ bool vrend_convert_shader(const struct vrend_context *rctx,
     if (bret == false)
        goto fail;
-+
+ 
 +   if (ctx.shader_req_bits & SHADER_REQ_INTS)
 +      ctx.glsl_ver_required = require_glsl_ver(&ctx, 150);
- 
++
     if (ctx.shader_req_bits & SHADER_REQ_FP64)
        ctx.glsl_ver_required = require_glsl_ver(&ctx, 150);
+ 
 diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
---- a/src/vrend/vrend_winsys_egl.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_winsys_egl.c	2026-01-11 23:47:51
+index 4ddcd0d..418f66f 100644
+--- a/src/vrend/vrend_winsys_egl.c
++++ b/src/vrend/vrend_winsys_egl.c
 @@ -32,6 +32,22 @@
  
  #define EGL_EGLEXT_PROTOTYPES
@@ -5401,7 +5566,7 @@ diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
  #include <fcntl.h>
  #ifdef WIN32
  #include <d3d11.h>
-@@ -110,6 +126,9 @@
+@@ -110,6 +126,9 @@ struct virgl_egl {
  #ifdef WIN32
     ID3D11Device *d3d11_device;
  #endif
@@ -5411,7 +5576,7 @@ diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
  };
  
  static bool virgl_egl_has_extension_in_string(const char *haystack, const char *needle)
-@@ -575,6 +594,66 @@
+@@ -575,6 +594,66 @@ virgl_egl_win32_init(UNUSED struct virgl_egl *egl)
  #endif
  }
  
@@ -5478,7 +5643,7 @@ diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
  struct virgl_egl *virgl_egl_init_external(EGLDisplay egl_display)
  {
     const char *extensions;
-@@ -610,6 +689,7 @@
+@@ -610,6 +689,7 @@ struct virgl_egl *virgl_egl_init_external(EGLDisplay egl_display)
  #endif
  
     virgl_egl_win32_init(egl);
@@ -5486,7 +5651,7 @@ diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
     return egl;
  fail:
     free(egl);
-@@ -838,7 +918,9 @@
+@@ -838,7 +918,9 @@ void *virgl_egl_image_from_dmabuf(struct virgl_egl *egl,
                                      (EGLClientBuffer)NULL,
                                      attrs);
  }
@@ -5497,8 +5662,9 @@ diff --git a/src/vrend/vrend_winsys_egl.c b/src/vrend/vrend_winsys_egl.c
  {
     eglDestroyImageKHR(egl->egl_display, image);
 diff --git a/src/vrend/vrend_winsys_egl.h b/src/vrend/vrend_winsys_egl.h
---- a/src/vrend/vrend_winsys_egl.h	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_winsys_egl.h	2026-01-11 23:47:51
+index 4af897b..0e8eb7a 100644
+--- a/src/vrend/vrend_winsys_egl.h
++++ b/src/vrend/vrend_winsys_egl.h
 @@ -32,6 +32,9 @@
  #ifdef WIN32
  #include <d3d11.h>
@@ -5509,7 +5675,7 @@ diff --git a/src/vrend/vrend_winsys_egl.h b/src/vrend/vrend_winsys_egl.h
  
  struct virgl_egl;
  
-@@ -80,12 +83,15 @@
+@@ -80,12 +83,15 @@ void *virgl_egl_image_from_dmabuf(struct virgl_egl *egl,
                                    const int *plane_fds,
                                    const uint32_t *plane_strides,
                                    const uint32_t *plane_offsets);
@@ -5526,66 +5692,14 @@ diff --git a/src/vrend/vrend_winsys_egl.h b/src/vrend/vrend_winsys_egl.h
  bool virgl_egl_supports_fences(struct virgl_egl *egl);
  EGLSyncKHR virgl_egl_fence_create(struct virgl_egl *egl);
  void virgl_egl_fence_destroy(struct virgl_egl *egl, EGLSyncKHR fence);
-@@ -99,6 +105,12 @@
- bool virgl_egl_win32_create_d3d11_texture2d(struct virgl_egl *egl,
-                                             const D3D11_TEXTURE2D_DESC *desc, ID3D11Texture2D **tex);
+@@ -101,4 +107,10 @@ bool virgl_egl_win32_create_d3d11_texture2d(struct virgl_egl *egl,
  EGLImageKHR virgl_egl_win32_image_from_d3d11_texture2d(struct virgl_egl *egl, ID3D11Texture2D *tex);
-+#endif
-+
+ #endif
+ 
 +#ifdef ENABLE_METAL
 +bool virgl_egl_metal_create_texture(struct virgl_egl *egl, struct pipe_resource *res,
 +                                    uint32_t format, MTLTexture_id *tex);
 +EGLImageKHR virgl_egl_metal_image_from_texture(struct virgl_egl *egl, MTLTexture_id tex);
++#endif
++
  #endif
- 
- #endifdiff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
---- a/src/vrend/vrend_renderer.c	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.c	2026-01-13 23:00:00
-@@ -13109,6 +13109,35 @@ void vrend_renderer_resource_get_info(struct pipe_resource *pres,
-    info->stride = util_format_get_nblocksx(res->base.format, u_minify(res->base.width0, 0)) * elsize;
- }
- 
-+void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres)
-+{
-+   struct vrend_texture *tex = (struct vrend_texture *)pres;
-+   struct vrend_format_table *tex_conv = &tex_conv_table[tex->base.base.format];
-+
-+   assert(tex->base.target == GL_TEXTURE_2D);
-+   assert(!util_format_is_depth_or_stencil(tex->base.base.format));
-+
-+   glBindTexture(GL_TEXTURE_2D, tex->base.gl_id);
-+
-+   if (tex_conv->flags & VIRGL_TEXTURE_NEED_SWIZZLE) {
-+      for (unsigned i = 0; i < ARRAY_SIZE(tex->cur_swizzle); ++i) {
-+         GLint next_swizzle = to_gl_swizzle(tex_conv->swizzle[i]);
-+         if (tex->cur_swizzle[i] != next_swizzle) {
-+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R + i, next_swizzle);
-+            tex->cur_swizzle[i] = next_swizzle;
-+         }
-+      }
-+   }
-+
-+   if (tex->cur_srgb_decode != GL_DECODE_EXT && util_format_is_srgb(tex->base.base.format)) {
-+      if (has_feature(feat_texture_srgb_decode)) {
-+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SRGB_DECODE_EXT,
-+                         GL_DECODE_EXT);
-+         tex->cur_srgb_decode = GL_DECODE_EXT;
-+      }
-+   }
-+}
-+
- int
- vrend_renderer_resource_d3d11_texture2d(struct pipe_resource *pres, void **d3d_tex2d)
- {
-diff --git a/src/vrend/vrend_renderer.h b/src/vrend/vrend_renderer.h
---- a/src/vrend/vrend_renderer.h	2026-01-01 08:05:29
-+++ b/src/vrend/vrend_renderer.h	2026-01-13 23:00:00
-@@ -564,6 +564,8 @@ struct vrend_blit_info {
- void vrend_renderer_resource_get_info(struct pipe_resource *pres,
-                                       struct vrend_renderer_renderer_info *info);
- 
-+void vrend_renderer_borrow_texture_for_scanout(struct pipe_resource *pres);
-+
- void vrend_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
-                                 uint32_t *max_size);
- 
