@@ -4153,6 +4153,7 @@ index 0000000..547d088
 +      { VIRGL_FORMAT_R32G32B32A32_FLOAT, MTLPixelFormatRGBA32Float },
 +      { VIRGL_FORMAT_R10G10B10A2_UNORM, MTLPixelFormatRGB10A2Unorm },
 +      { VIRGL_FORMAT_R8_UNORM, MTLPixelFormatR8Unorm },
++      { VIRGL_FORMAT_A8_UNORM, MTLPixelFormatR8Unorm },
 +      { VIRGL_FORMAT_R16_UNORM, MTLPixelFormatR16Unorm },
 +      { VIRGL_FORMAT_R8G8_UNORM, MTLPixelFormatRG8Unorm },
 +      { VIRGL_FORMAT_R16G16_UNORM, MTLPixelFormatRG16Unorm },
