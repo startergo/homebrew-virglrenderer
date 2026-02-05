@@ -1,0 +1,23 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -4158,7 +4158,8 @@
+    } else {
+       switch (view->format) {
+       case VIRGL_FORMAT_A8_UNORM:
+-         if (vrend_state.use_gles) {
++         if (vrend_state.use_gles ||
++             vrend_state.use_core_profile) {
+             memcpy(swizzle, OOOR, sizeof(OOOR));
+             return true;
+          }
+@@ -4325,7 +4325,9 @@
+          vrend_shader_sampler_views_mask_set(key->sampler_views_emulated_rect_mask, i);
+       }
+
+-      if (view->texture->target == GL_TEXTURE_BUFFER) {
++      if (view->texture->target == GL_TEXTURE_BUFFER ||
++          (vrend_format_is_emulated_alpha(view->format) &&
++           vrend_state.use_core_profile)) {
+          enum pipe_swizzle swizzle[4];
+          if (vrend_get_swizzle(view, swizzle)) {
+             vrend_shader_sampler_views_mask_set(key->sampler_views_lower_swizzle_mask, i);
