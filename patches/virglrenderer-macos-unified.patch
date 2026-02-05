@@ -4122,7 +4122,7 @@ new file mode 100644
 index 0000000..547d088
 --- /dev/null
 +++ b/src/vrend/vrend_metal.m
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,150 @@
 +/*
 + * Copyright 2025 Turing Software, LLC
 + * SPDX-License-Identifier: MIT
