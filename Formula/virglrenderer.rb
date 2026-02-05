@@ -38,6 +38,7 @@ class Virglrenderer < Formula
       "virglrenderer-macos-unified.patch",
       "virglrenderer-macos-a8-swizzle.patch",
       "virglrenderer-a8-shader-swizzle.patch",
+      "virglrenderer-a8-unpack-alignment.patch",
       "virglrenderer-bgra-upload-swizzle-core.patch",
       "virglrenderer-msaa-assertion-fix.patch",
       "virglrenderer-ignore-surface0-clear.patch",

@@ -1,0 +1,28 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -9638,6 +9638,13 @@ static int vrend_transfer_inline_write(struct vrend_context *ctx,
+       if (send_size == 0)
+          goto out;
+
++      /* A8_UNORM (R8) textures have 1 byte per pixel.
++       * Default GL_UNPACK_ALIGNMENT is 4, which causes skewed texture data.
++       * Must set to 1 for correct upload of font glyphs and other 1-bpp textures. */
++      if (res->base.format == VIRGL_FORMAT_A8_UNORM) {
++         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
++      }
++
+       /* Determine data format and type for uploading to the texture.
+        * For resources with format override, we must match the override format.
+        * Otherwise we match the resource format. */
+@@ -9710,6 +9717,11 @@ static int vrend_transfer_inline_write(struct vrend_context *ctx,
+          }
+       }
+
++      /* Restore default unpack alignment after A8_UNORM upload */
++      if (res->base.format == VIRGL_FORMAT_A8_UNORM) {
++         glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
++      }
++
+       /* Legacy textures are bound differently from the sampler view
+        * binding points. If we are dealing with a texture without stencil
+        * then we must bind it now. */
