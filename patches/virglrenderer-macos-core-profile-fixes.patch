@@ -1,20 +1,32 @@
 --- a/src/vrend/vrend_renderer.c
 +++ b/src/vrend/vrend_renderer.c
-@@ -7866,6 +7866,17 @@
+@@ -7705,4 +7705,29 @@
+    } else {
+       vrend_build_format_list_gl();
     }
- #endif
-
++
 +   /* Desktop GL Core Profile on macOS: A8_UNORM format support for text rendering.
 +    * GL_ALPHA format is not available in Core Profile (removed in GL 3.2+),
-+    * must use GL_R8 with texture swizzle. Override view_class to enable. */
++    * must use GL_R8 with texture swizzle. Override format, swizzle, and view_class. */
 +#ifdef __APPLE__
 +   if (vrend_state.use_core_profile) {
-+      virgl_debug("Enabling A8_UNORM format for text rendering (view_class: %d -> %d)\n",
-+                  tex_conv_table[VIRGL_FORMAT_A8_UNORM].view_class, view_class_32);
++      /* A8_UNORM: Use GL_R8 instead of GL_ALPHA with RGBA=000R swizzle
++       * Texture data is alpha-only, so we read alpha from red channel:
++       * R=0, G=0, B=0, A=RED */
++      static const GLuint a8_swizzle[] = {
++         PIPE_SWIZZLE_0,  /* R = 0 */
++         PIPE_SWIZZLE_0,  /* G = 0 */
++         PIPE_SWIZZLE_0,  /* B = 0 */
++         PIPE_SWIZZLE_X   /* A = texture data (red channel) */
++      };
++      tex_conv_table[VIRGL_FORMAT_A8_UNORM].internalformat = GL_R8;
++      tex_conv_table[VIRGL_FORMAT_A8_UNORM].glformat = GL_RED;
++      tex_conv_table[VIRGL_FORMAT_A8_UNORM].swizzle = a8_swizzle;
++      tex_conv_table[VIRGL_FORMAT_A8_UNORM].flags |= VIRGL_TEXTURE_NEED_SWIZZLE;
 +      tex_conv_table[VIRGL_FORMAT_A8_UNORM].view_class = view_class_32;
++      virgl_debug("A8_UNORM on Core Profile: GL_R8/GL_RED with RGBA=000R swizzle (view_class: %d -> %d)\n",
++                  0, view_class_32);
 +   }
 +#endif
 +
-    if (has_feature(feat_multisample)) {
-       vrend_check_texture_multisample(tex_conv_table,
-                                       has_feature(feat_storage_multisample));
+    vrend_check_texture_storage(tex_conv_table);
