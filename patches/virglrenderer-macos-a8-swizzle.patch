@@ -68,11 +68,11 @@
 +   /* Apply texture swizzle for formats requiring component remapping */
 +   if (@available(macOS 11.0, iOS 14.0, *)) {
 +      if (desc->swizzle_red || desc->swizzle_green || desc->swizzle_blue || desc->swizzle_alpha) {
-+         descriptor.swizzle = [[MTLTextureSwizzleChannels alloc] initWithComponents:
++         descriptor.swizzle = MTLTextureSwizzleChannelsMake(
 +            (MTLTextureSwizzle)desc->swizzle_red,
 +            (MTLTextureSwizzle)desc->swizzle_green,
 +            (MTLTextureSwizzle)desc->swizzle_blue,
-+            (MTLTextureSwizzle)desc->swizzle_alpha];
++            (MTLTextureSwizzle)desc->swizzle_alpha);
 +      }
 +   }
 +#endif
