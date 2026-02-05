@@ -1,0 +1,14 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -4406,6 +4406,11 @@ vrend_fill_shader_key(struct vrend_sub_context *sub_ctx,
+       if (view->emulated_rect) {
+          vrend_shader_sampler_views_mask_set(key->sampler_views_emulated_rect_mask, i);
+       }
++      if (vrend_format_is_bgra(view->format)) {
++         vrend_printf(vrend_debug_context, "VREND_DEBUG: BGRA sampler[%d] %s GLES=%d CP=%d\\n",
++                     i, util_format_short_name(view->format),
++                     vrend_state.use_gles, vrend_state.use_core_profile);
++      }
+
+       if (view->texture->target == GL_TEXTURE_BUFFER ||
+           (vrend_format_is_emulated_alpha(view->format) &&

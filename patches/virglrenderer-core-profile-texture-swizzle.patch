@@ -1,0 +1,16 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -4338,10 +4338,10 @@ static inline void vrend_fill_shader_key(struct vrend_sub_context *sub_ctx,
+       if (view->emulated_rect) {
+          vrend_shader_sampler_views_mask_set(key->sampler_views_emulated_rect_mask, i);
+       }
++      /* Apple's OpenGL texture swizzle is buggy (frozen at GL 4.1 in 2018).
++       * Use shader swizzle for ALL textures that need it on Core Profile. */
++      if (vrend_state.use_core_profile) {
+ 
+-      if (view->texture->target == GL_TEXTURE_BUFFER ||
+-          (vrend_format_is_emulated_alpha(view->format) &&
+-           vrend_state.use_core_profile)) {
+          enum pipe_swizzle swizzle[4];
+          if (vrend_get_swizzle(view, swizzle)) {
+             vrend_shader_sampler_views_mask_set(key->sampler_views_lower_swizzle_mask, i);
