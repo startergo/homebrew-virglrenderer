@@ -36,6 +36,7 @@ class Virglrenderer < Formula
       "virglrenderer-debug-init-logging.patch",
       "virglrenderer-default-debug-log.patch",
       "virglrenderer-macos-unified.patch",
+      "virglrenderer-macos-a8-swizzle.patch",
       "virglrenderer-msaa-assertion-fix.patch",
       "virglrenderer-ignore-surface0-clear.patch",
       "virglrenderer-venus-errno-debug.patch",

@@ -1,0 +1,107 @@
+--- a/src/vrend/vrend_metal.h
++++ b/src/vrend/vrend_metal.h
+@@ -19,6 +19,10 @@ struct vrend_metal_texture_description {
+    unsigned bind;
+    unsigned usage;
+    uint32_t format;
++   /* Texture swizzle for formats like A8_UNORM that need component remapping */
++   unsigned char swizzle_red;
++   unsigned char swizzle_green;
++   unsigned char swizzle_blue;
++   unsigned char swizzle_alpha;
+ };
+
+ bool virgl_metal_create_texture(MTLDevice_id device,
+--- a/src/vrend/vrend_metal.m
++++ b/src/vrend/vrend_metal.m
+@@ -146,6 +146,22 @@ static MTLTextureDescriptor *new_descriptor(const struct vrend_metal_texture_de
+       descriptor.usage &= ~MTLTextureUsageShaderWrite;
+    }
+
++#if defined(__MAC_11_0) || defined(__IPHONE_14_0)
++   /* Apply texture swizzle for formats like A8_UNORM that need component remapping.
++    * OOOR swizzle: RGB=0, A=RED (for alpha-only textures where data is in red channel) */
++   if (@available(macOS 11.0, iOS 14.0, *)) {
++      if (desc->swizzle_red || desc->swizzle_green || desc->swizzle_blue || desc->swizzle_alpha) {
++         descriptor.swizzle = [[MTLTextureSwizzleChannels alloc] initWithComponents:
++            (MTLTextureSwizzle)desc->swizzle_red,
++            (MTLTextureSwizzle)desc->swizzle_green,
++            (MTLTextureSwizzle)desc->swizzle_blue,
++            (MTLTextureSwizzle)desc->swizzle_alpha];
++      }
++   }
++#endif
++
+    return descriptor;
+ }
+
+--- a/src/virglrenderer.c
++++ b/src/virglrenderer.c
+@@ -1575,7 +1575,20 @@ virgl_renderer_create_texture_with MetalInfo(uint32_t res_id,
+       .offset = offset,
+       .usage = PIPE_USAGE_IMMUTABLE,
+       .format = virgl_format,
++      /* Default swizzle: identity */
++      .swizzle_red = 0,   /* MTLTextureSwizzleRed */
++      .swizzle_green = 1, /* MTLTextureSwizzleGreen */
++      .swizzle_blue = 2,  /* MTLTextureSwizzleBlue */
++      .swizzle_alpha = 3, /* MTLTextureSwizzleAlpha */
+    };
++
++   /* A8_UNORM: OOOR swizzle (RGB=0, A=RED) for alpha-only text rendering */
++   if (virgl_format == VIRGL_FORMAT_A8_UNORM) {
++      desc.swizzle_red = 4;   /* MTLTextureSwizzleZero */
++      desc.swizzle_green = 4; /* MTLTextureSwizzleZero */
++      desc.swizzle_blue = 4;  /* MTLTextureSwizzleZero */
++      desc.swizzle_alpha = 0; /* MTLTextureSwizzleRed */
++   }
+    MTLTexture_id tex;
+
+    if (!virgl_metal_create_texture_from_heap(res->metal_heap,
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -14037,7 +14037,20 @@ vrend_renderer_create_resource_impl(struct vrend_resource *gr,
+             .bind = args->bind,
+             .usage = args->usage,
+             .format = args->format,
++            /* Default swizzle: identity */
++            .swizzle_red = 0,   /* MTLTextureSwizzleRed */
++            .swizzle_green = 1, /* MTLTextureSwizzleGreen */
++            .swizzle_blue = 2,  /* MTLTextureSwizzleBlue */
++            .swizzle_alpha = 3, /* MTLTextureSwizzleAlpha */
+         };
+
++        /* A8_UNORM: OOOR swizzle (RGB=0, A=RED) for alpha-only text rendering */
++        if (args->format == VIRGL_FORMAT_A8_UNORM) {
++            ((struct vrend_metal_texture_description *)&desc)->swizzle_red = 4;   /* MTLTextureSwizzleZero */
++            ((struct vrend_metal_texture_description *)&desc)->swizzle_green = 4; /* MTLTextureSwizzleZero */
++            ((struct vrend_metal_texture_description *)&desc)->swizzle_blue = 4;  /* MTLTextureSwizzleZero */
++            ((struct vrend_metal_texture_description *)&desc)->swizzle_alpha = 0; /* MTLTextureSwizzleRed */
++        }
+         MTLTexture_id texture;
+
+         if (!virgl_metal_create_texture_from_heap(res->metal_heap,
+--- a/src/vrend/vrend_winsys_egl.c
++++ b/src/vrend/vrend_winsys_egl.c
+@@ -630,7 +630,20 @@ bool virgl_egl_metal_create_texture(struct virgl_egl *egl,
+       .bind = res->bind,
+       .usage = res->usage,
+       .format = format,
++      /* Default swizzle: identity */
++      .swizzle_red = 0,   /* MTLTextureSwizzleRed */
++      .swizzle_green = 1, /* MTLTextureSwizzleGreen */
++      .swizzle_blue = 2,  /* MTLTextureSwizzleBlue */
++      .swizzle_alpha = 3, /* MTLTextureSwizzleAlpha */
+    };
+
++   /* A8_UNORM: OOOR swizzle (RGB=0, A=RED) for alpha-only text rendering */
++   if (format == VIRGL_FORMAT_A8_UNORM) {
++      desc.swizzle_red = 4;   /* MTLTextureSwizzleZero */
++      desc.swizzle_green = 4; /* MTLTextureSwizzleZero */
++      desc.swizzle_blue = 4;  /* MTLTextureSwizzleZero */
++      desc.swizzle_alpha = 0; /* MTLTextureSwizzleRed */
++   }
++
+    return virgl_metal_create_texture(device, &desc, tex);
+ }
+
