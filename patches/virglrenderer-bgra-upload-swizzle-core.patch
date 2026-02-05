@@ -1,0 +1,14 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -9658,7 +9658,7 @@ static int vrend_transfer_inline_write(struct vrend_context *ctx,
+          x = info->box->x;
+          y = invert ? (int)res->base.height0 - info->box->y - info->box->height : info->box->y;
+
+-         /* GLES doesn't allow format conversions, which we need for BGRA resources with RGBA
++         /* GLES and Apple's Core Profile don't properly support BGRA format uploads.
+           * internal format. So we fallback to performing a CPU swizzle before uploading. */
+-         if (vrend_state.use_gles) {
++         if (vrend_state.use_gles || (vrend_state.use_core_profile && vrend_format_is_bgra(res->base.format))) {
+             if (vrend_resource_get_internal_format_override(res) != GL_NONE) {
+                glformat = GL_RGB;
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
