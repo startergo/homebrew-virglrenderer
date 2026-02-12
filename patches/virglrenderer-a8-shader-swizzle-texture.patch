@@ -46,6 +46,6 @@
 +         
 +         emit_buff(&ctx->glsl_strbufs, "  %s = %s(%s(val)%s);\n}\n",
 +                   dst, get_string(dinfo->dstconv), get_string(dtypeprefix),
- +                   dinfo->dst_override_no_wm[0] ? "" : writemask);
++                   dinfo->dst_override_no_wm[0] ? "" : writemask);
         }
    }
