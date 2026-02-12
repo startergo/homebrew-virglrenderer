@@ -2,11 +2,12 @@ diff --git a/config.h.meson b/config.h.meson
 index 55497ff..b6f1f4c 100644
 --- a/config.h.meson
 +++ b/config.h.meson
-@@ -38,6 +38,7 @@
+@@ -38,6 +38,8 @@
  #mesondefine ENABLE_VULKAN_DLOAD
  #mesondefine ENABLE_VULKAN_PRELOAD
  #mesondefine ENABLE_GBM
 +#mesondefine ENABLE_METAL
++#define UTIL_ARCH_LITTLE_ENDIAN 1
  #mesondefine ENABLE_DRM
  #mesondefine ENABLE_DRM_MSM
  #mesondefine ENABLE_DRM_AMDGPU

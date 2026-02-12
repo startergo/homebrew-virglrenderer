@@ -1,0 +1,12 @@
+--- a/meson.build
++++ b/meson.build
+@@ -219,7 +219,7 @@
+ if cc.has_header('linux/udmabuf.h')
+    conf_data.set('HAVE_LINUX_UDMABUF_H', 1)
+ endif
+
+-metal_dep = dependency('appleframeworks', modules : ['Metal'], required: false)
++metal_dep = dependency('appleframeworks', modules : ['Metal', 'CoreFoundation'], required: false)
+ if metal_dep.found()
+    conf_data.set('ENABLE_METAL', 1)
+    add_languages('objc', required: true, native: false)

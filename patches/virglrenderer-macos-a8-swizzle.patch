@@ -1,5 +1,5 @@
---- a/src/vrend/vrend_metal.h	2026-02-05 09:25:42
-+++ b/src/vrend/vrend_metal.h	2026-02-05 09:33:31
+--- a/src/vrend/vrend_metal.h
++++ b/src/vrend/vrend_metal.h
 @@ -19,6 +19,11 @@
     unsigned bind;
     unsigned usage;
@@ -8,17 +8,16 @@
 +   unsigned char swizzle_red;    /* Default: 0 (MTLTextureSwizzleRed) */
 +   unsigned char swizzle_green;  /* Default: 1 (MTLTextureSwizzleGreen) */
 +   unsigned char swizzle_blue;   /* Default: 2 (MTLTextureSwizzleBlue) */
-+   unsigned char swizzle_alpha;   /* Default: 3 (MTLTextureSwizzleAlpha) */
++   unsigned char swizzle_alpha;  /* Default: 3 (MTLTextureSwizzleAlpha) */
  };
- 
+
  bool virgl_metal_create_texture(MTLDevice_id device,
---- a/src/vrend/vrend_metal.m	2026-02-05 09:25:42
-+++ b/src/vrend/vrend_metal.m	2026-02-05 09:31:37
-@@ -71,6 +71,46 @@
+--- a/src/vrend/vrend_metal.m
++++ b/src/vrend/vrend_metal.m
+@@ -71,6 +71,45 @@
     }
  }
- 
-+
+
 +struct metal_swizzle_conversion {
 +   uint32_t virgl_format;
 +   unsigned char swizzle_red;
@@ -61,51 +60,22 @@
  static MTLTextureDescriptor *new_descriptor(const struct vrend_metal_texture_description *desc)
  {
     MTLPixelFormat pixel_format;
-@@ -90,6 +130,19 @@
+@@ -90,6 +129,19 @@
        descriptor.usage &= ~MTLTextureUsageShaderWrite;
     }
- 
-+
+
 +#if defined(__MAC_11_0) || defined(__IPHONE_14_0)
 +   /* Apply texture swizzle for formats requiring component remapping */
 +   if (@available(macOS 11.0, iOS 14.0, *)) {
 +      if (desc->swizzle_red || desc->swizzle_green || desc->swizzle_blue || desc->swizzle_alpha) {
-+         descriptor.swizzle = MTLTextureSwizzleChannelsMake(
-+            (MTLTextureSwizzle)desc->swizzle_red,
-+            (MTLTextureSwizzle)desc->swizzle_green,
-+            (MTLTextureSwizzle)desc->swizzle_blue,
-+            (MTLTextureSwizzle)desc->swizzle_alpha);
++         descriptor.swizzle = (MTLTextureSwizzleChannels){
++            .red = (MTLTextureSwizzle)desc->swizzle_red,
++            .green = (MTLTextureSwizzle)desc->swizzle_green,
++            .blue = (MTLTextureSwizzle)desc->swizzle_blue,
++            .alpha = (MTLTextureSwizzle)desc->swizzle_alpha
++         };
 +      }
 +   }
 +#endif
     return descriptor;
  }
- 
---- a/src/virglrenderer.c	2026-02-05 09:25:42
-+++ b/src/virglrenderer.c	2026-02-05 09:31:46
-@@ -1579,6 +1579,11 @@
-       .offset = offset,
-       .usage = PIPE_USAGE_IMMUTABLE,
-       .format = virgl_format,
-+      /* Texture swizzle for formats requiring component remapping (macOS 11.0+) */
-+      .swizzle_red = (virgl_format == VIRGL_FORMAT_A8_UNORM) ? 4 : 0,   /* Zero or Red */
-+      .swizzle_green = (virgl_format == VIRGL_FORMAT_A8_UNORM) ? 4 : 1, /* Zero or Green */
-+      .swizzle_blue = (virgl_format == VIRGL_FORMAT_A8_UNORM) ? 4 : 2,  /* Zero or Blue */
-+      .swizzle_alpha = (virgl_format == VIRGL_FORMAT_A8_UNORM) ? 0 : 3, /* Red or Alpha */
-    };
-    MTLTexture_id tex;
- 
---- a/src/vrend/vrend_winsys_egl.c	2026-02-05 09:25:42
-+++ b/src/vrend/vrend_winsys_egl.c	2026-02-05 09:32:42
-@@ -633,6 +633,11 @@
-       .bind = res->bind,
-       .usage = res->usage,
-       .format = format,
-+      /* Texture swizzle for formats requiring component remapping (macOS 11.0+) */
-+      .swizzle_red = (format == VIRGL_FORMAT_A8_UNORM) ? 4 : 0,   /* Zero or Red */
-+      .swizzle_green = (format == VIRGL_FORMAT_A8_UNORM) ? 4 : 1, /* Zero or Green */
-+      .swizzle_blue = (format == VIRGL_FORMAT_A8_UNORM) ? 4 : 2,  /* Zero or Blue */
-+      .swizzle_alpha = (format == VIRGL_FORMAT_A8_UNORM) ? 0 : 3, /* Red or Alpha */
-    };
- 
-    return virgl_metal_create_texture(device, &desc, tex);
