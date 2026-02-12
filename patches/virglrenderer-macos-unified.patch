@@ -737,7 +737,7 @@ index 35ba7ec..efbc633 100644
     virgl_sources += venus_sources
     virgl_sources += venus_codegen
 -   virgl_depends += [venus_dep]
-+   virgl_depends += venus_deps
++   virgl_depends += [venus_dep]
  endif
  
  if with_drm_renderers
