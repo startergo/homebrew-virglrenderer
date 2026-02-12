@@ -11,18 +11,20 @@ index 55497ff..b6f1f4c 100644
  #mesondefine ENABLE_DRM_MSM
  #mesondefine ENABLE_DRM_AMDGPU
 diff --git a/meson.build b/meson.build
-index 07a2341..1cf4ed0 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -84,6 +84,7 @@ gbm_dep = not_found
- thread_dep = dependency('threads')
- epoxy_dep = dependency('epoxy', version: '>= 1.5.4')
- m_dep = cc.find_library('m', required : false)
+@@ -89,8 +89,9 @@ m_dep = cc.find_library('m', required : false)
+ dl_dep = not_found
+ if not with_host_windows and not with_host_darwin
+   if not cc.has_function('dlopen')
+     dl_dep = cc.find_library('dl', required : true)
+   endif
+ endif
 +all_languages = ['c']
  
  conf_data = configuration_data()
  conf_data.set('VERSION', meson.project_version())
-@@ -213,6 +214,14 @@ if cc.has_header('linux/udmabuf.h')
+@@ -218,6 +219,14 @@ if cc.has_header('linux/udmabuf.h')
     conf_data.set('HAVE_LINUX_UDMABUF_H', 1)
  endif
  
@@ -37,7 +39,7 @@ index 07a2341..1cf4ed0 100644
  foreach b : ['bswap32', 'bswap64', 'clz', 'clzll', 'expect', 'ffs', 'ffsll',
               'popcount', 'popcountll', 'types_compatible_p', 'unreachable']
    if cc.has_function(b)
-@@ -272,7 +281,7 @@ else
+@@ -272,7 +274,7 @@ else
  endif
  
  if get_option('buildtype') == 'debug'
@@ -46,7 +48,7 @@ index 07a2341..1cf4ed0 100644
  endif
  
  platforms = get_option('platforms')
-@@ -344,11 +353,11 @@ with_render_server = with_venus
+@@ -344,11 +346,11 @@ with_render_server = with_venus
  with_render_server_worker = get_option('render-server-worker')
  render_server_install_dir = get_option('prefix') / get_option('libexecdir')
  if with_venus
@@ -60,7 +62,7 @@ index 07a2341..1cf4ed0 100644
     endif
  
     if host_machine.system() in ['freebsd', 'openbsd']
-@@ -359,6 +368,11 @@ if with_venus
+@@ -359,6 +361,11 @@ if with_venus
        epoll_dep = []
     endif
  
@@ -72,7 +74,7 @@ index 07a2341..1cf4ed0 100644
     conf_data.set('ENABLE_VENUS', 1)
     conf_data.set('ENABLE_RENDER_SERVER', 1)
     conf_data.set('RENDER_SERVER_EXEC_PATH',
-@@ -410,8 +424,8 @@ configure_file(input : 'config.h.meson',
+@@ -410,8 +412,8 @@ configure_file(input : 'config.h.meson',
                 output : 'config.h',
                 configuration : conf_data)
  
@@ -83,7 +85,7 @@ index 07a2341..1cf4ed0 100644
  
  inc_configuration = include_directories(['.', 'src'])
  
-@@ -444,6 +458,7 @@ summary({'c_args': (' ').join(get_option('c_args')),
+@@ -444,6 +446,7 @@ summary({'c_args': (' ').join(get_option('c_args')),
          'egl': have_egl,
          'glx': have_glx,
          'gbm': gbm_dep.found(),
