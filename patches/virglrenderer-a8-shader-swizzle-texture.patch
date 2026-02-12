@@ -1,25 +1,24 @@
---- a/src/vrend/vrend_shader.c
-+++ b/src/vrend/vrend_shader.c
-@@ -3573,8 +3573,43 @@ static void translate_tex(struct dump_ctx *ctx,
-         }
-      } else {
+--- a/src/vrend/vrend_shader.c	2026-02-12 11:42:20
++++ b/src/vrend/vrend_shader.c	2026-02-12 11:56:28
+@@ -3571,10 +3571,46 @@
+                          dinfo->dst_override_no_wm[0] ? "" : writemask);
+          }
+       } else {
 -         emit_buff(&ctx->glsl_strbufs, "%s = %s(%s(texture%s(%s, %s%s%s%s)%s));\n",
 -                   dst, get_string(dinfo->dstconv), get_string(dtypeprefix),
--                   tex_ext, srcs[sampler_index], srcs[0], src_swizzle,
--                   offset, bias, dinfo->dst_override_no_wm[0] ? "" : writemask);
 +         /* Use temporary variable for shader swizzle lowering (A8_UNORM on Core Profile) */
-+         emit_buff(&ctx->glsl_strbufs, "{\n  vec4 val = texture%s(%s, %s%s%s%s)%s;\n",
-+                   tex_ext, srcs[sampler_index], srcs[0], src_swizzle,
-+                   offset, bias, dinfo->dst_override_no_wm[0] ? "" : writemask);
-+         
++         emit_buff(&ctx->glsl_strbufs, "{\\n  vec4 val = texture%s(%s, %s%s%s%s)%s;\\n",
+                    tex_ext, srcs[sampler_index], srcs[0], src_swizzle,
+                    offset, bias, dinfo->dst_override_no_wm[0] ? "" : writemask);
++
 +         if (vrend_shader_sampler_views_mask_get(ctx->key->sampler_views_lower_swizzle_mask, sinfo->sreg_index)) {
 +            int16_t packed_swizzles = ctx->key->tex_swizzle[sinfo->sreg_index];
 +            emit_buff(&ctx->glsl_strbufs, "   val = vec4(");
-+         
++
 +            for (int i = 0; i < 4; ++i) {
 +               if (i > 0)
 +                  emit_buff(&ctx->glsl_strbufs, ", ");
-+         
++
 +               int swz = (packed_swizzles >> (i * 3)) & 7;
 +               switch (swz) {
 +               case PIPE_SWIZZLE_0: emit_buf(&ctx->glsl_strbufs, "0.0"); break;
@@ -40,12 +39,13 @@
 +                  emit_buff(&ctx->glsl_strbufs, "val%s", get_swizzle_string(swz));
 +               }
 +            }
-+         
-+            emit_buff(&ctx->glsl_strbufs, ");\n");
++
++            emit_buff(&ctx->glsl_strbufs, ");\\n");
 +         }
-+         
-+         emit_buff(&ctx->glsl_strbufs, "  %s = %s(%s(val)%s);\n}\n",
++
++         emit_buff(&ctx->glsl_strbufs, "  %s = %s(%s(val)%s);\\n}\\n",
 +                   dst, get_string(dinfo->dstconv), get_string(dtypeprefix),
 +                   dinfo->dst_override_no_wm[0] ? "" : writemask);
-        }
-   }
+       }
+    }
+ 
