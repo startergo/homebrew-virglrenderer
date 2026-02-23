@@ -1,0 +1,147 @@
+name: Build EndeavourOS aarch64 ISO
+
+on:
+  push:
+    branches: [ main ]
+    tags:     [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. v2025.02.18) — leave blank to auto-generate'
+        required: false
+        default: ''
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    # Native aarch64 runner with Arch Linux ARM container for pacman/archiso
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: menci/archlinuxarm:base-devel
+      options: --privileged
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          pacman-key --init
+          pacman-key --populate archlinuxarm
+          pacman -Syu --noconfirm
+          gpgconf --kill gpg-agent || true
+          pacman -S --noconfirm --needed \
+            imagemagick \
+            ttf-dejavu \
+            squashfs-tools \
+            dosfstools \
+            mtools \
+            xorriso \
+            zstd \
+            arch-install-scripts \
+            curl \
+            wget \
+            git \
+            make
+
+      - name: Install archiso from source
+        run: |
+          git clone --depth 1 https://gitlab.archlinux.org/archlinux/archiso.git /tmp/archiso
+          make -C /tmp/archiso install-scripts install-profiles install-doc
+
+      - name: Set up EndeavourOS ARM repo
+        run: |
+          # Create EOS mirrorlist
+          mkdir -p /etc/pacman.d
+          printf 'Server = https://mirror.alpix.eu/endeavouros/repo/$repo/$arch\n' \
+            > /etc/pacman.d/endeavouros-mirrorlist
+
+          # Bootstrap EOS keyring (SigLevel=Never for initial download)
+          sed 's/SigLevel = PackageRequired/SigLevel = Never/' pacman.conf \
+            > /tmp/bootstrap-pacman.conf
+          pacman --config /tmp/bootstrap-pacman.conf -Sy --noconfirm
+          pacman --config /tmp/bootstrap-pacman.conf -S --noconfirm endeavouros-keyring
+          pacman-key --populate endeavouros
+
+          # Install our pacman.conf as the system config and resync
+          cp pacman.conf /etc/pacman.conf
+          pacman -Sy --noconfirm
+
+      - name: Run prepare.sh
+        run: bash prepare.sh
+
+      - name: Build ISO
+        run: bash mkarchiso -v "."
+
+      - name: Verify ISO
+        run: |
+          echo "--- ISO output ---"
+          ls -lh out/*.iso
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: endeavouros-aarch64-iso
+          path: out/*.iso
+          retention-days: 14
+
+  publish-iso:
+    name: Publish ISO as OCI artifact
+    needs: build
+    runs-on: ubuntu-24.04-arm
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: endeavouros-aarch64-iso
+          path: out/
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install oras
+        run: |
+          ORAS_VERSION=$(curl -fsSL https://api.github.com/repos/oras-project/oras/releases/latest | grep '"tag_name"' | head -1 | cut -d'"' -f4)
+          curl -fsSL "https://github.com/oras-project/oras/releases/download/${ORAS_VERSION}/oras_${ORAS_VERSION#v}_linux_arm64.tar.gz" | \
+            tar -xz -C /usr/local/bin oras
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version }}" ]; then
+            echo "name=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=v$(date +%Y.%m.%d)-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          else
+            echo "name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push ISO as OCI artifact to ghcr.io
+        run: |
+          ISO_FILE="$(ls -1 out/*.iso | head -n1)"
+          ISO_NAME="$(basename "$ISO_FILE")"
+          TAG="${{ steps.tag.outputs.name }}"
+          REPO="ghcr.io/${{ github.repository_owner }}/endeavouros-iso-arm64"
+          echo "Pushing ${ISO_NAME} to ${REPO}:${TAG}"
+          oras push "${REPO}:${TAG}" \
+            --artifact-type application/vnd.endeavouros.iso \
+            "${ISO_FILE}:application/octet-stream"
+          oras push "${REPO}:latest" \
+            --artifact-type application/vnd.endeavouros.iso \
+            "${ISO_FILE}:application/octet-stream"
+          echo "Pull with: oras pull ${REPO}:${TAG}"
