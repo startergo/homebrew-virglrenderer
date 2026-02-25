@@ -16,6 +16,7 @@ class Virglrenderer < Formula
 
   depends_on "startergo/angle/angle"
   depends_on "startergo/libepoxy/libepoxy"
+  depends_on "molten-vk"
   depends_on "meson" => :build
   depends_on "ninja" => :build
   depends_on "pkg-config" => :build
