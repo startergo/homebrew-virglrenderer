@@ -1,0 +1,36 @@
+Add Metal function pointers and extension to venus-protocol files for Venus Metal support
+
+--- a/src/venus/venus-protocol/vn_protocol_renderer_info.h
++++ b/src/venus/venus-protocol/vn_protocol_renderer_info.h
+@@ -40,6 +40,7 @@ struct vn_info_extension_table {
+          bool EXT_extended_dynamic_state3;
+          bool EXT_external_memory_acquire_unmodified;
+          bool EXT_external_memory_dma_buf;
++         bool EXT_external_memory_metal;
+          bool EXT_filter_cubic;
+          bool EXT_fragment_shader_interlock;
+          bool EXT_global_priority;
+--- a/src/venus/venus-protocol/vn_protocol_renderer_util.h
++++ b/src/venus/venus-protocol/vn_protocol_renderer_util.h
+@@ -303,6 +303,8 @@ struct vn_device_proc_table {
+    PFN_vkGetImageSubresourceLayout2 GetImageSubresourceLayout2;
+    PFN_vkGetMemoryFdKHR GetMemoryFdKHR;
+    PFN_vkGetMemoryFdPropertiesKHR GetMemoryFdPropertiesKHR;
++   PFN_vkGetMemoryMetalHandleEXT GetMemoryMetalHandleEXT;
++   PFN_vkGetMemoryMetalHandlePropertiesEXT GetMemoryMetalHandlePropertiesEXT;
+    PFN_vkGetPipelineCacheData GetPipelineCacheData;
+    PFN_vkGetPrivateData GetPrivateData;
+    PFN_vkGetQueryPoolResults GetQueryPoolResults;
+@@ -1065,7 +1067,13 @@ vn_util_init_device_proc_table(VkDevice dev,
+    proc_table->GetMemoryFdPropertiesKHR =
+       ext_table->KHR_external_memory_fd ? VN_GDPA(dev, vkGetMemoryFdPropertiesKHR) :
+       NULL;
++   proc_table->GetMemoryMetalHandleEXT =
++      ext_table->EXT_external_memory_metal ? VN_GDPA(dev, vkGetMemoryMetalHandleEXT) :
++      NULL;
++   proc_table->GetMemoryMetalHandlePropertiesEXT =
++      ext_table->EXT_external_memory_metal ? VN_GDPA(dev, vkGetMemoryMetalHandlePropertiesEXT) :
++      NULL;
+    proc_table->GetPipelineCacheData = VN_GDPA(dev, vkGetPipelineCacheData);
+    proc_table->GetPrivateData =
+       api_version >= VK_API_VERSION_1_3 ? VN_GDPA(dev, vkGetPrivateData) :

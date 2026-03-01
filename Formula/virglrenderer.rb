@@ -38,6 +38,7 @@ class Virglrenderer < Formula
       "virglrenderer-debug-init-logging.patch",
       "virglrenderer-default-debug-log.patch",
       "virglrenderer-macos-unified.patch",
+      "virglrenderer-venus-metal-func-ptrs.patch",
       "virglrenderer-gallium-endian.patch",
       "virglrenderer-macos-a8-swizzle.patch",
       "virglrenderer-corefoundation-link.patch",
