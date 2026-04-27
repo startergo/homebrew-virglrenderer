@@ -27,8 +27,8 @@ class Virglrenderer < Formula
     # Use --break-system-packages as build runs in isolated environment
     system "python3", "-m", "pip", "install", "--break-system-packages", "pyyaml"
 
-    # Download upstream virglrenderer source from GitLab main
-    upstream_url = "https://gitlab.freedesktop.org/virgl/virglrenderer/-/archive/main/virglrenderer-main.tar.gz"
+    # Download upstream virglrenderer 1.3.0 release
+    upstream_url = "https://gitlab.freedesktop.org/virgl/virglrenderer/-/archive/1.3.0/virglrenderer-1.3.0.tar.gz?ref_type=tags"
     ohai "Downloading upstream virglrenderer from #{upstream_url}"
     system "curl", "-L", upstream_url, "-o", "virglrenderer.tar.gz"
     system "tar", "-xzf", "virglrenderer.tar.gz", "--strip-components=1"
