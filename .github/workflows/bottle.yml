@@ -324,8 +324,10 @@ jobs:
           brew uninstall virglrenderer --force 2>/dev/null || true
 
           # Install dependencies first
+          brew tap startergo/gn
           brew tap startergo/angle
           brew tap startergo/libepoxy
+          brew install startergo/gn/gn
           brew install meson ninja pkg-config
 
           # Build bottle
