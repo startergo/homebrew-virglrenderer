@@ -1,0 +1,55 @@
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c	2026-04-27 16:55:22
+@@ -7649,9 +7649,17 @@
+       vrend_state.use_gles = true;
+       /* for now, makes the rest of the code use the most GLES 3.x like path */
+       vrend_state.use_core_profile = true;
++   #if defined(__APPLE__)
++   } else if (epoxy_is_desktop_gl() && epoxy_gl_version() >= 32) {
++      /* macOS has no Compatibility Profile for OpenGL 3.2+. */
++      virgl_info("gl_version %d - macOS Desktop GL 3.2+ forcing core profile\n", gl_ver);
++      fprintf(stderr, "VREND: macOS Desktop GL 3.2+ - forcing Core Profile\n");
++      vrend_state.use_core_profile = true;
++#else
+    } else if (gl_ver > 30 && !epoxy_has_gl_extension("GL_ARB_compatibility")) {
+       virgl_info("gl_version %d - core profile enabled\n", gl_ver);
+       vrend_state.use_core_profile = true;
++#endif
+    } else {
+       virgl_info("gl_version %d - compat profile\n", gl_ver);
+    }
+@@ -12100,6 +12108,16 @@
+ static void vrend_fill_caps_glsl_version(int gl_ver, int gles_ver,
+                                          union virgl_caps *caps)
+ {
++#ifdef __APPLE__
++   /* macOS: core profile GL 4.1 (glsl_level=410), compat profile GL 2.1 (glsl_level=120).
++    * GLES has no core/compat distinction.
++    * Compat downgrade is handled in vrend_renderer_create_sub_ctx. */
++   if (gl_ver >= 30 && gles_ver == 0) {
++      caps->v1.glsl_level = vrend_state.use_core_profile ? 410 : 120;
++      return;
++   }
++#endif
++
+    if (gles_ver > 0) {
+       caps->v1.glsl_level = 120;
+ 
+@@ -13167,7 +13185,17 @@
+    ctx_params.shared = (ctx->ctx_id == 0 && sub_ctx_id == 0) ? false : true;
+    ctx_params.major_ver = vrend_state.gl_major_ver;
+    ctx_params.minor_ver = vrend_state.gl_minor_ver;
++#ifdef __APPLE__
++   /* macOS desktop GL: core profile 4.1, compat profile limited to 2.1.
++    * GLES has no core/compat distinction - only applies to desktop GL. */
++   if (!vrend_state.use_gles && !vrend_state.use_core_profile) {
++      ctx_params.compat_ctx = true;
++      ctx_params.major_ver = 2;
++      ctx_params.minor_ver = 1;
++   } else
++#endif
+    ctx_params.compat_ctx = !vrend_state.use_core_profile && !vrend_state.use_gles;
++
+    sub->gl_context = vrend_clicbs->create_gl_context(0, &ctx_params);
+    sub->parent = ctx;
+    vrend_clicbs->make_current(sub->gl_context);

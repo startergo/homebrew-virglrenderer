@@ -4695,24 +4695,7 @@ index 4bf88e0..c063dbd 100644
        VREND_DEBUG(dbg_blit, ctx,  "  Use glCopyImageSubData\n");
        vrend_copy_sub_image(src_res, dst_res, info->src.level, &info->src.box,
                             info->dst.level, info->dst.box.x, info->dst.box.y,
-@@ -12100,6 +12452,16 @@ static int get_glsl_version(void)
- static void vrend_fill_caps_glsl_version(int gl_ver, int gles_ver,
-                                          union virgl_caps *caps)
- {
-+#ifdef __APPLE__
-+   /* macOS Metal reports GL 4.1 core but Mesa needs explicit GLSL 4.10.
-+    * Force this for any desktop GL context on macOS to avoid fallback to GL 2.1.
-+    */
-+   if (gl_ver >= 30 && gles_ver == 0) {
-+      caps->v1.glsl_level = 410;
-+      return;
-+   }
-+#endif
-+
-    if (gles_ver > 0) {
-       caps->v1.glsl_level = 120;
- 
-@@ -12166,6 +12528,10 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
+@@ -12166,6 +12518,10 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  {
     int i;
     GLint max;
@@ -4723,7 +4706,7 @@ index 4bf88e0..c063dbd 100644
  
     /*
      * We can't fully support this feature on GLES,
-@@ -12210,9 +12576,27 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
+@@ -12210,9 +12566,27 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  
     if (has_feature(feat_ubo)) {
        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &max);
@@ -4753,7 +4736,7 @@ index 4bf88e0..c063dbd 100644
     }
  
     if (has_feature(feat_depth_clamp))
-@@ -12231,8 +12615,13 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
+@@ -12231,8 +12605,13 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
     if (has_feature(feat_seamless_cubemap_per_texture))
        caps->v1.bset.seamless_cube_map_per_texture = 1;
  
@@ -4768,7 +4751,7 @@ index 4bf88e0..c063dbd 100644
  
     if (has_feature(feat_tessellation))
        caps->v1.bset.has_tessellation_shaders = 1;
-@@ -12349,6 +12738,7 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
+@@ -12349,6 +12728,7 @@ static void vrend_renderer_fill_caps_v1(int gl_ver, int gles_ver, union virgl_ca
  
     glGetIntegerv(GL_MAX_SAMPLES, &max);
     caps->v1.max_samples = max;
@@ -4776,7 +4759,7 @@ index 4bf88e0..c063dbd 100644
  
     /* All of the formats are common. */
     for (i = 0; i < VIRGL_FORMAT_MAX; i++) {
-@@ -12376,6 +12766,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
+@@ -12376,6 +12756,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
     GLfloat range[2];
     uint32_t video_memory;
     const char *renderer = (const char *)glGetString(GL_RENDERER);
@@ -4784,7 +4767,7 @@ index 4bf88e0..c063dbd 100644
  
     /* Count this up when you add a feature flag that is used to set a CAP in
      * the guest that was set unconditionally before. Then check that flag and
-@@ -12383,9 +12774,133 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
+@@ -12383,9 +12764,133 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
      * run on an old virgl host. Use it also to indicate non-cap fixes on the
      * host that help enable features in the guest. */
     caps->v2.host_feature_check_version = 23;
@@ -4920,7 +4903,7 @@ index 4bf88e0..c063dbd 100644
  
     /* glamor reject llvmpipe, and since the renderer string is
      * composed of "virgl" and this renderer string we have to
-@@ -12507,8 +13022,25 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
+@@ -12507,8 +13012,25 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
           glGetIntegerv(GL_MAX_IMAGE_SAMPLES, (GLint*)&caps->v2.max_image_samples);
     }
  
@@ -4948,7 +4931,7 @@ index 4bf88e0..c063dbd 100644
  
     caps->v2.capability_bits |= VIRGL_CAP_TGSI_INVARIANT | VIRGL_CAP_SET_MIN_SAMPLES |
                                 VIRGL_CAP_TGSI_PRECISE | VIRGL_CAP_APP_TWEAK_SUPPORT;
-@@ -12670,6 +13202,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
+@@ -12670,6 +13192,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
              readback_str = "readback";
              set_format_bit(&caps->v2.supported_readback_formats, fmt);
           }
@@ -4959,7 +4942,7 @@ index 4bf88e0..c063dbd 100644
           if (vrend_format_can_multisample(fmt)) {
              log_texture_feature = true;
              multisample_str = "multisample";
-@@ -12782,6 +13318,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
+@@ -12782,6 +13308,10 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
     // we can pass "1" as size on drm path, but not on vtest.
     caps->v2.capability_bits_v2 |= VIRGL_CAP_V2_COPY_TRANSFER_BOTH_DIRECTIONS;
  
@@ -4970,7 +4953,7 @@ index 4bf88e0..c063dbd 100644
     if (has_feature(feat_anisotropic_filter)) {
        float max_aniso;
        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_aniso);
-@@ -12801,6 +13341,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
+@@ -12801,6 +13331,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
     if (has_feature(feat_ubo)) {
        glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &max);
        caps->v2.max_uniform_block_size = max;
@@ -4978,7 +4961,7 @@ index 4bf88e0..c063dbd 100644
     }
  
     /* Propagate the max of Uniform Components */
-@@ -12911,6 +13452,11 @@ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
+@@ -12911,6 +13442,11 @@ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
        return;
  
     vrend_renderer_fill_caps_v2(gl_ver, gles_ver, caps);
@@ -4990,7 +4973,7 @@ index 4bf88e0..c063dbd 100644
  }
  
  GLint64 vrend_renderer_get_timestamp(void)
-@@ -13109,27 +13655,35 @@ void vrend_renderer_resource_get_info(struct pipe_resource *pres,
+@@ -13109,27 +13645,35 @@ void vrend_renderer_resource_get_info(struct pipe_resource *pres,
     info->stride = util_format_get_nblocksx(res->base.format, u_minify(res->base.width0, 0)) * elsize;
  }
  
@@ -5038,7 +5021,7 @@ index 4bf88e0..c063dbd 100644
  void vrend_renderer_get_cap_set(uint32_t cap_set, uint32_t *max_ver,
                                  uint32_t *max_size)
  {
-@@ -13341,6 +13895,35 @@ struct pipe_resource *vrend_get_blob_pipe(struct vrend_context *ctx, uint64_t bl
+@@ -13341,6 +13885,35 @@ struct pipe_resource *vrend_get_blob_pipe(struct vrend_context *ctx, uint64_t bl
     return NULL;
  }
  
@@ -5074,7 +5057,7 @@ index 4bf88e0..c063dbd 100644
  int
  vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
                                        uint32_t res_id,
-@@ -13389,9 +13972,6 @@ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
+@@ -13389,9 +13962,6 @@ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
        };
        struct vrend_resource *gr;
  
@@ -5084,7 +5067,7 @@ index 4bf88e0..c063dbd 100644
        gr = vrend_resource_create(&create_args);
        if (!gr)
           return ENOMEM;
-@@ -13399,6 +13979,10 @@ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
+@@ -13399,6 +13969,10 @@ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
  #ifdef HAVE_EPOXY_EGL_H
        if (egl) {
  #ifdef ENABLE_GBM
@@ -5095,7 +5078,7 @@ index 4bf88e0..c063dbd 100644
           int plane_fds[VIRGL_GBM_MAX_PLANES];
           uint32_t virgl_format;
           uint32_t drm_format;
-@@ -13439,7 +14023,53 @@ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
+@@ -13439,7 +14013,53 @@ vrend_renderer_pipe_resource_set_type(struct vrend_context *ctx,
              return ret;
           }
  

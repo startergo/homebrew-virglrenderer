@@ -1,0 +1,30 @@
+--- a/src/vrend/vrend_winsys_egl.c	2026-04-27 16:31:22
++++ b/src/vrend/vrend_winsys_egl.c	2026-04-27 16:31:22
+@@ -627,10 +627,27 @@
+       EGL_NONE
+    };
+ 
++#if defined(__APPLE__)
++   /* macOS desktop GL: core profile 4.1, compat limited to GL 2.1.
++    * GLES has no core/compat distinction - these guards only apply to desktop GL.
++    * In GLES mode compat_ctx is always false, so the else branch handles GLES
++    * by setting the desktop GL core profile bit (ignored by EGL for GLES). */
+    if (vparams->compat_ctx) {
++      ctx_att[0] = EGL_CONTEXT_MAJOR_VERSION;
++      ctx_att[1] = 2;
++      ctx_att[2] = EGL_CONTEXT_MINOR_VERSION;
++      ctx_att[3] = 1;
++      ctx_att[4] = EGL_NONE;
++   } else {
++      ctx_att[4] = EGL_CONTEXT_OPENGL_PROFILE_MASK;
++      ctx_att[5] = EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT;
++   }
++#else
++   if (vparams->compat_ctx) {
+       ctx_att[4] = EGL_CONTEXT_OPENGL_PROFILE_MASK;
+       ctx_att[5] = EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT;
+    }
++#endif
+ 
+    egl_ctx = eglCreateContext(egl->egl_display,
+                              egl->egl_conf,
