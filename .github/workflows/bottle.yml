@@ -318,6 +318,9 @@ jobs:
               ls -la patches/
               ls -la "$TAP_DIR/patches/"
             fi
+
+            # The formula runs these regressions before installation.
+            cp -r tests "$TAP_DIR/"
           fi
 
           export HOMEBREW_NO_INSTALL_FROM_API=1

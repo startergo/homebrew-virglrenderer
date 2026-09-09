@@ -1,0 +1,304 @@
+From 774850936fac5188997d71124c05c04a98ead4a9 Mon Sep 17 00:00:00 2001
+From: Mark Baker <mark@vpost.net>
+Date: Wed, 9 Sep 2026 00:00:00 -0400
+Subject: [PATCH] vrend: select dual-source output layout by blend state
+
+Select a GLES fragment shader variant when enabled blending uses a
+secondary-source factor. Suppress legacy color broadcasting only in that
+variant, allowing indexed output bindings to assign both colors to the
+same attachment without conflicting explicit MRT locations.
+
+This is an alternative to !1668 that preserves ordinary broadcasting
+when the same shader is used without dual-source blending. Invalidate
+the shader cache when a null blend object is bound so the previous
+variant cannot remain active after blending is reset.
+
+Add native Check regressions for dual-source, ordinary, depth and MRT
+translation, blend-state selection, and null-object invalidation.
+---
+ src/vrend/vrend_renderer.c     |   4 ++
+ src/vrend/vrend_shader.c       |   5 +-
+ src/vrend/vrend_shader.h       |   1 +
+ tests/meson.build              |   8 +++
+ tests/test_virgl_blend_state.c |  72 ++++++++++++++++++++
+ tests/test_virgl_dual_source.c | 120 +++++++++++++++++++++++++++++++++
+ 6 files changed, 209 insertions(+), 1 deletion(-)
+ create mode 100644 tests/test_virgl_blend_state.c
+ create mode 100644 tests/test_virgl_dual_source.c
+
+diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+index 3282e39..01bf641 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -4048,6 +4048,9 @@ static inline void vrend_sync_shader_io(struct vrend_sub_context *sub_ctx,
+ 
+    if (type == PIPE_SHADER_FRAGMENT) {
+       key->fs.lower_left_origin = !sub_ctx->fbo_origin_upper_left;
++      key->fs.dual_src_blend = vrend_state.use_gles &&
++                               sub_ctx->blend_state.rt[0].blend_enable &&
++                               util_blend_state_is_dual(&sub_ctx->blend_state, 0);
+       key->fs.swizzle_output_rgb_to_bgr = sub_ctx->swizzle_output_rgb_to_bgr;
+       key->fs.needs_manual_srgb_encode_bitmask = sub_ctx->needs_manual_srgb_encode_bitmask;
+       if (vrend_state.use_gles && can_emulate_logicop(sub_ctx->blend_state.logicop_func)) {
+@@ -6584,6 +6587,7 @@ void vrend_object_bind_blend(struct vrend_context *ctx,
+ 
+    if (handle == 0) {
+       memset(&ctx->sub->blend_state, 0, sizeof(ctx->sub->blend_state));
++      ctx->sub->shader_dirty = true;
+       glDisable(GL_BLEND);
+       return;
+    }
+diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
+index 83f8bad..e2d5e00 100644
+--- a/src/vrend/vrend_shader.c
++++ b/src/vrend/vrend_shader.c
+@@ -2045,7 +2045,10 @@ iter_property(struct tgsi_iterate_context *iter,
+ 
+    switch (prop->Property.PropertyName) {
+    case TGSI_PROPERTY_FS_COLOR0_WRITES_ALL_CBUFS:
+-      if (prop->u[0].Data == 1)
++      /* Dual-source outputs share attachment zero. Broadcasting gl_FragColor
++       * would assign the secondary output an explicit MRT location, overriding
++       * its indexed binding and making the dual-source draw invalid on GLES. */
++      if (prop->u[0].Data == 1 && !ctx->key->fs.dual_src_blend)
+          ctx->write_all_cbufs = true;
+       break;
+    case TGSI_PROPERTY_FS_COORD_ORIGIN:
+diff --git a/src/vrend/vrend_shader.h b/src/vrend/vrend_shader.h
+index 7f5897b..825ffe9 100644
+--- a/src/vrend/vrend_shader.h
++++ b/src/vrend/vrend_shader.h
+@@ -200,6 +200,7 @@ struct vrend_shader_key {
+          uint8_t cbufs_unsigned_int_bitmask;
+          uint32_t logicop_func : 4;
+          uint32_t logicop_enabled : 1;
++         uint32_t dual_src_blend : 1;
+          uint32_t prim_is_points : 1;
+          uint32_t lower_left_origin : 1;
+          uint32_t available_color_in_bits : 4;
+diff --git a/tests/meson.build b/tests/meson.build
+index e0ef79d..c8a53a5 100644
+--- a/tests/meson.build
++++ b/tests/meson.build
+@@ -55,6 +55,14 @@ tests = [
+    ['test_virgl_strbuf', 'test_virgl_strbuf.c']
+ ]
+ 
++# Internal regressions run without a host graphics context.
++foreach name : ['test_virgl_dual_source', 'test_virgl_blend_state']
++   regression = executable(name, name + '.c',
++                           dependencies : [libvirgl_dep, virgl_depends,
++                                           drm_uapi_dep, check_dep])
++   test(name, regression)
++endforeach
++
+ fuzzy_tests = [
+    ['test_fuzzer_formats', 'test_fuzzer_formats.c'],
+ ]
+diff --git a/tests/test_virgl_blend_state.c b/tests/test_virgl_blend_state.c
+new file mode 100644
+index 0000000..9420ac8
+--- /dev/null
++++ b/tests/test_virgl_blend_state.c
+@@ -0,0 +1,72 @@
++/* SPDX-License-Identifier: MIT */
++/* Include the renderer implementation to exercise its private state without
++ * adding a production test API or requiring a graphics context. */
++#include <check.h>
++#include "vrend/vrend_renderer.c"
++
++static unsigned blend_disables;
++static void GLAPIENTRY record_disable(GLenum cap)
++{
++   if (cap == GL_BLEND)
++      blend_disables++;
++}
++
++START_TEST(blend_shader_variant_selection)
++{
++   struct vrend_sub_context sub = {0};
++   struct vrend_shader_selector fragment = {.type = PIPE_SHADER_FRAGMENT};
++   struct vrend_shader_key key = {0};
++   sub.blend_state.rt[0].blend_enable = true;
++   sub.blend_state.rt[0].rgb_src_factor = PIPE_BLENDFACTOR_SRC1_COLOR;
++   vrend_state.use_gles = true;
++   vrend_sync_shader_io(&sub, &fragment, &key);
++   ck_assert_int_eq(key.fs.dual_src_blend, 1);
++
++   sub.blend_state.rt[0].blend_enable = false;
++   vrend_sync_shader_io(&sub, &fragment, &key);
++   ck_assert_int_eq(key.fs.dual_src_blend, 0);
++
++   sub.blend_state.rt[0].blend_enable = true;
++   sub.blend_state.rt[0].rgb_src_factor = PIPE_BLENDFACTOR_SRC_ALPHA;
++   vrend_sync_shader_io(&sub, &fragment, &key);
++   ck_assert_int_eq(key.fs.dual_src_blend, 0);
++
++   sub.blend_state.rt[0].rgb_src_factor = PIPE_BLENDFACTOR_SRC1_COLOR;
++   vrend_state.use_gles = false;
++   vrend_sync_shader_io(&sub, &fragment, &key);
++   ck_assert_int_eq(key.fs.dual_src_blend, 0);
++}
++END_TEST
++
++START_TEST(null_blend_shader_invalidation)
++{
++   struct vrend_context ctx = {0};
++   struct vrend_sub_context sub = {0};
++   ctx.sub = &sub;
++   sub.blend_state.rt[0].blend_enable = true;
++   sub.blend_state.rt[0].rgb_src_factor = PIPE_BLENDFACTOR_SRC1_COLOR;
++   sub.shader_dirty = false;
++   blend_disables = 0;
++   epoxy_glDisable = record_disable;
++
++   vrend_object_bind_blend(&ctx, 0);
++   ck_assert(sub.shader_dirty);
++   ck_assert_int_eq(sub.blend_state.rt[0].blend_enable, 0);
++   ck_assert_int_eq(sub.blend_state.rt[0].rgb_src_factor, 0);
++   ck_assert_uint_eq(blend_disables, 1);
++}
++END_TEST
++
++int main(void)
++{
++   Suite *suite = suite_create("Blend shader variant state");
++   TCase *test = tcase_create("state");
++   tcase_add_test(test, blend_shader_variant_selection);
++   tcase_add_test(test, null_blend_shader_invalidation);
++   suite_add_tcase(suite, test);
++   SRunner *runner = srunner_create(suite);
++   srunner_run_all(runner, CK_NORMAL);
++   int failed = srunner_ntests_failed(runner);
++   srunner_free(runner);
++   return failed ? EXIT_FAILURE : EXIT_SUCCESS;
++}
+diff --git a/tests/test_virgl_dual_source.c b/tests/test_virgl_dual_source.c
+new file mode 100644
+index 0000000..192df54
+--- /dev/null
++++ b/tests/test_virgl_dual_source.c
+@@ -0,0 +1,120 @@
++/* SPDX-License-Identifier: MIT */
++/* Offline regression for GLES fragment output translation. */
++#include <check.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include "tgsi/tgsi_text.h"
++#include "vrend/vrend_shader.h"
++#include "vrend/vrend_strbuf.h"
++
++static int convert(const char *name, const char *text, int dual)
++{
++   struct tgsi_token tokens[512];
++   struct vrend_shader_cfg cfg = {
++      .glsl_version = 300,
++      .max_draw_buffers = 8,
++      .use_gles = 1,
++      .has_dual_src_blend = 1,
++   };
++   struct vrend_shader_key key = {0};
++   key.fs.dual_src_blend = dual;
++   struct vrend_shader_info info = {0};
++   struct vrend_variable_shader_info variable_info = {0};
++   struct vrend_strarray output = {0};
++   if (!tgsi_text_translate(text, tokens, 512)) {
++      printf("FAIL: %s TGSI parsing\n", name);
++      return 1;
++   }
++   if (!strarray_alloc(&output, 3) ||
++       !vrend_convert_shader(NULL, &cfg, tokens, 0, &key, &info,
++                             &variable_info, &output)) {
++      printf("FAIL: %s translation\n", name);
++      return 1;
++   }
++
++   char combined[32768] = {0};
++   for (int i = 0; i < output.num_strings; i++)
++      strncat(combined, output.strings[i].buf,
++              sizeof(combined) - strlen(combined) - 1);
++
++   bool ok = false;
++   if (!strcmp(name, "dual")) {
++      ok = strstr(combined, "fsout_c0") && strstr(combined, "fsout_c1") &&
++           !strstr(combined, "layout (location=") &&
++           !strstr(combined, "fsout_c2");
++   } else if (!strcmp(name, "ordinary_same_shader")) {
++      ok = strstr(combined, "layout (location=7)") &&
++           strstr(combined, "fsout_c7 = fsout_c0;");
++   } else if (!strcmp(name, "broadcast_depth")) {
++      ok = strstr(combined, "layout (location=7)") &&
++           strstr(combined, "gl_FragDepth =") &&
++           strstr(combined, "fsout_c7 = fsout_c0;");
++   } else if (!strcmp(name, "mrt")) {
++      ok = strstr(combined, "fsout_c0") && strstr(combined, "fsout_c1") &&
++           !strstr(combined, "fsout_c2");
++   }
++   printf("%s: %s\n", ok ? "PASS" : "FAIL", name);
++   strarray_free(&output, true);
++   return ok ? 0 : 1;
++}
++
++static const char *dual =
++      "FRAG\n"
++      "PROPERTY FS_COLOR0_WRITES_ALL_CBUFS 1\n"
++      "DCL OUT[0], COLOR\nDCL OUT[1], COLOR[1]\n"
++      "IMM[0] FLT32 {0.8,0.4,0.2,0.5}\n"
++      "IMM[1] FLT32 {0.25,0.5,0.75,0.6}\n"
++      "MOV OUT[0], IMM[0]\nMOV OUT[1], IMM[1]\nEND\n";
++static const char *depth =
++      "FRAG\n"
++      "PROPERTY FS_COLOR0_WRITES_ALL_CBUFS 1\n"
++      "DCL OUT[0], COLOR\nDCL OUT[1], POSITION\n"
++      "IMM[0] FLT32 {0.8,0.4,0.2,0.5}\n"
++      "MOV OUT[0], IMM[0]\nMOV OUT[1].z, IMM[0].wwww\nEND\n";
++static const char *mrt =
++      "FRAG\nDCL OUT[0], COLOR\nDCL OUT[1], COLOR[1]\n"
++      "IMM[0] FLT32 {0.8,0.4,0.2,0.5}\n"
++      "IMM[1] FLT32 {0.25,0.5,0.75,0.6}\n"
++      "MOV OUT[0], IMM[0]\nMOV OUT[1], IMM[1]\nEND\n";
++
++START_TEST(dual_source_output_translation)
++{
++   ck_assert_int_eq(convert("dual", dual, 1), 0);
++}
++END_TEST
++
++START_TEST(ordinary_output_translation)
++{
++   ck_assert_int_eq(convert("ordinary_same_shader", dual, 0), 0);
++}
++END_TEST
++
++START_TEST(depth_output_translation)
++{
++   ck_assert_int_eq(convert("broadcast_depth", depth, 0), 0);
++}
++END_TEST
++
++START_TEST(mrt_output_translation)
++{
++   ck_assert_int_eq(convert("mrt", mrt, 0), 0);
++}
++
++END_TEST
++
++int main(void)
++{
++   Suite *suite = suite_create("GLES dual-source output translation");
++   TCase *test = tcase_create("translation");
++   tcase_add_test(test, dual_source_output_translation);
++   tcase_add_test(test, ordinary_output_translation);
++   tcase_add_test(test, depth_output_translation);
++   tcase_add_test(test, mrt_output_translation);
++   suite_add_tcase(suite, test);
++   SRunner *runner = srunner_create(suite);
++   srunner_run_all(runner, CK_NORMAL);
++   int failed = srunner_ntests_failed(runner);
++   srunner_free(runner);
++   return failed ? EXIT_FAILURE : EXIT_SUCCESS;
++}
+-- 
+2.54.0 (Apple Git-157)
+
