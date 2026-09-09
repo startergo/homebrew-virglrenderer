@@ -43,7 +43,7 @@ def compile_test(name, implementation):
     header = source / "vrend" / "vrend_shader.h"
     if "uint32_t dual_src_blend : 1" in header.read_text():
         flags.append("-DVIRGL_HAS_DUAL_SOURCE_KEY")
-    flags += ["-I" + str(source / "vrend")]
+    flags += ["-I" + str(source), "-I" + str(source / "vrend")]
     archives = [build / "src/libvirgl.a", build / "src/gallium/libgallium.a", build / "src/mesa/libmesa.a"]
     binary = output / name
     subprocess.run([command[0], *flags, str(tests / (name + ".c")),

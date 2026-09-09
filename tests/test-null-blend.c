@@ -35,6 +35,13 @@ int main(void)
       return 1;
    }
    sub.blend_state.rt[0].blend_enable = true;
+   sub.blend_state.rt[0].rgb_src_factor = PIPE_BLENDFACTOR_SRC_ALPHA;
+   vrend_sync_shader_io(&sub, &fragment, &key);
+   if (key.fs.dual_src_blend) {
+      fputs("FAIL: ordinary GLES blending selected the dual-source variant\n", stderr);
+      return 1;
+   }
+   sub.blend_state.rt[0].rgb_src_factor = PIPE_BLENDFACTOR_SRC1_COLOR;
    vrend_state.use_gles = false;
    vrend_sync_shader_io(&sub, &fragment, &key);
    if (key.fs.dual_src_blend) {
