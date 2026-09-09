@@ -28,6 +28,44 @@ permissions:
   contents: write
 
 jobs:
+  validate-bottle:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.release == false)
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Homebrew/actions/setup-homebrew@master
+      - name: Build candidate bottle without publishing
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: "1"
+        run: |
+          set -euo pipefail
+          brew tap startergo/gn
+          brew tap startergo/angle
+          brew tap startergo/libepoxy
+          brew install startergo/gn/gn meson ninja pkg-config
+          TAP_DIR="$(brew --repository)/Library/Taps/startergo/homebrew-virglrenderer"
+          mkdir -p "$TAP_DIR"
+          cp -R Formula patches tests "$TAP_DIR/"
+          brew install --build-bottle startergo/virglrenderer/virglrenderer
+          brew bottle --json --root-url=https://example.com/validation-only --force-core-tap "$TAP_DIR/Formula/virglrenderer.rb"
+      - name: Retain validation bottle
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-bottle
+          path: |
+            virglrenderer*.tar.gz
+            virglrenderer*.json
+          if-no-files-found: error
+      - name: Retain build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-build-logs
+          path: ~/Library/Logs/Homebrew/virglrenderer
+          if-no-files-found: ignore
+
   determine-version:
     runs-on: ubuntu-latest
     outputs:
