@@ -54,7 +54,8 @@ class Virglrenderer < Formula
       "virglrenderer-texture-swizzle-core.patch",
       "virglrenderer-bgra-unified.patch",
       "virglrenderer-core-profile-frag-datalocation.patch",
-      "virglrenderer-macos-core-profile-fixes.patch"
+      "virglrenderer-macos-core-profile-fixes.patch",
+      "virglrenderer-gles-dual-source-output.patch"
     ]
 
     patches.each do |patch|
@@ -85,6 +86,11 @@ class Virglrenderer < Formula
            "-Dvideo=false",
            "-Dtracing=none"
     system "meson", "compile", "-C", "build", "--verbose"
+    system "python3", "#{__dir__}/../tests/run-driver-regressions.py",
+           "build", "regression-tests", "--",
+           "-L#{libepoxy.lib}", "-lepoxy",
+           "-framework", "Metal", "-framework", "CoreFoundation", "-lobjc",
+           "-Wl,-rpath,#{libepoxy.lib}", "-Wl,-rpath,#{angle.lib}"
     system "meson", "install", "-C", "build"
 
     # Add rpath so dlopen via libepoxy finds ANGLE libraries at runtime

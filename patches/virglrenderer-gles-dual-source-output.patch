@@ -1,0 +1,50 @@
+diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+index e5a3c9b..9288e0f 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -4129,6 +4129,9 @@ static inline void vrend_sync_shader_io(struct vrend_sub_context *sub_ctx,
+ 
+    if (type == PIPE_SHADER_FRAGMENT) {
+       key->fs.lower_left_origin = !sub_ctx->fbo_origin_upper_left;
++      key->fs.dual_src_blend = vrend_state.use_gles &&
++                               sub_ctx->blend_state.rt[0].blend_enable &&
++                               util_blend_state_is_dual(&sub_ctx->blend_state, 0);
+       key->fs.swizzle_output_rgb_to_bgr = sub_ctx->swizzle_output_rgb_to_bgr;
+       key->fs.needs_manual_srgb_encode_bitmask = sub_ctx->needs_manual_srgb_encode_bitmask;
+       if (vrend_state.use_gles && can_emulate_logicop(sub_ctx->blend_state.logicop_func)) {
+@@ -6685,6 +6688,7 @@ void vrend_object_bind_blend(struct vrend_context *ctx,
+ 
+    if (handle == 0) {
+       memset(&ctx->sub->blend_state, 0, sizeof(ctx->sub->blend_state));
++      ctx->sub->shader_dirty = true;
+       glDisable(GL_BLEND);
+       return;
+    }
+diff --git a/src/vrend/vrend_shader.c b/src/vrend/vrend_shader.c
+index 4963aae..77f5bbb 100644
+--- a/src/vrend/vrend_shader.c
++++ b/src/vrend/vrend_shader.c
+@@ -2033,7 +2033,10 @@ iter_property(struct tgsi_iterate_context *iter,
+ 
+    switch (prop->Property.PropertyName) {
+    case TGSI_PROPERTY_FS_COLOR0_WRITES_ALL_CBUFS:
+-      if (prop->u[0].Data == 1)
++      /* Dual-source outputs share attachment zero. Broadcasting gl_FragColor
++       * would assign the secondary output an explicit MRT location, overriding
++       * its indexed binding and making the dual-source draw invalid on GLES. */
++      if (prop->u[0].Data == 1 && !ctx->key->fs.dual_src_blend)
+          ctx->write_all_cbufs = true;
+       break;
+    case TGSI_PROPERTY_FS_COORD_ORIGIN:
+diff --git a/src/vrend/vrend_shader.h b/src/vrend/vrend_shader.h
+index 7f5897b..825ffe9 100644
+--- a/src/vrend/vrend_shader.h
++++ b/src/vrend/vrend_shader.h
+@@ -200,6 +200,7 @@ struct vrend_shader_key {
+          uint8_t cbufs_unsigned_int_bitmask;
+          uint32_t logicop_func : 4;
+          uint32_t logicop_enabled : 1;
++         uint32_t dual_src_blend : 1;
+          uint32_t prim_is_points : 1;
+          uint32_t lower_left_origin : 1;
+          uint32_t available_color_in_bits : 4;

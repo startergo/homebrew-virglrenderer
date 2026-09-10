@@ -28,6 +28,53 @@ permissions:
   contents: write
 
 jobs:
+  validate-bottle:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.release == false)
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Homebrew/actions/setup-homebrew@master
+      - name: Build candidate bottle without publishing
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: "1"
+        run: |
+          set -euo pipefail
+          # Trust before tapping: Homebrew 6 validates formulae at tap time
+          # and refuses to load them from untrusted taps.
+          brew trust startergo/gn startergo/angle startergo/libepoxy startergo/virglrenderer
+          brew tap startergo/gn
+          brew tap startergo/angle
+          brew tap startergo/libepoxy
+          brew install startergo/gn/gn meson ninja pkg-config
+          TAP_DIR="$(brew --repository)/Library/Taps/startergo/homebrew-virglrenderer"
+          mkdir -p "$TAP_DIR"
+          # setup-homebrew may symlink the tap to this checkout; cp errors on identical paths.
+          # Compare via cd + pwd -P: portable, and readlink -f is unavailable on old BSD.
+          CURRENT_DIR="$(pwd -P)"
+          TAP_RESOLVED="$(cd "$TAP_DIR" >/dev/null && pwd -P)"
+          if [ "$TAP_RESOLVED" != "$CURRENT_DIR" ]; then
+            cp -R Formula patches tests "$TAP_DIR/"
+          fi
+          brew install --build-bottle startergo/virglrenderer/virglrenderer
+          brew bottle --json --root-url=https://example.com/validation-only --force-core-tap "$TAP_DIR/Formula/virglrenderer.rb"
+      - name: Retain validation bottle
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-bottle
+          path: |
+            virglrenderer*.tar.gz
+            virglrenderer*.json
+          if-no-files-found: error
+      - name: Retain build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-build-logs
+          path: ~/Library/Logs/Homebrew/virglrenderer
+          if-no-files-found: ignore
+
   determine-version:
     runs-on: ubuntu-latest
     outputs:
@@ -318,12 +365,18 @@ jobs:
               ls -la patches/
               ls -la "$TAP_DIR/patches/"
             fi
+
+            # The formula runs these regressions before installation.
+            cp -r tests "$TAP_DIR/"
           fi
 
           export HOMEBREW_NO_INSTALL_FROM_API=1
           brew uninstall virglrenderer --force 2>/dev/null || true
 
           # Install dependencies first
+          # Trust before tapping: Homebrew 6 validates formulae at tap time
+          # and refuses to load them from untrusted taps.
+          brew trust startergo/gn startergo/angle startergo/libepoxy startergo/virglrenderer
           brew tap startergo/gn
           brew tap startergo/angle
           brew tap startergo/libepoxy

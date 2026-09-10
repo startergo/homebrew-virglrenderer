@@ -11,6 +11,11 @@ virglrenderer is a library that allows a QEMU guest to use the host's GPU throug
 ## Installation
 
 ```bash
+# Homebrew 6+ requires trusting non-official taps before use. Trust BEFORE
+# tapping (brew tap validates formulae at tap time), and include the angle and
+# libepoxy taps that virglrenderer depends on.
+brew trust startergo/virglrenderer startergo/angle startergo/libepoxy
+
 # Tap the repository
 brew tap startergo/virglrenderer
 
