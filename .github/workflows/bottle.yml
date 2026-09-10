@@ -50,8 +50,11 @@ jobs:
           brew install startergo/gn/gn meson ninja pkg-config
           TAP_DIR="$(brew --repository)/Library/Taps/startergo/homebrew-virglrenderer"
           mkdir -p "$TAP_DIR"
-          # setup-homebrew may symlink the tap to this checkout; cp errors on identical paths
-          if [ "$(readlink -f "$TAP_DIR")" != "$(readlink -f .)" ]; then
+          # setup-homebrew may symlink the tap to this checkout; cp errors on identical paths.
+          # Compare via cd + pwd -P: portable, and readlink -f is unavailable on old BSD.
+          CURRENT_DIR="$(pwd -P)"
+          TAP_RESOLVED="$(cd "$TAP_DIR" >/dev/null && pwd -P)"
+          if [ "$TAP_RESOLVED" != "$CURRENT_DIR" ]; then
             cp -R Formula patches tests "$TAP_DIR/"
           fi
           brew install --build-bottle startergo/virglrenderer/virglrenderer
