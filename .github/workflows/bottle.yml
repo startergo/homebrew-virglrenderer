@@ -50,7 +50,10 @@ jobs:
           brew install startergo/gn/gn meson ninja pkg-config
           TAP_DIR="$(brew --repository)/Library/Taps/startergo/homebrew-virglrenderer"
           mkdir -p "$TAP_DIR"
-          cp -R Formula patches tests "$TAP_DIR/"
+          # setup-homebrew may symlink the tap to this checkout; cp errors on identical paths
+          if [ "$(readlink -f "$TAP_DIR")" != "$(readlink -f .)" ]; then
+            cp -R Formula patches tests "$TAP_DIR/"
+          fi
           brew install --build-bottle startergo/virglrenderer/virglrenderer
           brew bottle --json --root-url=https://example.com/validation-only --force-core-tap "$TAP_DIR/Formula/virglrenderer.rb"
       - name: Retain validation bottle
