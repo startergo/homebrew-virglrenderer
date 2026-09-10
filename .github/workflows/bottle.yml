@@ -41,11 +41,12 @@ jobs:
           HOMEBREW_NO_INSTALL_FROM_API: "1"
         run: |
           set -euo pipefail
+          # Trust before tapping: Homebrew 6 validates formulae at tap time
+          # and refuses to load them from untrusted taps.
+          brew trust startergo/gn startergo/angle startergo/libepoxy startergo/virglrenderer
           brew tap startergo/gn
           brew tap startergo/angle
           brew tap startergo/libepoxy
-          # Homebrew 6 refuses to load formulae from untrusted taps
-          brew trust startergo/gn startergo/angle startergo/libepoxy startergo/virglrenderer
           brew install startergo/gn/gn meson ninja pkg-config
           TAP_DIR="$(brew --repository)/Library/Taps/startergo/homebrew-virglrenderer"
           mkdir -p "$TAP_DIR"
@@ -367,11 +368,12 @@ jobs:
           brew uninstall virglrenderer --force 2>/dev/null || true
 
           # Install dependencies first
+          # Trust before tapping: Homebrew 6 validates formulae at tap time
+          # and refuses to load them from untrusted taps.
+          brew trust startergo/gn startergo/angle startergo/libepoxy startergo/virglrenderer
           brew tap startergo/gn
           brew tap startergo/angle
           brew tap startergo/libepoxy
-          # Homebrew 6 refuses to load formulae from untrusted taps
-          brew trust startergo/gn startergo/angle startergo/libepoxy startergo/virglrenderer
           brew install startergo/gn/gn
           brew install meson ninja pkg-config
 
