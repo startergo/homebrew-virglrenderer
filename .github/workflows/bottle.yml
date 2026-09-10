@@ -44,6 +44,8 @@ jobs:
           brew tap startergo/gn
           brew tap startergo/angle
           brew tap startergo/libepoxy
+          # Homebrew 6 refuses to load formulae from untrusted taps
+          brew trust startergo/gn startergo/angle startergo/libepoxy startergo/virglrenderer
           brew install startergo/gn/gn meson ninja pkg-config
           TAP_DIR="$(brew --repository)/Library/Taps/startergo/homebrew-virglrenderer"
           mkdir -p "$TAP_DIR"
@@ -368,6 +370,8 @@ jobs:
           brew tap startergo/gn
           brew tap startergo/angle
           brew tap startergo/libepoxy
+          # Homebrew 6 refuses to load formulae from untrusted taps
+          brew trust startergo/gn startergo/angle startergo/libepoxy startergo/virglrenderer
           brew install startergo/gn/gn
           brew install meson ninja pkg-config
 
