@@ -35,7 +35,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: Homebrew/actions/setup-homebrew@master
+      - uses: Homebrew/actions/setup-homebrew@main
       - name: Build candidate bottle without publishing
         env:
           HOMEBREW_NO_INSTALL_FROM_API: "1"
@@ -177,7 +177,7 @@ jobs:
 
       - name: Set up Git
         if: steps.check.outputs.should_run == 'true'
-        uses: Homebrew/actions/git-user-config@master
+        uses: Homebrew/actions/git-user-config@main
         with:
           username: "startergo"
 
@@ -273,10 +273,10 @@ jobs:
       VIRGLRENDERER_COMMIT: ${{ needs.determine-version.outputs.virglrenderer_commit }}
     steps:
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
 
       - name: Set up Git
-        uses: Homebrew/actions/git-user-config@master
+        uses: Homebrew/actions/git-user-config@main
         with:
           username: "startergo"
 
