@@ -1,0 +1,14 @@
+# From utmapp/virglrenderer commit 2fa841c (osy, 2026-03-22):
+# venus: emulated dmabuf should clear opaque FD handle type
+diff --git a/src/venus/vkr_device_memory.c b/src/venus/vkr_device_memory.c
+index 504b655..8c1dc67 100644
+--- a/src/venus/vkr_device_memory.c
++++ b/src/venus/vkr_device_memory.c
+@@ -404,6 +404,7 @@ vkr_dispatch_vkAllocateMemory(struct vn_dispatch_context *dispatch,
+    if (export_info) {
+       if (physical_dev->is_dma_buf_emulated && physical_dev->is_metal_export_supported) {
+          export_info->handleTypes &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++         export_info->handleTypes &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+          export_info->handleTypes |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT;
+       }
+       if (export_info->handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT)

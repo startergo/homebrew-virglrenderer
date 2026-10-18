@@ -55,7 +55,12 @@ class Virglrenderer < Formula
       "virglrenderer-bgra-unified.patch",
       "virglrenderer-core-profile-frag-datalocation.patch",
       "virglrenderer-macos-core-profile-fixes.patch",
-      "virglrenderer-gles-dual-source-output.patch"
+      "virglrenderer-gles-dual-source-output.patch",
+      # utmapp/virglrenderer sync (2026-03-22)
+      "virglrenderer-apple-cgl-workarounds.patch",
+      "virglrenderer-gltexbuffer-crash-guard.patch",
+      "virglrenderer-venus-mtlheap-opaque-fd.patch",
+      "virglrenderer-venus-metal-protocol-sync.patch"
     ]
 
     patches.each do |patch|

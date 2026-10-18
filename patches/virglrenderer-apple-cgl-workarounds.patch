@@ -1,0 +1,39 @@
+# From utmapp/virglrenderer commit 71a6741 (osy, 2026-03-22):
+# vrend: workaround bugs in Apple CGL
+diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+index b4c9337..b367f0a 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -7778,6 +7778,13 @@ int vrend_renderer_init(const struct vrend_if_cbs *cbs, uint32_t flags)
+    glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
+                  (GLint*)&vrend_state.max_texture_units);
+ 
++#ifdef __APPLE__
++   /* Bug in Apple CGL which crashes if this is > 64 due to a invalid LSL */
++   if (!gles && vrend_state.max_texture_units > 64) {
++      vrend_state.max_texture_units = 64;
++   }
++#endif
++
+    /* Mesa clamps this value to 8 anyway, so just make sure that this side
+     * doesn't exceed the number to be on the save side when using 8-bit masks
+     * for the color buffers */
+@@ -10704,7 +10711,18 @@ static void vrend_resource_buffer_copy(UNUSED struct vrend_context *ctx,
+    glBindBuffer(GL_COPY_READ_BUFFER, src_res->gl_id);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, dst_res->gl_id);
+ 
++#ifdef __APPLE__
++   /* Apple CGL does not implement glCopyBufferSubData */
++   if (!vrend_state.use_gles) {
++      void *src = glMapBufferRange(GL_COPY_READ_BUFFER, srcx, width, GL_MAP_READ_BIT);
++      glBufferSubData(GL_COPY_WRITE_BUFFER, dstx, width, src);
++      glUnmapBuffer(GL_COPY_READ_BUFFER);
++   } else {
++      glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, srcx, dstx, width);
++   }
++#else
+    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, srcx, dstx, width);
++#endif
+    glBindBuffer(GL_COPY_READ_BUFFER, 0);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+ }
