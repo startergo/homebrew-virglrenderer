@@ -3,9 +3,8 @@ class Virglrenderer < Formula
   homepage "https://gitlab.freedesktop.org/virgl/virglrenderer"
   license "MIT"
 
-  version "1.0.44"
   version "1.0.45"
-  url "https://github.com/startergo/homebrew-virglrenderer/archive/a29c914955a6c9e654188e201e92672952ba4c1b.tar.gz"
+  url "https://github.com/startergo/homebrew-virglrenderer/archive/refs/tags/v1.0.45.tar.gz"
   sha256 "51063cb638184b778a13606c9064a779f1d79c9fe4ce38553f73eb32bc91f1e4"
   head "https://gitlab.freedesktop.org/virgl/virglrenderer.git", branch: "main"
 
