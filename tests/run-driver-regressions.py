@@ -54,6 +54,7 @@ def compile_test(name, implementation):
 
 failures = 0
 for name, implementation in (("test-dual-source-shader", "vrend_shader.c"),
-                             ("test-null-blend", "vrend_renderer.c")):
+                             ("test-null-blend", "vrend_renderer.c"),
+                             ("test-capability-bits", "vrend_renderer.c")):
     failures += compile_test(name, implementation) != 0
 sys.exit(bool(failures))
