@@ -12,6 +12,11 @@ or `check` package is needed.
   state without adding a production API, and replaces only `glDisable` with a
   recorder so no graphics context is required. It checks GLES and blend-enable
   guards, shader invalidation, and resetting the bound state.
+- `test-capability-bits.c` fills the renderer's real capability set for a native
+  Apple core-profile context, with inert GL entry points instead of a driver. It
+  checks that bit 19 stays clear: Mesa 26.3 reads it as
+  `VIRGL_CAP_V2_QUERY_FORMAT_MODIFIER`, and a host without GBM cannot answer
+  those queries, so the guest's first one leaves its context unusable.
 
 To run against another configured and compiled Meson build:
 
